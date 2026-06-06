@@ -1,0 +1,62 @@
+{
+  "school": {
+    "name": "高雄市立阿蓮國民中學",
+    "shortName": "阿蓮國中"
+  },
+  "academicYear": "114",
+  "source": {
+    "title": "阿蓮國中 114 學年各年級教科書版本公告",
+    "url": "https://www.alm.kh.edu.tw/view/index.php?DataId=464313&MainMenuId=87237&MainType=101&SubMenuId=0&SubType=0&WebID=17&Work=View&page=1"
+  },
+  "grades": [
+    {
+      "grade": 7,
+      "label": "國一 / 七年級",
+      "subjects": [
+        { "name": "國語文", "publisher": "翰林" },
+        { "name": "英語文", "publisher": "翰林" },
+        { "name": "本土語 / 臺灣台語", "publisher": "康軒" },
+        { "name": "數學", "publisher": "南一" },
+        { "name": "自然科學", "publisher": "翰林" },
+        { "name": "社會", "publisher": "南一" },
+        { "name": "藝術", "publisher": "全華" },
+        { "name": "健康與體育", "publisher": "康軒" },
+        { "name": "綜合", "publisher": "康軒" },
+        { "name": "科技", "publisher": "康軒" }
+      ]
+    },
+    {
+      "grade": 8,
+      "label": "國二 / 八年級",
+      "subjects": [
+        { "name": "國語文", "publisher": "南一" },
+        { "name": "英語文", "publisher": "康軒" },
+        { "name": "本土語 / 臺灣台語", "publisher": "真平" },
+        { "name": "數學", "publisher": "南一" },
+        { "name": "自然科學", "publisher": "康軒" },
+        { "name": "社會", "publisher": "康軒" },
+        { "name": "藝術", "publisher": "全華" },
+        { "name": "健康與體育", "publisher": "康軒" },
+        { "name": "綜合", "publisher": "康軒" },
+        { "name": "科技", "publisher": "康軒" }
+      ]
+    },
+    {
+      "grade": 9,
+      "label": "國三 / 九年級",
+      "subjects": [
+        { "name": "國語文", "publisher": "康軒" },
+        { "name": "英語文", "publisher": "南一" },
+        { "name": "本土語 / 臺灣台語", "publisher": null },
+        { "name": "數學", "publisher": "南一" },
+        { "name": "自然科學", "publisher": "康軒" },
+        { "name": "社會", "publisher": "翰林" },
+        { "name": "藝術", "publisher": "全華" },
+        { "name": "健康與體育", "publisher": "康軒" },
+        { "name": "綜合", "publisher": "康軒" },
+        { "name": "科技", "publisher": "康軒" }
+      ]
+    }
+  ]
+}
+
