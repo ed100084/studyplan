@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { createGuardian } from "../onboarding/actions";
+import { prisma } from "@/lib/prisma";
+import { getCurrentSession } from "@/lib/session";
+import { createGuardian, signOut } from "../onboarding/actions";
 
 type GuardianPageProps = {
   searchParams?: Promise<{
@@ -12,6 +14,30 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const params = await searchParams;
   const created = params?.created === "1";
   const linked = params?.linked === "1";
+  const session = await getCurrentSession();
+  const currentUser =
+    session?.role === "GUARDIAN"
+      ? await prisma.user.findUnique({
+          where: {
+            id: session.userId,
+          },
+          include: {
+            guardianProfile: {
+              include: {
+                studentLinks: {
+                  include: {
+                    student: {
+                      include: {
+                        user: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        })
+      : null;
 
   return (
     <main className="page">
@@ -29,6 +55,25 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           {created && (
             <div className="notice">
               家長資料已建立。{linked ? "已綁定學生。" : "尚未綁定學生，可等學生填 Email 後再補。"}
+            </div>
+          )}
+
+          {currentUser?.guardianProfile && (
+            <div className="session-card">
+              <div>
+                <strong>目前家長</strong>
+                <p>
+                  {currentUser.displayName}
+                  {currentUser.guardianProfile.studentLinks[0]
+                    ? `，已綁定 ${currentUser.guardianProfile.studentLinks[0].student.user.displayName}`
+                    : "，尚未綁定學生"}
+                </p>
+              </div>
+              <form action={signOut}>
+                <button className="button secondary" type="submit">
+                  登出
+                </button>
+              </form>
             </div>
           )}
 
@@ -57,4 +102,3 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
     </main>
   );
 }
-

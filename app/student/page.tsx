@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { createStudent } from "../onboarding/actions";
+import { prisma } from "@/lib/prisma";
+import { getCurrentSession } from "@/lib/session";
+import { createStudent, signOut } from "../onboarding/actions";
 
 type StudentPageProps = {
   searchParams?: Promise<{
@@ -12,6 +14,26 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
   const joined = params?.joined === "1";
+  const session = await getCurrentSession();
+  const currentUser =
+    session?.role === "STUDENT"
+      ? await prisma.user.findUnique({
+          where: {
+            id: session.userId,
+          },
+          include: {
+            studentProfile: {
+              include: {
+                classMemberships: {
+                  include: {
+                    classroom: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : null;
 
   return (
     <main className="page">
@@ -29,6 +51,25 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {created && (
             <div className="notice">
               學生資料已建立。{joined ? "已加入班級。" : "尚未加入班級，可稍後輸入班級代碼。"}
+            </div>
+          )}
+
+          {currentUser?.studentProfile && (
+            <div className="session-card">
+              <div>
+                <strong>目前學生</strong>
+                <p>
+                  {currentUser.displayName}，國{currentUser.studentProfile.grade - 6}
+                  {currentUser.studentProfile.classMemberships[0]
+                    ? `，已加入 ${currentUser.studentProfile.classMemberships[0].classroom.name}`
+                    : "，尚未加入班級"}
+                </p>
+              </div>
+              <form action={signOut}>
+                <button className="button secondary" type="submit">
+                  登出
+                </button>
+              </form>
             </div>
           )}
 
@@ -71,4 +112,3 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
     </main>
   );
 }
-

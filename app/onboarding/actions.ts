@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { clearCurrentSession, setCurrentSession } from "@/lib/session";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -69,6 +70,11 @@ export async function createClassroom(formData: FormData) {
     },
   });
 
+  await setCurrentSession({
+    userId: manager.id,
+    role: manager.role,
+  });
+
   redirect(`/class-admin?created=1&code=${encodeURIComponent(classroom.code)}`);
 }
 
@@ -115,6 +121,11 @@ export async function createStudent(formData: FormData) {
     }
   }
 
+  await setCurrentSession({
+    userId: student.id,
+    role: student.role,
+  });
+
   redirect(`/student?created=1&joined=${joined ? "1" : "0"}`);
 }
 
@@ -159,6 +170,15 @@ export async function createGuardian(formData: FormData) {
     }
   }
 
+  await setCurrentSession({
+    userId: guardian.id,
+    role: guardian.role,
+  });
+
   redirect(`/guardian?created=1&linked=${linked ? "1" : "0"}`);
 }
 
+export async function signOut() {
+  await clearCurrentSession();
+  redirect("/");
+}

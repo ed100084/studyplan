@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { createClassroom } from "../onboarding/actions";
+import { prisma } from "@/lib/prisma";
+import { getCurrentSession } from "@/lib/session";
+import { createClassroom, signOut } from "../onboarding/actions";
 
 type ClassAdminPageProps = {
   searchParams?: Promise<{
@@ -12,6 +14,22 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
   const params = await searchParams;
   const created = params?.created === "1";
   const code = params?.code;
+  const session = await getCurrentSession();
+  const currentUser =
+    session?.role === "CLASS_ADMIN"
+      ? await prisma.user.findUnique({
+          where: {
+            id: session.userId,
+          },
+          include: {
+            managedClasses: {
+              include: {
+                members: true,
+              },
+            },
+          },
+        })
+      : null;
 
   return (
     <main className="page">
@@ -29,6 +47,24 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
           {created && code && (
             <div className="notice">
               班級已建立，班級代碼：<strong>{code}</strong>
+            </div>
+          )}
+
+          {currentUser && currentUser.managedClasses.length > 0 && (
+            <div className="session-card">
+              <div>
+                <strong>目前班級管理者</strong>
+                <p>
+                  {currentUser.displayName}，管理 {currentUser.managedClasses[0].name}，
+                  班級代碼 {currentUser.managedClasses[0].code}，
+                  已加入學生 {currentUser.managedClasses[0].members.length} 人
+                </p>
+              </div>
+              <form action={signOut}>
+                <button className="button secondary" type="submit">
+                  登出
+                </button>
+              </form>
             </div>
           )}
 
@@ -71,4 +107,3 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
     </main>
   );
 }
-

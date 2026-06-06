@@ -304,6 +304,24 @@ h1 {
   line-height: 1.6;
 }
 
+.session-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  margin: 20px 0;
+  padding: 14px;
+}
+
+.session-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .form-card {
   display: grid;
   gap: 16px;
@@ -348,5 +366,10 @@ h1 {
 
   .quick-actions {
     grid-template-columns: 1fr;
+  }
+
+  .session-card {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
