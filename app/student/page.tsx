@@ -6,6 +6,8 @@ import { createStudent, signOut } from "../onboarding/actions";
 type StudentPageProps = {
   searchParams?: Promise<{
     created?: string;
+    error?: string;
+    existing?: string;
     joined?: string;
   }>;
 };
@@ -13,7 +15,9 @@ type StudentPageProps = {
 export default async function StudentPage({ searchParams }: StudentPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
+  const existing = params?.existing === "1";
   const joined = params?.joined === "1";
+  const error = params?.error;
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "STUDENT"
@@ -51,6 +55,18 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {created && (
             <div className="notice">
               學生資料已建立。{joined ? "已加入班級。" : "尚未加入班級，可稍後輸入班級代碼。"}
+            </div>
+          )}
+
+          {existing && (
+            <div className="notice">
+              這個 Email 已有學生資料，已切換到既有學生。{joined ? "目前已加入班級。" : "目前尚未加入班級。"}
+            </div>
+          )}
+
+          {error === "email-used" && (
+            <div className="error-notice">
+              這個 Email 已被其他角色使用。請改用另一個 Email，或先登出後再操作。
             </div>
           )}
 

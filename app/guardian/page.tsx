@@ -6,6 +6,8 @@ import { createGuardian, signOut } from "../onboarding/actions";
 type GuardianPageProps = {
   searchParams?: Promise<{
     created?: string;
+    error?: string;
+    existing?: string;
     linked?: string;
   }>;
 };
@@ -13,7 +15,9 @@ type GuardianPageProps = {
 export default async function GuardianPage({ searchParams }: GuardianPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
+  const existing = params?.existing === "1";
   const linked = params?.linked === "1";
+  const error = params?.error;
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "GUARDIAN"
@@ -55,6 +59,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           {created && (
             <div className="notice">
               家長資料已建立。{linked ? "已綁定學生。" : "尚未綁定學生，可等學生填 Email 後再補。"}
+            </div>
+          )}
+
+          {existing && <div className="notice">這個 Email 已有家長資料，已切換到既有家長。</div>}
+
+          {error === "email-used" && (
+            <div className="error-notice">
+              這個 Email 已被其他角色使用。請改用另一個 Email，或先登出後再操作。
             </div>
           )}
 

@@ -6,6 +6,8 @@ import { createClassroom, signOut } from "../onboarding/actions";
 type ClassAdminPageProps = {
   searchParams?: Promise<{
     created?: string;
+    error?: string;
+    existing?: string;
     code?: string;
   }>;
 };
@@ -13,6 +15,8 @@ type ClassAdminPageProps = {
 export default async function ClassAdminPage({ searchParams }: ClassAdminPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
+  const existing = params?.existing === "1";
+  const error = params?.error;
   const code = params?.code;
   const session = await getCurrentSession();
   const currentUser =
@@ -47,6 +51,20 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
           {created && code && (
             <div className="notice">
               班級已建立，班級代碼：<strong>{code}</strong>
+            </div>
+          )}
+
+          {existing && <div className="notice">這個 Email 已有班級管理者資料，已切換到既有帳號。</div>}
+
+          {error === "email-used" && (
+            <div className="error-notice">
+              這個 Email 已被其他角色使用。請改用另一個 Email，或先登出後再操作。
+            </div>
+          )}
+
+          {error === "class-code-used" && (
+            <div className="error-notice">
+              班級代碼 {code ? <strong>{code}</strong> : null} 已被使用，請換一個代碼或留空自動產生。
             </div>
           )}
 

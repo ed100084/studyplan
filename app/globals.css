@@ -304,6 +304,16 @@ h1 {
   line-height: 1.6;
 }
 
+.error-notice {
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  margin: 20px 0;
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+
 .session-card {
   display: flex;
   align-items: center;

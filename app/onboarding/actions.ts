@@ -52,6 +52,43 @@ export async function createClassroom(formData: FormData) {
   const classCode = requestedCode || createClassCode(grade, className);
   const academicYear = await getAlianAcademicYear();
 
+  const existingClassroom = await prisma.classroom.findUnique({
+    where: {
+      code: classCode,
+    },
+  });
+
+  if (existingClassroom) {
+    redirect(`/class-admin?error=class-code-used&code=${encodeURIComponent(classCode)}`);
+  }
+
+  if (email) {
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+      include: {
+        managedClasses: {
+          include: {
+            members: true,
+          },
+        },
+      },
+    });
+
+    if (existingUser?.role === UserRole.CLASS_ADMIN) {
+      await setCurrentSession({
+        userId: existingUser.id,
+        role: existingUser.role,
+      });
+      redirect("/class-admin?existing=1");
+    }
+
+    if (existingUser) {
+      redirect("/class-admin?error=email-used");
+    }
+  }
+
   const manager = await prisma.user.create({
     data: {
       displayName,
@@ -84,6 +121,62 @@ export async function createStudent(formData: FormData) {
   const grade = intValue(formData, "grade", 7);
   const seatNumber = intValue(formData, "seatNumber", 0);
   const classCode = textValue(formData, "classCode").toUpperCase();
+
+  if (email) {
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+      include: {
+        studentProfile: {
+          include: {
+            classMemberships: true,
+          },
+        },
+      },
+    });
+
+    if (existingUser?.role === UserRole.STUDENT && existingUser.studentProfile) {
+      let joined = existingUser.studentProfile.classMemberships.length > 0;
+
+      if (classCode) {
+        const classroom = await prisma.classroom.findUnique({
+          where: {
+            code: classCode,
+          },
+        });
+
+        if (classroom) {
+          await prisma.classMember.upsert({
+            where: {
+              classroomId_studentId: {
+                classroomId: classroom.id,
+                studentId: existingUser.studentProfile.id,
+              },
+            },
+            update: seatNumber > 0 ? { seatNumber } : {},
+            create: {
+              classroomId: classroom.id,
+              studentId: existingUser.studentProfile.id,
+              seatNumber: seatNumber > 0 ? seatNumber : null,
+            },
+          });
+          joined = true;
+        }
+      }
+
+      await setCurrentSession({
+        userId: existingUser.id,
+        role: existingUser.role,
+      });
+
+      redirect(`/student?existing=1&joined=${joined ? "1" : "0"}`);
+    }
+
+    if (existingUser) {
+      redirect("/student?error=email-used");
+    }
+  }
 
   const student = await prisma.user.create({
     data: {
@@ -134,6 +227,29 @@ export async function createGuardian(formData: FormData) {
   const email = optionalEmail(formData, "email");
   const studentEmail = textValue(formData, "studentEmail").toLowerCase();
 
+  if (email) {
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+      include: {
+        guardianProfile: true,
+      },
+    });
+
+    if (existingUser?.role === UserRole.GUARDIAN && existingUser.guardianProfile) {
+      await setCurrentSession({
+        userId: existingUser.id,
+        role: existingUser.role,
+      });
+      redirect("/guardian?existing=1");
+    }
+
+    if (existingUser) {
+      redirect("/guardian?error=email-used");
+    }
+  }
+
   const guardian = await prisma.user.create({
     data: {
       displayName,
@@ -160,8 +276,15 @@ export async function createGuardian(formData: FormData) {
     });
 
     if (student?.studentProfile) {
-      await prisma.guardianStudent.create({
-        data: {
+      await prisma.guardianStudent.upsert({
+        where: {
+          guardianId_studentId: {
+            guardianId: guardian.guardianProfile.id,
+            studentId: student.studentProfile.id,
+          },
+        },
+        update: {},
+        create: {
           guardianId: guardian.guardianProfile.id,
           studentId: student.studentProfile.id,
         },
