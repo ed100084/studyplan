@@ -583,6 +583,39 @@ h1 {
   font-size: 24px;
 }
 
+.schedule-panel {
+  margin: 20px 0;
+}
+
+.schedule-study {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.schedule-break {
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.schedule-fixed,
+.schedule-tutoring {
+  background: #fff;
+}
+
+.unplaced-list {
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.unplaced-list p {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
 @media (max-width: 820px) {
   .hero-grid,
   .role-grid,

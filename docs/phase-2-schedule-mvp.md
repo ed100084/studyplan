@@ -2,7 +2,16 @@
 
 ## Version
 
-`0.7.1`
+`0.8.0`
+
+## Update 0.8.0
+
+- Added a pure today scheduler under `lib/scheduler/today.ts`.
+- The scheduler blocks fixed routine events, tutoring sessions, and tutoring commute time.
+- Planned tasks are placed by priority and estimated minutes.
+- A 10-minute break is kept between scheduled study tasks.
+- High-fatigue tutoring reduces later available study capacity.
+- Student and guardian pages now show a generated schedule and unplaced tasks.
 
 ## Update 0.7.1
 

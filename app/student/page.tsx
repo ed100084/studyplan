@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FatigueLevel, FixedEventType, TaskStatus, TaskType, Weekday } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
+import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { createStudent, signOut } from "../onboarding/actions";
 import { createFixedEvent, createStudyTask, createTutoringSession, updateTaskStatus } from "../schedule/actions";
 
@@ -174,6 +175,20 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const openTasks = student?.studyTasks.filter((task) => task.status === "PLANNED") ?? [];
   const doneTasks = student?.studyTasks.filter((task) => task.status !== "PLANNED") ?? [];
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+  const todaySchedule = student
+    ? buildTodaySchedule({
+        fixedEvents: student.fixedEvents,
+        tutoringSessions: student.tutoringSessions,
+        tasks: openTasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          subjectName: task.subject?.name,
+          type: task.type,
+          estimatedMinutes: task.estimatedMinutes,
+          priority: task.priority,
+        })),
+      })
+    : null;
 
   return (
     <main className="page">
@@ -310,6 +325,42 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   </div>
                 </section>
               </div>
+
+              {todaySchedule && (
+                <section className="panel schedule-panel">
+                  <div className="panel-header">
+                    <h2>系統自動排程</h2>
+                    <span>
+                      可排 {todaySchedule.availableMinutes} 分鐘，已排讀書 {todaySchedule.scheduledStudyMinutes} 分鐘
+                    </span>
+                  </div>
+
+                  <div className="timeline-list">
+                    {todaySchedule.scheduled.map((segment) => (
+                      <div className={`timeline-item schedule-${segment.kind}`} key={segment.id}>
+                        <span className="timeline-time">
+                          {segment.startTime}-{segment.endTime}
+                        </span>
+                        <div>
+                          <strong>{segment.title}</strong>
+                          <p>{segment.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {todaySchedule.scheduled.length === 0 && <div className="empty-state">今天還沒有可排程資料。</div>}
+                  </div>
+
+                  {todaySchedule.unplaced.length > 0 && (
+                    <div className="unplaced-list">
+                      <strong>今天排不下</strong>
+                      {todaySchedule.unplaced.map((segment) => (
+                        <p key={segment.id}>{segment.title}：{segment.detail}</p>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
 
               <div className="form-grid">
                 <form className="form-card" action={createTutoringSession}>
