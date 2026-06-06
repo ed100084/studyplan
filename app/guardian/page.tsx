@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { FatigueLevel, FixedEventType, TaskStatus, TaskType, Weekday } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { createGuardian, signOut } from "../onboarding/actions";
+import { createFixedEvent, createStudyTask, createTutoringSession, updateTaskStatus } from "../schedule/actions";
 
 type GuardianPageProps = {
   searchParams?: Promise<{
@@ -9,15 +11,111 @@ type GuardianPageProps = {
     error?: string;
     existing?: string;
     linked?: string;
+    schedule?: string;
   }>;
 };
+
+const weekdayLabels: Record<Weekday, string> = {
+  MONDAY: "星期一",
+  TUESDAY: "星期二",
+  WEDNESDAY: "星期三",
+  THURSDAY: "星期四",
+  FRIDAY: "星期五",
+  SATURDAY: "星期六",
+  SUNDAY: "星期日",
+};
+
+const fixedEventLabels: Record<FixedEventType, string> = {
+  SCHOOL: "學校",
+  TUTORING: "補習",
+  COMMUTE: "通勤",
+  MEAL: "吃飯",
+  HYGIENE: "洗澡",
+  SLEEP: "睡覺",
+  FAMILY: "家庭時間",
+  OTHER: "其他",
+};
+
+const taskTypeLabels: Record<TaskType, string> = {
+  SCHOOL_HOMEWORK: "學校作業",
+  TUTORING_HOMEWORK: "補習作業",
+  REVIEW: "複習",
+  PRACTICE: "練習",
+  WEAK_POINT: "弱點補強",
+  PREVIEW: "預習",
+  EXAM_SPRINT: "考前衝刺",
+};
+
+const fatigueLabels: Record<FatigueLevel, string> = {
+  LOW: "低",
+  NORMAL: "普通",
+  HIGH: "高",
+};
+
+const statusLabels: Record<TaskStatus, string> = {
+  PLANNED: "待完成",
+  DONE: "完成",
+  PARTIAL: "部分完成",
+  SKIPPED: "略過",
+  RESCHEDULED: "改期",
+};
+
+const weekdayOptions = Object.entries(weekdayLabels);
+const weekdayByEnglish: Record<string, Weekday> = {
+  Monday: "MONDAY",
+  Tuesday: "TUESDAY",
+  Wednesday: "WEDNESDAY",
+  Thursday: "THURSDAY",
+  Friday: "FRIDAY",
+  Saturday: "SATURDAY",
+  Sunday: "SUNDAY",
+};
+
+function getTaipeiToday() {
+  const now = new Date();
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const weekdayName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Taipei",
+    weekday: "long",
+  }).format(now);
+
+  return {
+    date,
+    weekday: weekdayByEnglish[weekdayName] ?? Weekday.MONDAY,
+  };
+}
+
+function taipeiDayRange(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const start = new Date(`${date}T00:00:00+08:00`);
+  const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+  const nextTaipeiDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(nextDate);
+
+  return {
+    start,
+    end: new Date(`${nextTaipeiDate}T00:00:00+08:00`),
+  };
+}
 
 export default async function GuardianPage({ searchParams }: GuardianPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
   const existing = params?.existing === "1";
   const linked = params?.linked === "1";
+  const scheduleUpdated = params?.schedule === "1";
   const error = params?.error;
+  const today = getTaipeiToday();
+  const todayRange = taipeiDayRange(today.date);
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "GUARDIAN"
@@ -33,6 +131,34 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     student: {
                       include: {
                         user: true,
+                        fixedEvents: {
+                          where: {
+                            weekday: today.weekday,
+                          },
+                          orderBy: {
+                            startTime: "asc",
+                          },
+                        },
+                        tutoringSessions: {
+                          where: {
+                            weekday: today.weekday,
+                          },
+                          orderBy: {
+                            startTime: "asc",
+                          },
+                        },
+                        studyTasks: {
+                          where: {
+                            plannedDate: {
+                              gte: todayRange.start,
+                              lt: todayRange.end,
+                            },
+                          },
+                          include: {
+                            subject: true,
+                          },
+                          orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+                        },
                       },
                     },
                   },
@@ -43,72 +169,297 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
         })
       : null;
 
+  const linkedStudents = currentUser?.guardianProfile?.studentLinks.map((link) => link.student) ?? [];
+  const activeStudent = linkedStudents[0];
+  const openTasks = activeStudent?.studyTasks.filter((task) => task.status === "PLANNED") ?? [];
+  const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+
   return (
     <main className="page">
       <section className="section">
-        <div className="shell narrow-shell">
+        <div className="shell">
           <Link className="back-link" href="/">
             回首頁
           </Link>
-          <span className="eyebrow">家長入口</span>
-          <h1 className="page-title">建立家長資料</h1>
+          <span className="eyebrow">家長端</span>
+          <h1 className="page-title">協助孩子維護讀書計畫</h1>
           <p className="lead">
-            家長端會負責補習、作息與成績輸入。第一版先建立資料並可用學生 Email 綁定。
+            家長端先做代填工具：補習、固定作息、作業和完成狀態。之後可再擴充成多位學生切換與提醒。
           </p>
 
           {created && (
             <div className="notice">
-              家長資料已建立。{linked ? "已綁定學生。" : "尚未綁定學生，可等學生填 Email 後再補。"}
+              家長資料已建立。{linked ? "已連結學生。" : "尚未連結學生，請確認學生已先建立資料。"}
             </div>
           )}
 
-          {existing && <div className="notice">這個 Email 已有家長資料，已切換到既有家長。</div>}
+          {existing && <div className="notice">這個 Email 已有家長資料，已切換到既有資料。</div>}
+          {scheduleUpdated && <div className="notice">孩子的讀書計畫資料已更新。</div>}
 
-          {error === "email-used" && (
-            <div className="error-notice">
-              這個 Email 已被其他角色使用。請改用另一個 Email，或先登出後再操作。
-            </div>
-          )}
+          {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用家長 Email。</div>}
+          {error === "student-not-linked" && <div className="error-notice">這位學生尚未和此家長連結，不能代填資料。</div>}
 
-          {currentUser?.guardianProfile && (
-            <div className="session-card">
-              <div>
-                <strong>目前家長</strong>
-                <p>
-                  {currentUser.displayName}
-                  {currentUser.guardianProfile.studentLinks[0]
-                    ? `，已綁定 ${currentUser.guardianProfile.studentLinks[0].student.user.displayName}`
-                    : "，尚未綁定學生"}
-                </p>
+          {currentUser?.guardianProfile ? (
+            <>
+              <div className="session-card">
+                <div>
+                  <strong>{currentUser.displayName}</strong>
+                  <p>
+                    已連結 {linkedStudents.length} 位學生
+                    {activeStudent ? `，目前顯示 ${activeStudent.user.displayName}` : "。"}
+                  </p>
+                </div>
+                <form action={signOut}>
+                  <button className="button secondary" type="submit">
+                    登出
+                  </button>
+                </form>
               </div>
-              <form action={signOut}>
-                <button className="button secondary" type="submit">
-                  登出
-                </button>
-              </form>
-            </div>
+
+              {activeStudent ? (
+                <>
+                  <div className="dashboard-grid">
+                    <section className="panel">
+                      <div className="panel-header">
+                        <h2>{activeStudent.user.displayName} 今天行程</h2>
+                        <span>
+                          {today.date}，{weekdayLabels[today.weekday]}
+                        </span>
+                      </div>
+
+                      <div className="timeline-list">
+                        {activeStudent.fixedEvents.map((event) => (
+                          <div className="timeline-item" key={event.id}>
+                            <span className="timeline-time">
+                              {event.startTime}-{event.endTime}
+                            </span>
+                            <div>
+                              <strong>{event.title}</strong>
+                              <p>{fixedEventLabels[event.type]}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {activeStudent.tutoringSessions.map((sessionItem) => (
+                          <div className="timeline-item accent-item" key={sessionItem.id}>
+                            <span className="timeline-time">
+                              {sessionItem.startTime}-{sessionItem.endTime}
+                            </span>
+                            <div>
+                              <strong>{sessionItem.subjectName}補習</strong>
+                              <p>
+                                疲勞 {fatigueLabels[sessionItem.fatigueLevel]}
+                                {sessionItem.hasHomework ? "，有補習作業" : ""}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {activeStudent.fixedEvents.length === 0 && activeStudent.tutoringSessions.length === 0 && (
+                          <div className="empty-state">今天尚未輸入固定行程。</div>
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="panel">
+                      <div className="panel-header">
+                        <h2>今天任務</h2>
+                        <span>待完成約 {plannedMinutes} 分鐘</span>
+                      </div>
+
+                      <div className="task-list compact-list">
+                        {activeStudent.studyTasks.map((task) => (
+                          <div className={task.status === "PLANNED" ? "task" : "task muted-task"} key={task.id}>
+                            <span className="task-dot" aria-hidden="true" />
+                            <div>
+                              <strong>
+                                {task.subject?.name ?? "未指定科目"}：{task.title}
+                              </strong>
+                              <span>
+                                {taskTypeLabels[task.type]}，{task.estimatedMinutes} 分鐘，{statusLabels[task.status]}
+                              </span>
+                            </div>
+                            {task.status === "PLANNED" ? (
+                              <form action={updateTaskStatus}>
+                                <input name="studentId" type="hidden" value={activeStudent.id} />
+                                <input name="taskId" type="hidden" value={task.id} />
+                                <input name="status" type="hidden" value="DONE" />
+                                <button className="small-button" type="submit">
+                                  代勾完成
+                                </button>
+                              </form>
+                            ) : (
+                              <span className="time">{statusLabels[task.status]}</span>
+                            )}
+                          </div>
+                        ))}
+
+                        {activeStudent.studyTasks.length === 0 && <div className="empty-state">今天尚未輸入任務。</div>}
+                      </div>
+                    </section>
+                  </div>
+
+                  <div className="form-grid">
+                    <form className="form-card" action={createTutoringSession}>
+                      <h2>代填補習</h2>
+                      <input name="studentId" type="hidden" value={activeStudent.id} />
+                      <label>
+                        科目
+                        <input name="subjectName" placeholder="例如：數學" required />
+                      </label>
+                      <label>
+                        星期
+                        <select name="weekday" defaultValue={today.weekday}>
+                          {weekdayOptions.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="field-row">
+                        <label>
+                          開始
+                          <input name="startTime" type="time" defaultValue="18:30" required />
+                        </label>
+                        <label>
+                          結束
+                          <input name="endTime" type="time" defaultValue="20:30" required />
+                        </label>
+                      </div>
+                      <label>
+                        通勤分鐘
+                        <input name="commuteMinutes" type="number" min="0" defaultValue="0" />
+                      </label>
+                      <label>
+                        疲勞程度
+                        <select name="fatigueLevel" defaultValue="NORMAL">
+                          <option value="LOW">低</option>
+                          <option value="NORMAL">普通</option>
+                          <option value="HIGH">高</option>
+                        </select>
+                      </label>
+                      <label className="checkbox-label">
+                        <input name="hasHomework" type="checkbox" /> 這堂補習通常有作業
+                      </label>
+                      <button className="button primary" type="submit">
+                        加入補習
+                      </button>
+                    </form>
+
+                    <form className="form-card" action={createFixedEvent}>
+                      <h2>代填作息</h2>
+                      <input name="studentId" type="hidden" value={activeStudent.id} />
+                      <label>
+                        名稱
+                        <input name="title" placeholder="例如：晚餐、洗澡、睡覺" required />
+                      </label>
+                      <label>
+                        類型
+                        <select name="type" defaultValue="MEAL">
+                          {Object.entries(fixedEventLabels).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        星期
+                        <select name="weekday" defaultValue={today.weekday}>
+                          {weekdayOptions.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="field-row">
+                        <label>
+                          開始
+                          <input name="startTime" type="time" defaultValue="18:00" required />
+                        </label>
+                        <label>
+                          結束
+                          <input name="endTime" type="time" defaultValue="18:30" required />
+                        </label>
+                      </div>
+                      <button className="button primary" type="submit">
+                        加入作息
+                      </button>
+                    </form>
+
+                    <form className="form-card" action={createStudyTask}>
+                      <h2>代填作業 / 自習</h2>
+                      <input name="studentId" type="hidden" value={activeStudent.id} />
+                      <label>
+                        科目
+                        <input name="subjectName" placeholder="例如：英文" />
+                      </label>
+                      <label>
+                        任務
+                        <input name="title" placeholder="例如：完成習作第 12 頁" required />
+                      </label>
+                      <label>
+                        類型
+                        <select name="type" defaultValue="SCHOOL_HOMEWORK">
+                          {Object.entries(taskTypeLabels).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        日期
+                        <input name="plannedDate" type="date" defaultValue={today.date} required />
+                      </label>
+                      <div className="field-row">
+                        <label>
+                          預估分鐘
+                          <input name="estimatedMinutes" type="number" min="10" step="5" defaultValue="30" />
+                        </label>
+                        <label>
+                          優先度
+                          <input name="priority" type="number" min="1" max="5" defaultValue="3" />
+                        </label>
+                      </div>
+                      <button className="button primary" type="submit">
+                        加入任務
+                      </button>
+                    </form>
+                  </div>
+                </>
+              ) : (
+                <div className="panel">
+                  <h2>尚未連結學生</h2>
+                  <p className="panel-copy">請先讓學生建立資料，再用學生 Email 建立或連結家長資料。</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <form className="form-card narrow-form" action={createGuardian}>
+              <h2>建立家長資料</h2>
+              <label>
+                家長姓名
+                <input name="displayName" placeholder="例如：王媽媽" required />
+              </label>
+
+              <label>
+                家長 Email
+                <input name="email" type="email" placeholder="可空白" />
+              </label>
+
+              <label>
+                學生 Email
+                <input name="studentEmail" type="email" placeholder="學生建立資料時使用的 Email" />
+              </label>
+
+              <button className="button primary" type="submit">
+                建立家長資料
+              </button>
+            </form>
           )}
-
-          <form className="form-card" action={createGuardian}>
-            <label>
-              家長姓名或稱呼
-              <input name="displayName" placeholder="例如：王媽媽" required />
-            </label>
-
-            <label>
-              家長 Email
-              <input name="email" type="email" placeholder="可選填" />
-            </label>
-
-            <label>
-              學生 Email
-              <input name="studentEmail" type="email" placeholder="學生建立資料時填的 Email，可選填" />
-            </label>
-
-            <button className="button primary" type="submit">
-              建立家長資料
-            </button>
-          </form>
         </div>
       </section>
     </main>
