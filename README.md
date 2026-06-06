@@ -27,6 +27,7 @@
 - [產品需求](docs/requirements.md)
 - [技術規劃](docs/technical-plan.md)
 - [MVP 任務清單](docs/mvp-tasks.md)
+- [Phase 5 排程引擎規格](docs/scheduler-spec.md)
 - [Phase 1 開發紀錄](docs/phase-1.md)
 - [Phase 2 開發紀錄](docs/phase-2.md)
 - [部署規劃](docs/deployment.md)
