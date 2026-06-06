@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- 新增雲端資料庫部署準備文件。
+- Prisma datasource 新增 `DIRECT_URL`，支援正式環境 migration 與 runtime 連線分離。
+- 新增 `db:deploy` 指令，用於雲端資料庫套用已提交 migrations。
+
 ## 0.3.0
 
 - 完成 Phase 1 專案基礎。

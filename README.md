@@ -31,4 +31,5 @@
 - [部署規劃](docs/deployment.md)
 - [版次規則](docs/versioning.md)
 - [資料庫](docs/database.md)
+- [雲端資料庫](docs/cloud-database.md)
 - [阿蓮國中 114 學年教材版本公告附件](docs/assets/alian-textbook-versions-114.png)

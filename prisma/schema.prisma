@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -369,4 +370,3 @@ model ReviewItem {
   subject     Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   chapter     Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
 }
-

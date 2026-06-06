@@ -4,7 +4,7 @@
 
 Phase 1 已完成。
 
-目前版次：`0.3.0`
+目前版次：`0.4.0`
 
 ## 已完成
 
@@ -16,6 +16,8 @@ Phase 1 已完成。
 - Prisma Client helper
 - 本機 PostgreSQL Docker Compose 設定
 - Prisma 初始 migration
+- 雲端資料庫連線分工：`DATABASE_URL` / `DIRECT_URL`
+- 雲端 migration 指令：`npm run db:deploy`
 - 阿蓮國中 114 學年教材版本 seed script
 - `.env.example`
 - Phase 1 文件與資料庫文件
@@ -32,6 +34,7 @@ docker compose up -d db
 
 ```env
 DATABASE_URL="postgresql://studyplan:studyplan@localhost:55432/studyplan?schema=public"
+DIRECT_URL="postgresql://studyplan:studyplan@localhost:55432/studyplan?schema=public"
 ```
 
 ## Migration
@@ -70,6 +73,7 @@ npm audit
 npm run db:validate
 npm run db:generate
 npm run db:seed
+npm run db:deploy
 npm run build
 ```
 
@@ -86,13 +90,30 @@ npm run build
 - Phase 1 先用 Prisma 6 的傳統 `DATABASE_URL` 模式，降低早期開發成本。
 - 後續若要升級 Prisma 7，另開升級任務處理。
 
+## 雲端資料庫狀態
+
+專案端已準備好接雲端 PostgreSQL。
+
+已完成：
+
+- Prisma schema 支援 `DIRECT_URL`
+- Vercel project 已存在
+- GitHub 自動部署已啟用
+- 雲端 migration 指令已建立
+- 雲端資料庫文件已建立：`docs/cloud-database.md`
+
+待外部輸入：
+
+- 建立 Supabase project
+- 提供 Supabase `DATABASE_URL`
+- 提供 Supabase `DIRECT_URL`
+- 在 Vercel production/preview 設定這兩個環境變數
+- 對雲端 DB 執行 `npm run db:deploy` 與 `npm run db:seed`
+
 ## 尚未納入 Phase 1
 
 以下項目移到後續階段：
 
-- Supabase 正式專案建立與雲端 `DATABASE_URL`
-- Vercel production database environment variables
 - 登入流程
 - 學生、家長、班級管理者頁面
 - 實際排程引擎
-

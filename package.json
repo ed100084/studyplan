@@ -1,6 +1,6 @@
 {
   "name": "studyplan",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,7 @@
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio"
   },
