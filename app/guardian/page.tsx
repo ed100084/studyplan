@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FatigueLevel, FixedEventType, TaskStatus, TaskType, Weekday } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
-import { createGuardian, signOut } from "../onboarding/actions";
+import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
 import { createFixedEvent, createStudyTask, createTutoringSession, updateTaskStatus } from "../schedule/actions";
 
 type GuardianPageProps = {
@@ -12,6 +12,7 @@ type GuardianPageProps = {
     existing?: string;
     linked?: string;
     schedule?: string;
+    studentId?: string;
   }>;
 };
 
@@ -107,6 +108,10 @@ function taipeiDayRange(date: string) {
   };
 }
 
+function gradeLabel(grade: number) {
+  return `國${grade - 6}`;
+}
+
 export default async function GuardianPage({ searchParams }: GuardianPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
@@ -127,10 +132,18 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
             guardianProfile: {
               include: {
                 studentLinks: {
+                  orderBy: {
+                    createdAt: "asc",
+                  },
                   include: {
                     student: {
                       include: {
                         user: true,
+                        classMemberships: {
+                          include: {
+                            classroom: true,
+                          },
+                        },
                         fixedEvents: {
                           where: {
                             weekday: today.weekday,
@@ -170,9 +183,10 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
       : null;
 
   const linkedStudents = currentUser?.guardianProfile?.studentLinks.map((link) => link.student) ?? [];
-  const activeStudent = linkedStudents[0];
+  const activeStudent = linkedStudents.find((student) => student.id === params?.studentId) ?? linkedStudents[0];
   const openTasks = activeStudent?.studyTasks.filter((task) => task.status === "PLANNED") ?? [];
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+  const activeClass = activeStudent?.classMemberships[0]?.classroom.name;
 
   return (
     <main className="page">
@@ -182,21 +196,18 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
             回首頁
           </Link>
           <span className="eyebrow">家長端</span>
-          <h1 className="page-title">協助孩子維護讀書計畫</h1>
+          <h1 className="page-title">管理多位孩子的讀書計畫</h1>
           <p className="lead">
-            家長端先做代填工具：補習、固定作息、作業和完成狀態。之後可再擴充成多位學生切換與提醒。
+            家長用學生端提供的「學生連結碼」新增孩子。可同時管理國一、國二、國三等多位學生，每位學生的補習、作息、任務互相獨立。
           </p>
 
-          {created && (
-            <div className="notice">
-              家長資料已建立。{linked ? "已連結學生。" : "尚未連結學生，請確認學生已先建立資料。"}
-            </div>
-          )}
-
+          {created && <div className="notice">家長資料已建立。{linked ? "已連結學生。" : "尚未連結學生，可在下方輸入學生連結碼。"}</div>}
           {existing && <div className="notice">這個 Email 已有家長資料，已切換到既有資料。</div>}
+          {linked && <div className="notice">學生已加入你的孩子清單。</div>}
           {scheduleUpdated && <div className="notice">孩子的讀書計畫資料已更新。</div>}
 
           {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用家長 Email。</div>}
+          {error === "student-code-not-found" && <div className="error-notice">找不到這組學生連結碼，請確認學生端顯示的連結碼是否輸入正確。</div>}
           {error === "student-not-linked" && <div className="error-notice">這位學生尚未和此家長連結，不能代填資料。</div>}
 
           {currentUser?.guardianProfile ? (
@@ -204,10 +215,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
               <div className="session-card">
                 <div>
                   <strong>{currentUser.displayName}</strong>
-                  <p>
-                    已連結 {linkedStudents.length} 位學生
-                    {activeStudent ? `，目前顯示 ${activeStudent.user.displayName}` : "。"}
-                  </p>
+                  <p>已連結 {linkedStudents.length} 位學生。可以繼續新增孩子，也可以切換目前管理的孩子。</p>
                 </div>
                 <form action={signOut}>
                   <button className="button secondary" type="submit">
@@ -216,15 +224,61 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                 </form>
               </div>
 
+              <div className="guardian-tools">
+                <form className="form-card compact-form" action={linkStudentToGuardian}>
+                  <h2>新增孩子</h2>
+                  <label>
+                    學生連結碼
+                    <input name="studentLinkCode" placeholder="例如：SP7A1B2C3" required />
+                  </label>
+                  <button className="button primary" type="submit">
+                    連結學生
+                  </button>
+                </form>
+
+                <section className="panel child-switcher">
+                  <div className="panel-header">
+                    <h2>孩子清單</h2>
+                    <span>{linkedStudents.length} 位</span>
+                  </div>
+                  <div className="child-list">
+                    {linkedStudents.map((student) => (
+                      <Link
+                        className={student.id === activeStudent?.id ? "child-pill active" : "child-pill"}
+                        href={`/guardian?studentId=${student.id}`}
+                        key={student.id}
+                      >
+                        <strong>{student.user.displayName}</strong>
+                        <span>
+                          {gradeLabel(student.grade)}
+                          {student.classMemberships[0]?.classroom.name ? `，${student.classMemberships[0].classroom.name}` : ""}
+                        </span>
+                      </Link>
+                    ))}
+
+                    {linkedStudents.length === 0 && <div className="empty-state">尚未連結學生。請先向孩子取得學生連結碼。</div>}
+                  </div>
+                </section>
+              </div>
+
               {activeStudent ? (
                 <>
+                  <div className="active-student-heading">
+                    <div>
+                      <span className="card-meta">目前管理</span>
+                      <h2>
+                        {activeStudent.user.displayName}，{gradeLabel(activeStudent.grade)}
+                        {activeClass ? `，${activeClass}` : ""}
+                      </h2>
+                    </div>
+                    <span className="version-badge">{today.date}</span>
+                  </div>
+
                   <div className="dashboard-grid">
                     <section className="panel">
                       <div className="panel-header">
-                        <h2>{activeStudent.user.displayName} 今天行程</h2>
-                        <span>
-                          {today.date}，{weekdayLabels[today.weekday]}
-                        </span>
+                        <h2>今天行程</h2>
+                        <span>{weekdayLabels[today.weekday]}</span>
                       </div>
 
                       <div className="timeline-list">
@@ -301,7 +355,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
                   <div className="form-grid">
                     <form className="form-card" action={createTutoringSession}>
-                      <h2>代填補習</h2>
+                      <h2>替 {activeStudent.user.displayName} 代填補習</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
                         科目
@@ -348,7 +402,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     </form>
 
                     <form className="form-card" action={createFixedEvent}>
-                      <h2>代填作息</h2>
+                      <h2>替 {activeStudent.user.displayName} 代填作息</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
                         名稱
@@ -390,7 +444,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     </form>
 
                     <form className="form-card" action={createStudyTask}>
-                      <h2>代填作業 / 自習</h2>
+                      <h2>替 {activeStudent.user.displayName} 代填作業 / 自習</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
                         科目
@@ -430,12 +484,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     </form>
                   </div>
                 </>
-              ) : (
-                <div className="panel">
-                  <h2>尚未連結學生</h2>
-                  <p className="panel-copy">請先讓學生建立資料，再用學生 Email 建立或連結家長資料。</p>
-                </div>
-              )}
+              ) : null}
             </>
           ) : (
             <form className="form-card narrow-form" action={createGuardian}>
@@ -447,12 +496,12 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
               <label>
                 家長 Email
-                <input name="email" type="email" placeholder="可空白" />
+                <input name="email" type="email" placeholder="可空白，但建議填寫" />
               </label>
 
               <label>
-                學生 Email
-                <input name="studentEmail" type="email" placeholder="學生建立資料時使用的 Email" />
+                第一位孩子的學生連結碼
+                <input name="studentLinkCode" placeholder="可空白，之後也能新增" />
               </label>
 
               <button className="button primary" type="submit">

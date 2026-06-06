@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { clearCurrentSession, setCurrentSession } from "@/lib/session";
+import { clearCurrentSession, getCurrentSession, setCurrentSession } from "@/lib/session";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -26,6 +26,62 @@ function createClassCode(grade: number, className: string) {
   return `ALJ${grade}${normalizedClass}${suffix}`;
 }
 
+function normalizeStudentLinkCode(value: string) {
+  return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
+}
+
+async function createStudentLinkCode(grade: number) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const linkCode = `SP${grade}${suffix}`;
+    const existing = await prisma.studentProfile.findUnique({
+      where: {
+        linkCode,
+      },
+    });
+
+    if (!existing) {
+      return linkCode;
+    }
+  }
+
+  throw new Error("Unable to create a unique student link code.");
+}
+
+async function linkGuardianToStudent(guardianId: string, rawLinkCode: string) {
+  const linkCode = normalizeStudentLinkCode(rawLinkCode);
+
+  if (!linkCode) {
+    return null;
+  }
+
+  const student = await prisma.studentProfile.findUnique({
+    where: {
+      linkCode,
+    },
+  });
+
+  if (!student) {
+    return null;
+  }
+
+  await prisma.guardianStudent.upsert({
+    where: {
+      guardianId_studentId: {
+        guardianId,
+        studentId: student.id,
+      },
+    },
+    update: {},
+    create: {
+      guardianId,
+      studentId: student.id,
+    },
+  });
+
+  return student;
+}
+
 async function getAlianAcademicYear() {
   const academicYear = await prisma.academicYear.findFirst({
     where: {
@@ -37,7 +93,7 @@ async function getAlianAcademicYear() {
   });
 
   if (!academicYear) {
-    throw new Error("找不到阿蓮國中 114 學年資料，請先執行 db:seed。");
+    throw new Error("找不到阿蓮國中 114 學年度資料，請先執行 db:seed。");
   }
 
   return academicYear;
@@ -139,6 +195,17 @@ export async function createStudent(formData: FormData) {
     if (existingUser?.role === UserRole.STUDENT && existingUser.studentProfile) {
       let joined = existingUser.studentProfile.classMemberships.length > 0;
 
+      if (!existingUser.studentProfile.linkCode) {
+        await prisma.studentProfile.update({
+          where: {
+            id: existingUser.studentProfile.id,
+          },
+          data: {
+            linkCode: await createStudentLinkCode(existingUser.studentProfile.grade),
+          },
+        });
+      }
+
       if (classCode) {
         const classroom = await prisma.classroom.findUnique({
           where: {
@@ -186,6 +253,7 @@ export async function createStudent(formData: FormData) {
       studentProfile: {
         create: {
           grade,
+          linkCode: await createStudentLinkCode(grade),
         },
       },
     },
@@ -225,7 +293,7 @@ export async function createStudent(formData: FormData) {
 export async function createGuardian(formData: FormData) {
   const displayName = textValue(formData, "displayName") || "家長";
   const email = optionalEmail(formData, "email");
-  const studentEmail = textValue(formData, "studentEmail").toLowerCase();
+  const studentLinkCode = textValue(formData, "studentLinkCode");
 
   if (email) {
     const existingUser = await prisma.user.findUnique({
@@ -238,11 +306,12 @@ export async function createGuardian(formData: FormData) {
     });
 
     if (existingUser?.role === UserRole.GUARDIAN && existingUser.guardianProfile) {
+      const linkedStudent = await linkGuardianToStudent(existingUser.guardianProfile.id, studentLinkCode);
       await setCurrentSession({
         userId: existingUser.id,
         role: existingUser.role,
       });
-      redirect("/guardian?existing=1");
+      redirect(`/guardian?existing=1&linked=${linkedStudent ? "1" : "0"}${linkedStudent ? `&studentId=${linkedStudent.id}` : ""}`);
     }
 
     if (existingUser) {
@@ -264,33 +333,10 @@ export async function createGuardian(formData: FormData) {
     },
   });
 
-  let linked = false;
-  if (studentEmail && guardian.guardianProfile) {
-    const student = await prisma.user.findUnique({
-      where: {
-        email: studentEmail,
-      },
-      include: {
-        studentProfile: true,
-      },
-    });
-
-    if (student?.studentProfile) {
-      await prisma.guardianStudent.upsert({
-        where: {
-          guardianId_studentId: {
-            guardianId: guardian.guardianProfile.id,
-            studentId: student.studentProfile.id,
-          },
-        },
-        update: {},
-        create: {
-          guardianId: guardian.guardianProfile.id,
-          studentId: student.studentProfile.id,
-        },
-      });
-      linked = true;
-    }
+  let linkedStudentId = "";
+  if (guardian.guardianProfile) {
+    const linkedStudent = await linkGuardianToStudent(guardian.guardianProfile.id, studentLinkCode);
+    linkedStudentId = linkedStudent?.id ?? "";
   }
 
   await setCurrentSession({
@@ -298,7 +344,34 @@ export async function createGuardian(formData: FormData) {
     role: guardian.role,
   });
 
-  redirect(`/guardian?created=1&linked=${linked ? "1" : "0"}`);
+  redirect(`/guardian?created=1&linked=${linkedStudentId ? "1" : "0"}${linkedStudentId ? `&studentId=${linkedStudentId}` : ""}`);
+}
+
+export async function linkStudentToGuardian(formData: FormData) {
+  const session = await getCurrentSession();
+  const studentLinkCode = textValue(formData, "studentLinkCode");
+
+  if (session?.role !== UserRole.GUARDIAN) {
+    redirect("/guardian?error=guardian-required");
+  }
+
+  const guardian = await prisma.guardianProfile.findUnique({
+    where: {
+      userId: session.userId,
+    },
+  });
+
+  if (!guardian) {
+    redirect("/guardian?error=guardian-required");
+  }
+
+  const linkedStudent = await linkGuardianToStudent(guardian.id, studentLinkCode);
+
+  if (!linkedStudent) {
+    redirect("/guardian?error=student-code-not-found");
+  }
+
+  redirect(`/guardian?linked=1&studentId=${linkedStudent.id}`);
 }
 
 export async function signOut() {

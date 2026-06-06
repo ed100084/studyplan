@@ -497,11 +497,98 @@ h1 {
   max-width: 720px;
 }
 
+.link-code-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  margin: 20px 0;
+  padding: 18px;
+}
+
+.link-code-card h2 {
+  margin: 4px 0 8px;
+  font-size: 20px;
+}
+
+.link-code-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.link-code-card > strong {
+  border-radius: 8px;
+  background: white;
+  color: var(--primary);
+  font-size: 24px;
+  letter-spacing: 1px;
+  padding: 12px 14px;
+  white-space: nowrap;
+}
+
+.guardian-tools {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+  gap: 16px;
+  margin: 20px 0;
+  align-items: start;
+}
+
+.compact-form {
+  margin-top: 0;
+}
+
+.child-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.child-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.child-pill span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.child-pill.active {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.active-student-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 22px 0 12px;
+}
+
+.active-student-heading h2 {
+  margin: 4px 0 0;
+  font-size: 24px;
+}
+
 @media (max-width: 820px) {
   .hero-grid,
   .role-grid,
   .dashboard-grid,
-  .form-grid {
+  .form-grid,
+  .guardian-tools {
     grid-template-columns: 1fr;
   }
 
@@ -521,5 +608,17 @@ h1 {
   .timeline-item,
   .field-row {
     grid-template-columns: 1fr;
+  }
+
+  .link-code-card,
+  .active-student-heading,
+  .child-pill {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .link-code-card > strong {
+    text-align: center;
+    white-space: normal;
   }
 }

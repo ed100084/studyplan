@@ -29,6 +29,10 @@ function taipeiDateValue(rawValue: string) {
   return new Date(`${value}T00:00:00+08:00`);
 }
 
+function addQuery(path: string, query: string) {
+  return `${path}${path.includes("?") ? "&" : "?"}${query}`;
+}
+
 async function getEditableStudent(studentId?: string) {
   const session = await getCurrentSession();
 
@@ -75,7 +79,7 @@ async function getEditableStudent(studentId?: string) {
     return {
       student: link.student,
       source: RecordSource.GUARDIAN,
-      redirectTo: "/guardian",
+      redirectTo: `/guardian?studentId=${link.student.id}`,
       actingUserId: session.userId,
     };
   }
@@ -109,7 +113,7 @@ export async function createFixedEvent(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(`${editable.redirectTo}?schedule=1`);
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
 }
 
 export async function createTutoringSession(formData: FormData) {
@@ -137,7 +141,7 @@ export async function createTutoringSession(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(`${editable.redirectTo}?schedule=1`);
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
 }
 
 export async function createStudyTask(formData: FormData) {
@@ -179,7 +183,7 @@ export async function createStudyTask(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(`${editable.redirectTo}?schedule=1`);
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
 }
 
 export async function updateTaskStatus(formData: FormData) {
@@ -199,7 +203,7 @@ export async function updateTaskStatus(formData: FormData) {
   });
 
   if (!task) {
-    redirect(`${editable.redirectTo}?error=task-not-found`);
+    redirect(addQuery(editable.redirectTo, "error=task-not-found"));
   }
 
   await prisma.studyTask.update({
@@ -223,5 +227,5 @@ export async function updateTaskStatus(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(`${editable.redirectTo}?schedule=1`);
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
 }

@@ -2,7 +2,16 @@
 
 ## Version
 
-`0.7.0`
+`0.7.1`
+
+## Update 0.7.1
+
+- Replaced guardian-student linking by student email with a student link code.
+- Student page displays a link code that guardians can use.
+- Guardian page supports multiple linked students.
+- Guardian page can switch the active student through URL-backed child tabs.
+- Guardian schedule actions preserve the selected student after submit.
+- Added `StudentProfile.linkCode` and a migration that backfills existing students.
 
 ## Completed
 

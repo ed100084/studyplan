@@ -25,8 +25,6 @@ const weekdayLabels: Record<Weekday, string> = {
   SUNDAY: "星期日",
 };
 
-const weekdayOptions = Object.entries(weekdayLabels);
-
 const fixedEventLabels: Record<FixedEventType, string> = {
   SCHOOL: "學校",
   TUTORING: "補習",
@@ -62,6 +60,7 @@ const statusLabels: Record<TaskStatus, string> = {
   RESCHEDULED: "改期",
 };
 
+const weekdayOptions = Object.entries(weekdayLabels);
 const weekdayByEnglish: Record<string, Weekday> = {
   Monday: "MONDAY",
   Tuesday: "TUESDAY",
@@ -174,9 +173,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const className = student?.classMemberships[0]?.classroom.name;
   const openTasks = student?.studyTasks.filter((task) => task.status === "PLANNED") ?? [];
   const doneTasks = student?.studyTasks.filter((task) => task.status !== "PLANNED") ?? [];
-  const fixedMinutes =
-    student?.studyTasks.reduce((total, task) => (task.status === "PLANNED" ? total + task.estimatedMinutes : total), 0) ??
-    0;
+  const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
 
   return (
     <main className="page">
@@ -188,26 +185,13 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           <span className="eyebrow">學生端</span>
           <h1 className="page-title">我的放學後讀書計畫</h1>
           <p className="lead">
-            先把固定作息、補習和今天要做的任務輸入進來。系統會保留不可排讀書的時間，下一步再接自動排程。
+            學生先建立自己的讀書資料，再把連結碼給家長。補習、作息與今天任務都可以在這裡快速輸入。
           </p>
 
-          {created && (
-            <div className="notice">
-              學生資料已建立。{joined ? "已加入班級。" : "尚未加入班級，可之後補上班級代碼。"}
-            </div>
-          )}
-
-          {existing && (
-            <div className="notice">
-              這個 Email 已有學生資料，已切換到既有資料。{joined ? "目前有班級連結。" : "尚未連結班級。"}
-            </div>
-          )}
-
+          {created && <div className="notice">學生資料已建立。{joined ? "已加入班級。" : "尚未加入班級，可之後補上班級代碼。"}</div>}
+          {existing && <div className="notice">這個 Email 已有學生資料，已切換到既有資料。{joined ? "目前有班級連結。" : "尚未連結班級。"}</div>}
           {scheduleUpdated && <div className="notice">讀書計畫資料已更新。</div>}
-
-          {error === "email-used" && (
-            <div className="error-notice">這個 Email 已被其他角色使用，請改用學生自己的 Email。</div>
-          )}
+          {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用學生自己的 Email。</div>}
 
           {student ? (
             <>
@@ -217,7 +201,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   <p>
                     {gradeLabel(student.grade)}
                     {className ? `，${className}` : "，尚未加入班級"}。今天是 {weekdayLabels[today.weekday]}，待完成任務約{" "}
-                    {fixedMinutes} 分鐘。
+                    {plannedMinutes} 分鐘。
                   </p>
                 </div>
                 <form action={signOut}>
@@ -225,6 +209,15 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                     登出
                   </button>
                 </form>
+              </div>
+
+              <div className="link-code-card">
+                <div>
+                  <span className="card-meta">給家長使用</span>
+                  <h2>學生連結碼</h2>
+                  <p>家長不需要知道學生 Email，只要在家長端輸入這組碼，就能把你加入他的孩子清單。</p>
+                </div>
+                <strong>{student.linkCode ?? "尚未產生"}</strong>
               </div>
 
               <div className="dashboard-grid">
@@ -464,7 +457,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
               <label>
                 Email
-                <input name="email" type="email" placeholder="可用學生或家長 Email" />
+                <input name="email" type="email" placeholder="可用學生自己的 Email，也可以先空白" />
               </label>
 
               <label>
