@@ -27,5 +27,8 @@
 - [產品需求](docs/requirements.md)
 - [技術規劃](docs/technical-plan.md)
 - [MVP 任務清單](docs/mvp-tasks.md)
+- [Phase 1 開發紀錄](docs/phase-1.md)
 - [部署規劃](docs/deployment.md)
+- [版次規則](docs/versioning.md)
+- [資料庫](docs/database.md)
 - [阿蓮國中 114 學年教材版本公告附件](docs/assets/alian-textbook-versions-114.png)

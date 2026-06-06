@@ -1,3 +1,7 @@
+import packageJson from "../package.json";
+
+const appVersion = packageJson.version;
+
 const tasks = [
   {
     subject: "數學",
@@ -43,6 +47,7 @@ export default function Home() {
             <div className="brand">
               <span className="brand-mark">學</span>
               <span>StudyPlan</span>
+              <span className="version-badge">v{appVersion}</span>
             </div>
             <span className="nav-pill">阿蓮國中 114 學年試用規劃</span>
           </nav>
@@ -66,6 +71,9 @@ export default function Home() {
                   需求文件
                 </a>
               </div>
+              <p className="version-note">
+                目前版次 v{appVersion}。每次功能更版會同步更新版次，方便確認部署版本。
+              </p>
             </div>
 
             <div className="today-card" aria-label="今日任務範例">
@@ -118,3 +126,4 @@ export default function Home() {
     </main>
   );
 }
+

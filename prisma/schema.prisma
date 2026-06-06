@@ -1,0 +1,372 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  GUARDIAN
+  CLASS_ADMIN
+  TEACHER
+  SYSTEM_ADMIN
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum FixedEventType {
+  SCHOOL
+  TUTORING
+  COMMUTE
+  MEAL
+  HYGIENE
+  SLEEP
+  FAMILY
+  OTHER
+}
+
+enum FatigueLevel {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum ExamType {
+  SECTION_EXAM
+  MOCK_EXAM
+  ENTRANCE_EXAM
+  CUSTOM
+}
+
+enum TaskType {
+  SCHOOL_HOMEWORK
+  TUTORING_HOMEWORK
+  REVIEW
+  PRACTICE
+  WEAK_POINT
+  PREVIEW
+  EXAM_SPRINT
+}
+
+enum TaskStatus {
+  PLANNED
+  DONE
+  PARTIAL
+  SKIPPED
+  RESCHEDULED
+}
+
+enum RecordSource {
+  STUDENT
+  GUARDIAN
+  TEACHER
+  SYSTEM
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String?          @unique
+  displayName    String
+  role           UserRole
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  studentProfile StudentProfile?
+  guardianProfile GuardianProfile?
+  managedClasses Classroom[]      @relation("ClassroomManager")
+  taskLogs       TaskLog[]
+}
+
+model StudentProfile {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  grade            Int
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardianLinks    GuardianStudent[]
+  classMemberships ClassMember[]
+  fixedEvents      FixedEvent[]
+  tutoringSessions TutoringSession[]
+  studyTasks       StudyTask[]
+  scores           Score[]
+  weakPoints       WeakPoint[]
+  reviewItems      ReviewItem[]
+}
+
+model GuardianProfile {
+  id           String            @id @default(cuid())
+  userId       String            @unique
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentLinks GuardianStudent[]
+}
+
+model GuardianStudent {
+  id          String          @id @default(cuid())
+  guardianId  String
+  studentId   String
+  createdAt   DateTime        @default(now())
+  guardian    GuardianProfile @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  student     StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianId, studentId])
+}
+
+model School {
+  id             String         @id @default(cuid())
+  name           String
+  shortName      String
+  createdAt      DateTime       @default(now())
+  academicYears  AcademicYear[]
+
+  @@unique([name])
+}
+
+model AcademicYear {
+  id          String       @id @default(cuid())
+  schoolId    String
+  year        String
+  createdAt   DateTime     @default(now())
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  gradeLevels GradeLevel[]
+  classrooms  Classroom[]
+  exams       Exam[]
+
+  @@unique([schoolId, year])
+}
+
+model GradeLevel {
+  id             String            @id @default(cuid())
+  academicYearId String
+  grade          Int
+  label          String
+  academicYear   AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  textbooks      TextbookVersion[]
+
+  @@unique([academicYearId, grade])
+}
+
+model Subject {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  createdAt DateTime          @default(now())
+  textbooks TextbookVersion[]
+  chapters  Chapter[]
+  examScopes ExamScope[]
+  studyTasks StudyTask[]
+  scores    Score[]
+  weakPoints WeakPoint[]
+  reviewItems ReviewItem[]
+}
+
+model TextbookVersion {
+  id           String     @id @default(cuid())
+  gradeLevelId String
+  subjectId    String
+  publisher    String?
+  sourceTitle  String?
+  sourceUrl    String?
+  createdAt    DateTime   @default(now())
+  gradeLevel   GradeLevel @relation(fields: [gradeLevelId], references: [id], onDelete: Cascade)
+  subject      Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapters     Chapter[]
+
+  @@unique([gradeLevelId, subjectId])
+}
+
+model Chapter {
+  id                String          @id @default(cuid())
+  textbookVersionId String
+  subjectId         String
+  code              String?
+  title             String
+  sequence          Int
+  createdAt         DateTime        @default(now())
+  textbookVersion   TextbookVersion @relation(fields: [textbookVersionId], references: [id], onDelete: Cascade)
+  subject           Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  examScopeStarts   ExamScope[]     @relation("ExamScopeStartChapter")
+  examScopeEnds     ExamScope[]     @relation("ExamScopeEndChapter")
+  studyTasks        StudyTask[]
+  weakPoints        WeakPoint[]
+  reviewItems       ReviewItem[]
+
+  @@unique([textbookVersionId, sequence])
+}
+
+model Classroom {
+  id             String        @id @default(cuid())
+  academicYearId String
+  name           String
+  code           String        @unique
+  grade          Int
+  managerId      String?
+  createdAt      DateTime      @default(now())
+  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  manager        User?         @relation("ClassroomManager", fields: [managerId], references: [id], onDelete: SetNull)
+  members        ClassMember[]
+  exams          Exam[]
+}
+
+model ClassMember {
+  id          String         @id @default(cuid())
+  classroomId String
+  studentId   String
+  seatNumber  Int?
+  joinedAt    DateTime       @default(now())
+  classroom   Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, studentId])
+}
+
+model Exam {
+  id             String        @id @default(cuid())
+  academicYearId String
+  classroomId    String?
+  title          String
+  type           ExamType
+  startDate      DateTime
+  endDate        DateTime?
+  createdAt      DateTime      @default(now())
+  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  classroom      Classroom?    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  scopes         ExamScope[]
+  scores         Score[]
+}
+
+model ExamScope {
+  id             String   @id @default(cuid())
+  examId         String
+  subjectId      String
+  startChapterId String?
+  endChapterId   String?
+  rawScope       String?
+  priority       Int      @default(1)
+  exam           Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject        Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  startChapter   Chapter? @relation("ExamScopeStartChapter", fields: [startChapterId], references: [id], onDelete: SetNull)
+  endChapter     Chapter? @relation("ExamScopeEndChapter", fields: [endChapterId], references: [id], onDelete: SetNull)
+
+  @@unique([examId, subjectId])
+}
+
+model FixedEvent {
+  id             String          @id @default(cuid())
+  studentId      String
+  title          String
+  type           FixedEventType
+  weekday        Weekday
+  startTime      String
+  endTime        String
+  commuteMinutes Int             @default(0)
+  note           String?
+  createdAt      DateTime        @default(now())
+  student        StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model TutoringSession {
+  id             String         @id @default(cuid())
+  studentId      String
+  subjectName    String
+  weekday        Weekday
+  startTime      String
+  endTime        String
+  commuteMinutes Int            @default(0)
+  fatigueLevel   FatigueLevel   @default(NORMAL)
+  hasHomework    Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model StudyTask {
+  id              String         @id @default(cuid())
+  studentId       String
+  subjectId       String?
+  chapterId       String?
+  title           String
+  description     String?
+  type            TaskType
+  status          TaskStatus     @default(PLANNED)
+  plannedDate     DateTime
+  estimatedMinutes Int
+  priority        Int            @default(1)
+  source          RecordSource   @default(SYSTEM)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  student         StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject         Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  chapter         Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  logs            TaskLog[]
+}
+
+model TaskLog {
+  id            String       @id @default(cuid())
+  taskId        String
+  userId        String?
+  status        TaskStatus
+  actualMinutes Int?
+  difficulty    Int?
+  reason        String?
+  source        RecordSource @default(STUDENT)
+  createdAt     DateTime     @default(now())
+  task          StudyTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Score {
+  id        String         @id @default(cuid())
+  studentId String
+  subjectId String
+  examId    String?
+  value     Float
+  source    RecordSource   @default(STUDENT)
+  takenAt   DateTime
+  createdAt DateTime       @default(now())
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  exam      Exam?          @relation(fields: [examId], references: [id], onDelete: SetNull)
+}
+
+model WeakPoint {
+  id          String         @id @default(cuid())
+  studentId   String
+  subjectId   String
+  chapterId   String?
+  title       String
+  wrongCount  Int            @default(1)
+  reason      String?
+  source      RecordSource   @default(STUDENT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapter     Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+}
+
+model ReviewItem {
+  id          String         @id @default(cuid())
+  studentId   String
+  subjectId   String?
+  chapterId   String?
+  title       String
+  dueDate     DateTime
+  intervalDays Int
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  chapter     Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+}
+
