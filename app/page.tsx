@@ -1,3 +1,4 @@
+import Link from "next/link";
 import packageJson from "../package.json";
 
 const appVersion = packageJson.version;
@@ -26,15 +27,21 @@ const tasks = [
 const roles = [
   {
     title: "學生",
+    href: "/student",
+    action: "建立學生資料",
     text: "每天看到今日任務，快速回報完成、部分完成或需要重排。",
   },
   {
     title: "家長",
+    href: "/guardian",
+    action: "建立家長資料",
     text: "協助輸入補習、作息與成績，掌握孩子本週是否穩定。",
   },
   {
     title: "班級管理者",
-    text: "設定段考日期、考試範圍與班級共用進度，減少學生重複輸入。",
+    href: "/class-admin",
+    action: "建立班級",
+    text: "設定班級代碼、段考日期、考試範圍與班級共用進度。",
   },
 ];
 
@@ -61,15 +68,12 @@ export default function Home() {
                 自動產生學生放學後能執行的讀書計畫。
               </p>
               <div className="actions">
-                <a className="button primary" href="#roles">
-                  查看角色分工
-                </a>
-                <a
-                  className="button secondary"
-                  href="https://github.com/ed100084/studyplan/blob/main/docs/requirements.md"
-                >
-                  需求文件
-                </a>
+                <Link className="button primary" href="/student">
+                  學生開始
+                </Link>
+                <Link className="button secondary" href="/class-admin">
+                  建立班級
+                </Link>
               </div>
               <p className="version-note">
                 目前版次 v{appVersion}。每次功能更版會同步更新版次，方便確認部署版本。
@@ -118,6 +122,9 @@ export default function Home() {
               <article className="role" key={role.title}>
                 <h3>{role.title}</h3>
                 <p>{role.text}</p>
+                <Link className="role-link" href={role.href}>
+                  {role.action}
+                </Link>
               </article>
             ))}
           </div>

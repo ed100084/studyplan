@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- 開始 Phase 2 帳號與角色開發。
+- 新增學生、家長、班級管理者三種 onboarding 頁面。
+- 新增 onboarding server actions，資料可寫入 Supabase。
+- 首頁新增三角色入口。
+
 ## 0.4.0
 
 - 新增雲端資料庫部署準備文件。

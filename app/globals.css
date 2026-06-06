@@ -41,6 +41,10 @@ a {
   margin: 0 auto;
 }
 
+.narrow-shell {
+  width: min(720px, calc(100% - 32px));
+}
+
 .hero {
   padding: 32px 0 28px;
 }
@@ -245,6 +249,12 @@ h1 {
   font-size: 28px;
 }
 
+.page-title {
+  margin: 16px 0 12px;
+  font-size: clamp(32px, 6vw, 52px);
+  line-height: 1.08;
+}
+
 .role-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -266,6 +276,64 @@ h1 {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.role-link {
+  display: inline-flex;
+  margin-top: 16px;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-link {
+  display: inline-flex;
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.notice {
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  background: #f0fdfa;
+  color: #115e59;
+  margin: 20px 0;
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+
+.form-card {
+  display: grid;
+  gap: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 24px;
+  padding: 20px;
+}
+
+.form-card label {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.form-card input,
+.form-card select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font: inherit;
+  padding: 11px 12px;
+}
+
+.form-card input::placeholder {
+  color: #98a2b3;
 }
 
 @media (max-width: 820px) {
