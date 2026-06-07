@@ -469,6 +469,22 @@ h1 {
   white-space: nowrap;
 }
 
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.inline-actions .time {
+  align-self: center;
+}
+
+.danger-button {
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -641,6 +657,10 @@ h1 {
   .timeline-item,
   .field-row {
     grid-template-columns: 1fr;
+  }
+
+  .inline-actions {
+    justify-content: flex-start;
   }
 
   .link-code-card,

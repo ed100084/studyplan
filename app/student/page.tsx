@@ -4,7 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { createStudent, signOut } from "../onboarding/actions";
-import { createFixedEvent, createStudyTask, createTutoringSession, updateTaskStatus } from "../schedule/actions";
+import {
+  createFixedEvent,
+  createStudyTask,
+  createTutoringSession,
+  deleteFixedEvent,
+  deleteStudyTask,
+  deleteTutoringSession,
+  updateTaskStatus,
+} from "../schedule/actions";
 
 type StudentPageProps = {
   searchParams?: Promise<{
@@ -255,6 +263,12 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             {event.commuteMinutes > 0 ? `，通勤 ${event.commuteMinutes} 分鐘` : ""}
                           </p>
                         </div>
+                        <form className="inline-actions" action={deleteFixedEvent}>
+                          <input name="fixedEventId" type="hidden" value={event.id} />
+                          <button className="small-button danger-button" type="submit">
+                            刪除
+                          </button>
+                        </form>
                       </div>
                     ))}
 
@@ -271,6 +285,12 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             {sessionItem.commuteMinutes > 0 ? `，通勤 ${sessionItem.commuteMinutes} 分鐘` : ""}
                           </p>
                         </div>
+                        <form className="inline-actions" action={deleteTutoringSession}>
+                          <input name="tutoringSessionId" type="hidden" value={sessionItem.id} />
+                          <button className="small-button danger-button" type="submit">
+                            刪除
+                          </button>
+                        </form>
                       </div>
                     ))}
 
@@ -298,6 +318,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             {taskTypeLabels[task.type]}，{task.estimatedMinutes} 分鐘，優先度 {task.priority}
                           </span>
                         </div>
+                        <div className="inline-actions">
                         <form action={updateTaskStatus}>
                           <input name="taskId" type="hidden" value={task.id} />
                           <input name="status" type="hidden" value="DONE" />
@@ -305,6 +326,27 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             完成
                           </button>
                         </form>
+                          <form action={updateTaskStatus}>
+                            <input name="taskId" type="hidden" value={task.id} />
+                            <input name="status" type="hidden" value="RESCHEDULED" />
+                            <button className="small-button" type="submit">
+                              延後
+                            </button>
+                          </form>
+                          <form action={updateTaskStatus}>
+                            <input name="taskId" type="hidden" value={task.id} />
+                            <input name="status" type="hidden" value="SKIPPED" />
+                            <button className="small-button" type="submit">
+                              略過
+                            </button>
+                          </form>
+                          <form action={deleteStudyTask}>
+                            <input name="taskId" type="hidden" value={task.id} />
+                            <button className="small-button danger-button" type="submit">
+                              刪除
+                            </button>
+                          </form>
+                        </div>
                       </div>
                     ))}
 
@@ -320,6 +362,12 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                           <span>{statusLabels[task.status]}</span>
                         </div>
                         <span className="time">{task.estimatedMinutes} 分</span>
+                        <form className="inline-actions" action={deleteStudyTask}>
+                          <input name="taskId" type="hidden" value={task.id} />
+                          <button className="small-button danger-button" type="submit">
+                            刪除
+                          </button>
+                        </form>
                       </div>
                     ))}
                   </div>

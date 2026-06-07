@@ -2,7 +2,14 @@
 
 ## Version
 
-`0.8.0`
+`0.9.0`
+
+## Update 0.9.0
+
+- Added delete actions for fixed events, tutoring sessions, and study tasks.
+- Added task correction flows for done, skipped, and rescheduled states.
+- Rescheduled tasks move to the next day and keep an audit log.
+- Guardian correction actions preserve the selected linked student.
 
 ## Update 0.8.0
 
@@ -32,11 +39,11 @@
 
 ## Current Scope
 
-This version is a data-entry and daily timeline MVP. It does not yet auto-place tasks into available study slots.
+This version is a data-entry, daily timeline, and correction MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct bad inputs.
 
 ## Next
 
-- Add a deterministic scheduler that blocks fixed events and tutoring sessions.
-- Split available after-school time into study blocks and rest blocks.
-- Auto-place tasks by deadline, priority, fatigue level, and estimated minutes.
-- Add reschedule and partial-complete flows.
+- Add edit forms for existing events, tutoring sessions, and tasks.
+- Add partial-complete details such as actual minutes and difficulty.
+- Persist generated schedule runs for later review.
+- Add cross-day rollover and weekly planning.

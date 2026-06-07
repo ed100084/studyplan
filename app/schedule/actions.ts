@@ -29,6 +29,12 @@ function taipeiDateValue(rawValue: string) {
   return new Date(`${value}T00:00:00+08:00`);
 }
 
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
 function addQuery(path: string, query: string) {
   return `${path}${path.includes("?") ? "&" : "?"}${query}`;
 }
@@ -206,12 +212,22 @@ export async function updateTaskStatus(formData: FormData) {
     redirect(addQuery(editable.redirectTo, "error=task-not-found"));
   }
 
+  const taskUpdate =
+    status === TaskStatus.RESCHEDULED
+      ? {
+          status: TaskStatus.PLANNED,
+          plannedDate: addDays(task.plannedDate, 1),
+        }
+      : {
+          status,
+        };
+
   await prisma.studyTask.update({
     where: {
       id: task.id,
     },
     data: {
-      status,
+      ...taskUpdate,
       logs: {
         create: {
           userId: editable.actingUserId,
@@ -222,6 +238,87 @@ export async function updateTaskStatus(formData: FormData) {
           source: editable.source,
         },
       },
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function deleteFixedEvent(formData: FormData) {
+  const fixedEventId = textValue(formData, "fixedEventId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+
+  const event = await prisma.fixedEvent.findFirst({
+    where: {
+      id: fixedEventId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!event) {
+    redirect(addQuery(editable.redirectTo, "error=fixed-event-not-found"));
+  }
+
+  await prisma.fixedEvent.delete({
+    where: {
+      id: event.id,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function deleteTutoringSession(formData: FormData) {
+  const tutoringSessionId = textValue(formData, "tutoringSessionId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+
+  const session = await prisma.tutoringSession.findFirst({
+    where: {
+      id: tutoringSessionId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!session) {
+    redirect(addQuery(editable.redirectTo, "error=tutoring-session-not-found"));
+  }
+
+  await prisma.tutoringSession.delete({
+    where: {
+      id: session.id,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function deleteStudyTask(formData: FormData) {
+  const taskId = textValue(formData, "taskId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+
+  const task = await prisma.studyTask.findFirst({
+    where: {
+      id: taskId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!task) {
+    redirect(addQuery(editable.redirectTo, "error=task-not-found"));
+  }
+
+  await prisma.studyTask.delete({
+    where: {
+      id: task.id,
     },
   });
 

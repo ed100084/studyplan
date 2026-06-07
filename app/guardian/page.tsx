@@ -4,7 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
-import { createFixedEvent, createStudyTask, createTutoringSession, updateTaskStatus } from "../schedule/actions";
+import {
+  createFixedEvent,
+  createStudyTask,
+  createTutoringSession,
+  deleteFixedEvent,
+  deleteStudyTask,
+  deleteTutoringSession,
+  updateTaskStatus,
+} from "../schedule/actions";
 
 type GuardianPageProps = {
   searchParams?: Promise<{
@@ -306,6 +314,13 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                               <strong>{event.title}</strong>
                               <p>{fixedEventLabels[event.type]}</p>
                             </div>
+                            <form className="inline-actions" action={deleteFixedEvent}>
+                              <input name="studentId" type="hidden" value={activeStudent.id} />
+                              <input name="fixedEventId" type="hidden" value={event.id} />
+                              <button className="small-button danger-button" type="submit">
+                                刪除
+                              </button>
+                            </form>
                           </div>
                         ))}
 
@@ -321,6 +336,13 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                                 {sessionItem.hasHomework ? "，有補習作業" : ""}
                               </p>
                             </div>
+                            <form className="inline-actions" action={deleteTutoringSession}>
+                              <input name="studentId" type="hidden" value={activeStudent.id} />
+                              <input name="tutoringSessionId" type="hidden" value={sessionItem.id} />
+                              <button className="small-button danger-button" type="submit">
+                                刪除
+                              </button>
+                            </form>
                           </div>
                         ))}
 
@@ -349,6 +371,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                               </span>
                             </div>
                             {task.status === "PLANNED" ? (
+                              <div className="inline-actions">
                               <form action={updateTaskStatus}>
                                 <input name="studentId" type="hidden" value={activeStudent.id} />
                                 <input name="taskId" type="hidden" value={task.id} />
@@ -357,8 +380,41 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                                   代勾完成
                                 </button>
                               </form>
+                                <form action={updateTaskStatus}>
+                                  <input name="studentId" type="hidden" value={activeStudent.id} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <input name="status" type="hidden" value="RESCHEDULED" />
+                                  <button className="small-button" type="submit">
+                                    延後
+                                  </button>
+                                </form>
+                                <form action={updateTaskStatus}>
+                                  <input name="studentId" type="hidden" value={activeStudent.id} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <input name="status" type="hidden" value="SKIPPED" />
+                                  <button className="small-button" type="submit">
+                                    略過
+                                  </button>
+                                </form>
+                                <form action={deleteStudyTask}>
+                                  <input name="studentId" type="hidden" value={activeStudent.id} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <button className="small-button danger-button" type="submit">
+                                    刪除
+                                  </button>
+                                </form>
+                              </div>
                             ) : (
-                              <span className="time">{statusLabels[task.status]}</span>
+                              <div className="inline-actions">
+                                <span className="time">{statusLabels[task.status]}</span>
+                                <form action={deleteStudyTask}>
+                                  <input name="studentId" type="hidden" value={activeStudent.id} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <button className="small-button danger-button" type="submit">
+                                    刪除
+                                  </button>
+                                </form>
+                              </div>
                             )}
                           </div>
                         ))}

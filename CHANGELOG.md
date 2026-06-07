@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Added correction actions for fixed routine events, tutoring sessions, and study tasks.
+- Student and guardian pages can delete incorrect schedule records.
+- Planned tasks can now be marked done, skipped, or rescheduled.
+- Rescheduled tasks are moved to the next day while keeping a RESCHEDULED task log.
+- Guardian task actions preserve the selected linked student.
+
 ## 0.8.0
 
 - 新增今日自動排程引擎 `lib/scheduler/today.ts`。
