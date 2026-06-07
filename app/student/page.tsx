@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FatigueLevel, FixedEventType, TaskStatus, TaskType, Weekday } from "@prisma/client";
+import type { FixedEvent, StudyTask, Subject, TutoringSession } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
@@ -11,7 +12,10 @@ import {
   deleteFixedEvent,
   deleteStudyTask,
   deleteTutoringSession,
+  updateFixedEvent,
+  updateStudyTask,
   updateTaskStatus,
+  updateTutoringSession,
 } from "../schedule/actions";
 
 type StudentPageProps = {
@@ -70,6 +74,8 @@ const statusLabels: Record<TaskStatus, string> = {
 };
 
 const weekdayOptions = Object.entries(weekdayLabels);
+const fixedEventOptions = Object.entries(fixedEventLabels);
+const taskTypeOptions = Object.entries(taskTypeLabels);
 const weekdayByEnglish: Record<string, Weekday> = {
   Monday: "MONDAY",
   Tuesday: "TUESDAY",
@@ -118,6 +124,178 @@ function taipeiDayRange(date: string) {
 
 function gradeLabel(grade: number) {
   return `國${grade - 6}`;
+}
+
+function formatDateInput(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function FixedEventEditor({ event }: { event: FixedEvent }) {
+  return (
+    <details className="item-editor">
+      <summary>編輯</summary>
+      <form action={updateFixedEvent}>
+        <input name="fixedEventId" type="hidden" value={event.id} />
+        <label>
+          名稱
+          <input name="title" defaultValue={event.title} required />
+        </label>
+        <label>
+          類型
+          <select name="type" defaultValue={event.type}>
+            {fixedEventOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          星期
+          <select name="weekday" defaultValue={event.weekday}>
+            {weekdayOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="field-row">
+          <label>
+            開始
+            <input name="startTime" type="time" defaultValue={event.startTime} required />
+          </label>
+          <label>
+            結束
+            <input name="endTime" type="time" defaultValue={event.endTime} required />
+          </label>
+        </div>
+        <label>
+          通勤分鐘
+          <input name="commuteMinutes" type="number" min="0" defaultValue={event.commuteMinutes} />
+        </label>
+        <label>
+          備註
+          <input name="note" defaultValue={event.note ?? ""} />
+        </label>
+        <button className="small-button" type="submit">
+          儲存
+        </button>
+      </form>
+    </details>
+  );
+}
+
+function TutoringSessionEditor({ sessionItem }: { sessionItem: TutoringSession }) {
+  return (
+    <details className="item-editor">
+      <summary>編輯</summary>
+      <form action={updateTutoringSession}>
+        <input name="tutoringSessionId" type="hidden" value={sessionItem.id} />
+        <label>
+          科目
+          <input name="subjectName" defaultValue={sessionItem.subjectName} required />
+        </label>
+        <label>
+          星期
+          <select name="weekday" defaultValue={sessionItem.weekday}>
+            {weekdayOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="field-row">
+          <label>
+            開始
+            <input name="startTime" type="time" defaultValue={sessionItem.startTime} required />
+          </label>
+          <label>
+            結束
+            <input name="endTime" type="time" defaultValue={sessionItem.endTime} required />
+          </label>
+        </div>
+        <label>
+          通勤分鐘
+          <input name="commuteMinutes" type="number" min="0" defaultValue={sessionItem.commuteMinutes} />
+        </label>
+        <label>
+          疲勞程度
+          <select name="fatigueLevel" defaultValue={sessionItem.fatigueLevel}>
+            <option value="LOW">低</option>
+            <option value="NORMAL">普通</option>
+            <option value="HIGH">高</option>
+          </select>
+        </label>
+        <label className="checkbox-label">
+          <input name="hasHomework" type="checkbox" defaultChecked={sessionItem.hasHomework} /> 有補習作業
+        </label>
+        <button className="small-button" type="submit">
+          儲存
+        </button>
+      </form>
+    </details>
+  );
+}
+
+type StudyTaskWithSubject = StudyTask & {
+  subject: Subject | null;
+};
+
+function StudyTaskEditor({ task }: { task: StudyTaskWithSubject }) {
+  return (
+    <details className="item-editor">
+      <summary>編輯</summary>
+      <form action={updateStudyTask}>
+        <input name="taskId" type="hidden" value={task.id} />
+        <label>
+          科目
+          <input name="subjectName" defaultValue={task.subject?.name ?? ""} />
+        </label>
+        <label>
+          任務
+          <input name="title" defaultValue={task.title} required />
+        </label>
+        <label>
+          類型
+          <select name="type" defaultValue={task.type}>
+            {taskTypeOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          日期
+          <input name="plannedDate" type="date" defaultValue={formatDateInput(task.plannedDate)} required />
+        </label>
+        <div className="field-row">
+          <label>
+            預估分鐘
+            <input name="estimatedMinutes" type="number" min="10" step="5" defaultValue={task.estimatedMinutes} />
+          </label>
+          <label>
+            優先度
+            <input name="priority" type="number" min="1" max="5" defaultValue={task.priority} />
+          </label>
+        </div>
+        <label>
+          備註
+          <input name="description" defaultValue={task.description ?? ""} />
+        </label>
+        <button className="small-button" type="submit">
+          儲存
+        </button>
+      </form>
+    </details>
+  );
 }
 
 export default async function StudentPage({ searchParams }: StudentPageProps) {
@@ -269,6 +447,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             刪除
                           </button>
                         </form>
+                        <FixedEventEditor event={event} />
                       </div>
                     ))}
 
@@ -291,6 +470,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             刪除
                           </button>
                         </form>
+                        <TutoringSessionEditor sessionItem={sessionItem} />
                       </div>
                     ))}
 
@@ -347,6 +527,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             </button>
                           </form>
                         </div>
+                        <StudyTaskEditor task={task} />
                       </div>
                     ))}
 
@@ -368,6 +549,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             刪除
                           </button>
                         </form>
+                        <StudyTaskEditor task={task} />
                       </div>
                     ))}
                   </div>

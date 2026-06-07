@@ -29,6 +29,24 @@ function taipeiDateValue(rawValue: string) {
   return new Date(`${value}T00:00:00+08:00`);
 }
 
+async function getSubjectId(subjectName: string) {
+  if (!subjectName) {
+    return null;
+  }
+
+  const subject = await prisma.subject.upsert({
+    where: {
+      name: subjectName,
+    },
+    update: {},
+    create: {
+      name: subjectName,
+    },
+  });
+
+  return subject.id;
+}
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
@@ -161,28 +179,126 @@ export async function createStudyTask(formData: FormData) {
   const estimatedMinutes = Math.max(10, intValue(formData, "estimatedMinutes", 30));
   const priority = Math.min(5, Math.max(1, intValue(formData, "priority", 3)));
 
-  const subject = subjectName
-    ? await prisma.subject.upsert({
-        where: {
-          name: subjectName,
-        },
-        update: {},
-        create: {
-          name: subjectName,
-        },
-      })
-    : null;
+  const subjectId = await getSubjectId(subjectName);
 
   await prisma.studyTask.create({
     data: {
       studentId: editable.student.id,
-      subjectId: subject?.id,
+      subjectId,
       title,
       description,
       type,
       plannedDate,
       estimatedMinutes,
       priority,
+      source: editable.source,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function updateFixedEvent(formData: FormData) {
+  const fixedEventId = textValue(formData, "fixedEventId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const event = await prisma.fixedEvent.findFirst({
+    where: {
+      id: fixedEventId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!event) {
+    redirect(addQuery(editable.redirectTo, "error=fixed-event-not-found"));
+  }
+
+  await prisma.fixedEvent.update({
+    where: {
+      id: event.id,
+    },
+    data: {
+      title: textValue(formData, "title") || event.title,
+      type: enumValue(FixedEventType, textValue(formData, "type"), event.type),
+      weekday: enumValue(Weekday, textValue(formData, "weekday"), event.weekday),
+      startTime: textValue(formData, "startTime") || event.startTime,
+      endTime: textValue(formData, "endTime") || event.endTime,
+      commuteMinutes: Math.max(0, intValue(formData, "commuteMinutes", event.commuteMinutes)),
+      note: textValue(formData, "note") || null,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function updateTutoringSession(formData: FormData) {
+  const tutoringSessionId = textValue(formData, "tutoringSessionId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const session = await prisma.tutoringSession.findFirst({
+    where: {
+      id: tutoringSessionId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!session) {
+    redirect(addQuery(editable.redirectTo, "error=tutoring-session-not-found"));
+  }
+
+  await prisma.tutoringSession.update({
+    where: {
+      id: session.id,
+    },
+    data: {
+      subjectName: textValue(formData, "subjectName") || session.subjectName,
+      weekday: enumValue(Weekday, textValue(formData, "weekday"), session.weekday),
+      startTime: textValue(formData, "startTime") || session.startTime,
+      endTime: textValue(formData, "endTime") || session.endTime,
+      commuteMinutes: Math.max(0, intValue(formData, "commuteMinutes", session.commuteMinutes)),
+      fatigueLevel: enumValue(FatigueLevel, textValue(formData, "fatigueLevel"), session.fatigueLevel),
+      hasHomework: boolValue(formData, "hasHomework"),
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function updateStudyTask(formData: FormData) {
+  const taskId = textValue(formData, "taskId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const task = await prisma.studyTask.findFirst({
+    where: {
+      id: taskId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!task) {
+    redirect(addQuery(editable.redirectTo, "error=task-not-found"));
+  }
+
+  const subjectId = await getSubjectId(textValue(formData, "subjectName"));
+
+  await prisma.studyTask.update({
+    where: {
+      id: task.id,
+    },
+    data: {
+      subjectId,
+      title: textValue(formData, "title") || task.title,
+      description: textValue(formData, "description") || null,
+      type: enumValue(TaskType, textValue(formData, "type"), task.type),
+      plannedDate: taipeiDateValue(textValue(formData, "plannedDate")),
+      estimatedMinutes: Math.max(10, intValue(formData, "estimatedMinutes", task.estimatedMinutes)),
+      priority: Math.min(5, Math.max(1, intValue(formData, "priority", task.priority))),
       source: editable.source,
     },
   });

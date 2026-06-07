@@ -2,7 +2,14 @@
 
 ## Version
 
-`0.9.0`
+`1.0.0`
+
+## Update 1.0.0
+
+- Added collapsed edit forms for fixed routine events, tutoring sessions, and study tasks.
+- Added server-side update actions with the same student/guardian ownership checks as create/delete flows.
+- Guardian edits preserve the active linked student.
+- Edited routine, tutoring, and task records revalidate student and guardian pages so the generated daily schedule updates immediately.
 
 ## Update 0.9.0
 
@@ -39,11 +46,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, and correction MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct bad inputs.
+This version is a data-entry, daily timeline, correction, and edit MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct or edit bad inputs.
 
 ## Next
 
-- Add edit forms for existing events, tutoring sessions, and tasks.
 - Add partial-complete details such as actual minutes and difficulty.
 - Persist generated schedule runs for later review.
 - Add cross-day rollover and weekly planning.

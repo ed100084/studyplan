@@ -485,6 +485,44 @@ h1 {
   color: #991b1b;
 }
 
+.item-editor {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.item-editor summary {
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.item-editor form {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.item-editor label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.item-editor input,
+.item-editor select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font: inherit;
+  padding: 9px 10px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

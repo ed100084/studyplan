@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0
+
+- Added edit actions for fixed routine events, tutoring sessions, and study tasks.
+- Student and guardian pages now show per-item collapsed edit forms.
+- Guardians can edit schedule records for the currently selected linked student.
+- Task edits support subject, title, type, planned date, estimated minutes, priority, and notes.
+- Routine and tutoring edits immediately refresh the generated daily schedule.
+
 ## 0.9.0
 
 - Added correction actions for fixed routine events, tutoring sessions, and study tasks.
