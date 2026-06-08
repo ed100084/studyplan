@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Added partial-completion forms for planned tasks with actual minutes, difficulty, and blocker reason.
+- Added a bulk action to move all unplaced tasks to tomorrow.
+- Improved scheduler unplaced-task explanations with concrete capacity reasons.
+- Unplaced task carryover keeps a RESCHEDULED task log for audit history.
+
 ## 1.0.0
 
 - Added edit actions for fixed routine events, tutoring sessions, and study tasks.

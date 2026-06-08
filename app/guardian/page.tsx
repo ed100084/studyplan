@@ -12,6 +12,7 @@ import {
   deleteFixedEvent,
   deleteStudyTask,
   deleteTutoringSession,
+  moveTasksToTomorrow,
   updateFixedEvent,
   updateStudyTask,
   updateTaskStatus,
@@ -300,6 +301,36 @@ function StudyTaskEditor({ task, studentId }: { task: StudyTaskWithSubject; stud
         </label>
         <button className="small-button" type="submit">
           儲存
+        </button>
+      </form>
+    </details>
+  );
+}
+
+function PartialProgressForm({ taskId, studentId }: { taskId: string; studentId: string }) {
+  return (
+    <details className="item-editor progress-editor">
+      <summary>部分完成</summary>
+      <form action={updateTaskStatus}>
+        <StudentIdInput studentId={studentId} />
+        <input name="taskId" type="hidden" value={taskId} />
+        <input name="status" type="hidden" value="PARTIAL" />
+        <div className="field-row">
+          <label>
+            已完成分鐘
+            <input name="actualMinutes" type="number" min="1" step="5" defaultValue="15" />
+          </label>
+          <label>
+            難度 1-5
+            <input name="difficulty" type="number" min="1" max="5" defaultValue="3" />
+          </label>
+        </div>
+        <label>
+          卡住原因
+          <input name="reason" placeholder="例如：題目太難、時間不夠、觀念不熟" />
+        </label>
+        <button className="small-button" type="submit">
+          紀錄部分完成
         </button>
       </form>
     </details>
@@ -603,6 +634,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                                 </form>
                               </div>
                             )}
+                            {task.status === "PLANNED" ? <PartialProgressForm taskId={task.id} studentId={activeStudent.id} /> : null}
                             <StudyTaskEditor task={task} studentId={activeStudent.id} />
                           </div>
                         ))}
@@ -643,6 +675,15 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           {todaySchedule.unplaced.map((segment) => (
                             <p key={segment.id}>{segment.title}：{segment.detail}</p>
                           ))}
+                          <form className="unplaced-actions" action={moveTasksToTomorrow}>
+                            <input name="studentId" type="hidden" value={activeStudent.id} />
+                            {todaySchedule.unplaced.map((segment) =>
+                              segment.taskId ? <input key={segment.taskId} name="taskId" type="hidden" value={segment.taskId} /> : null,
+                            )}
+                            <button className="small-button" type="submit">
+                              全部延到明天
+                            </button>
+                          </form>
                         </div>
                       )}
                     </section>

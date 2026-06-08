@@ -2,7 +2,14 @@
 
 ## Version
 
-`1.0.0`
+`1.1.0`
+
+## Update 1.1.0
+
+- Added partial-complete tracking for planned tasks using existing task logs.
+- Added bulk carryover for unplaced tasks so they can move to tomorrow.
+- Added clearer unplaced-task explanations based on remaining time and largest available slot.
+- Carryover actions preserve student/guardian ownership checks.
 
 ## Update 1.0.0
 
@@ -46,10 +53,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, and edit MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct or edit bad inputs.
+This version is a data-entry, daily timeline, correction, edit, and progress-tracking MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct, edit, partially complete, or carry over tasks.
 
 ## Next
 
-- Add partial-complete details such as actual minutes and difficulty.
 - Persist generated schedule runs for later review.
 - Add cross-day rollover and weekly planning.
+- Add split-task scheduling for large tasks that do not fit one continuous slot.

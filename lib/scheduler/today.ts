@@ -171,6 +171,24 @@ function reduceLateCapacityForFatigue(slots: FreeSlot[], tutoringSessions: Sched
   });
 }
 
+function explainUnplacedTask(task: SchedulerStudyTask, slots: FreeSlot[], availableMinutes: number) {
+  const largestSlot = slots.reduce((largest, slot) => Math.max(largest, Math.max(0, slot.end - slot.start)), 0);
+
+  if (slots.length === 0 || availableMinutes === 0) {
+    return `No usable study slot remains today; this task needs ${task.estimatedMinutes} minutes.`;
+  }
+
+  if (largestSlot < task.estimatedMinutes) {
+    return `Needs ${task.estimatedMinutes} minutes, but the largest remaining continuous slot is ${largestSlot} minutes. Split it or move it to tomorrow.`;
+  }
+
+  if (availableMinutes < task.estimatedMinutes) {
+    return `Only ${availableMinutes} free minutes remain today, but this task needs ${task.estimatedMinutes} minutes.`;
+  }
+
+  return "Higher-priority or longer tasks used the available slots first; move this task to tomorrow or lower another task.";
+}
+
 export function buildTodaySchedule(input: {
   fixedEvents: SchedulerFixedEvent[];
   tutoringSessions: SchedulerTutoringSession[];
@@ -215,6 +233,7 @@ export function buildTodaySchedule(input: {
   const tasks = [...input.tasks].sort((a, b) => b.priority - a.priority || b.estimatedMinutes - a.estimatedMinutes);
   const studySegments: ScheduleSegment[] = [];
   const unplaced: ScheduleSegment[] = [];
+  const availableMinutes = freeSlots.reduce((total, slot) => total + (slot.end - slot.start), 0);
   let slotIndex = 0;
   let cursor = freeSlots[0]?.start ?? dayStart;
 
@@ -262,11 +281,13 @@ export function buildTodaySchedule(input: {
     }
 
     if (!placed) {
+      const remainingSlots = freeSlots.slice(slotIndex).map((slot, index) => (index === 0 ? { ...slot, start: Math.max(cursor, slot.start) } : slot));
+      const remainingAvailableMinutes = remainingSlots.reduce((total, slot) => total + Math.max(0, slot.end - slot.start), 0);
       unplaced.push({
         id: `unplaced-${task.id}`,
         kind: "unplaced",
         title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
-        detail: `今天剩餘可用時間不足，需要 ${task.estimatedMinutes} 分鐘`,
+        detail: explainUnplacedTask(task, remainingSlots, remainingAvailableMinutes),
         minutes: task.estimatedMinutes,
         taskId: task.id,
       });
@@ -292,7 +313,7 @@ export function buildTodaySchedule(input: {
   return {
     scheduled,
     unplaced,
-    availableMinutes: freeSlots.reduce((total, slot) => total + (slot.end - slot.start), 0),
+    availableMinutes,
     scheduledStudyMinutes: studySegments.reduce((total, segment) => (segment.kind === "study" ? total + segment.minutes : total), 0),
   };
 }

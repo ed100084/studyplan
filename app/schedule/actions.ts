@@ -362,6 +362,54 @@ export async function updateTaskStatus(formData: FormData) {
   redirect(addQuery(editable.redirectTo, "schedule=1"));
 }
 
+export async function moveTasksToTomorrow(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const taskIds = formData
+    .getAll("taskId")
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+
+  if (taskIds.length === 0) {
+    redirect(addQuery(editable.redirectTo, "schedule=1"));
+  }
+
+  const tasks = await prisma.studyTask.findMany({
+    where: {
+      id: {
+        in: taskIds,
+      },
+      studentId: editable.student.id,
+      status: TaskStatus.PLANNED,
+    },
+  });
+
+  await prisma.$transaction(
+    tasks.map((task) =>
+      prisma.studyTask.update({
+        where: {
+          id: task.id,
+        },
+        data: {
+          plannedDate: addDays(task.plannedDate, 1),
+          status: TaskStatus.PLANNED,
+          logs: {
+            create: {
+              userId: editable.actingUserId,
+              status: TaskStatus.RESCHEDULED,
+              reason: "Moved from today's unplaced list to tomorrow.",
+              source: editable.source,
+            },
+          },
+        },
+      }),
+    ),
+  );
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
 export async function deleteFixedEvent(formData: FormData) {
   const fixedEventId = textValue(formData, "fixedEventId");
   const studentId = textValue(formData, "studentId") || undefined;
