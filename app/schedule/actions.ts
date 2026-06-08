@@ -2,7 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { FatigueLevel, FixedEventType, RecordSource, TaskStatus, TaskType, UserRole, Weekday } from "@prisma/client";
+import {
+  CalendarEventType,
+  FatigueLevel,
+  FixedEventType,
+  RecordSource,
+  TaskStatus,
+  TaskType,
+  UserRole,
+  Weekday,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { formatDateInput, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
@@ -201,6 +210,35 @@ export async function createStudyTask(formData: FormData) {
       plannedDate,
       estimatedMinutes,
       priority,
+      source: editable.source,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function createCalendarEvent(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const title = textValue(formData, "title") || "學校活動";
+  const type = enumValue(CalendarEventType, textValue(formData, "type"), CalendarEventType.SCHOOL_EVENT);
+  const startDate = await userDateValue(textValue(formData, "startDate"));
+  const rawEndDate = textValue(formData, "endDate");
+  const endDate = rawEndDate ? await userDateValue(rawEndDate) : null;
+  const subjectName = textValue(formData, "subjectName") || null;
+  const note = textValue(formData, "note") || null;
+
+  await prisma.calendarEvent.create({
+    data: {
+      studentId: editable.student.id,
+      title,
+      type,
+      startDate,
+      endDate,
+      subjectName,
+      note,
       source: editable.source,
     },
   });
@@ -495,6 +533,32 @@ export async function deleteStudyTask(formData: FormData) {
   await prisma.studyTask.delete({
     where: {
       id: task.id,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function deleteCalendarEvent(formData: FormData) {
+  const calendarEventId = textValue(formData, "calendarEventId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const event = await prisma.calendarEvent.findFirst({
+    where: {
+      id: calendarEventId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!event) {
+    redirect(addQuery(editable.redirectTo, "error=calendar-event-not-found"));
+  }
+
+  await prisma.calendarEvent.delete({
+    where: {
+      id: event.id,
     },
   });
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- Added student-specific calendar events for exams, school activities, deadlines, and other dates.
+- Student and guardian pages can add and delete calendar events for the relevant student.
+- Weekly and monthly calendars now show event counts and key event labels alongside tasks, tutoring, and routines.
+- Added a database migration for `CalendarEvent` records.
+
 ## 1.4.1
 
 - Added browser time zone detection and a persistent time zone cookie.

@@ -2,7 +2,14 @@
 
 ## Version
 
-`1.4.1`
+`1.5.0`
+
+## Update 1.5.0
+
+- Added student-specific calendar events for exams, school activities, deadlines, and other dates.
+- Student and guardian pages can add and delete calendar events.
+- Weekly and monthly calendar cards now include event counts and key event labels.
+- Added a Prisma migration for the `CalendarEvent` table and `CalendarEventType` enum.
 
 ## Update 1.4.1
 
@@ -81,10 +88,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload in the user's time zone, and let students or guardians correct, edit, partially complete, or carry over tasks.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, calendar-event, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload and events in the user's time zone, and let students or guardians correct, edit, partially complete, or carry over tasks.
 
 ## Next
 
 - Persist generated schedule runs for later review.
 - Add persisted weekly planning with schedule history.
-- Add school events and exam dates for longer-range planning.
+- Add class-admin bulk import for school events and exam dates.

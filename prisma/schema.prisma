@@ -50,6 +50,15 @@ enum ExamType {
   CUSTOM
 }
 
+enum CalendarEventType {
+  SECTION_EXAM
+  MOCK_EXAM
+  ENTRANCE_EXAM
+  SCHOOL_EVENT
+  DEADLINE
+  OTHER
+}
+
 enum TaskType {
   SCHOOL_HOMEWORK
   TUTORING_HOMEWORK
@@ -101,6 +110,7 @@ model StudentProfile {
   fixedEvents      FixedEvent[]
   tutoringSessions TutoringSession[]
   studyTasks       StudyTask[]
+  calendarEvents   CalendarEvent[]
   scores           Score[]
   weakPoints       WeakPoint[]
   reviewItems      ReviewItem[]
@@ -311,6 +321,24 @@ model StudyTask {
   subject         Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   chapter         Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   logs            TaskLog[]
+}
+
+model CalendarEvent {
+  id          String            @id @default(cuid())
+  studentId   String
+  title       String
+  type        CalendarEventType
+  startDate   DateTime
+  endDate     DateTime?
+  subjectName String?
+  note        String?
+  source      RecordSource      @default(STUDENT)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  student     StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, startDate])
+  @@index([studentId, endDate])
 }
 
 model TaskLog {

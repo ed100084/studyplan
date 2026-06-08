@@ -477,6 +477,10 @@ h1 {
   margin: 20px 0;
 }
 
+.event-panel {
+  margin: 20px 0;
+}
+
 .month-weekdays {
   color: var(--muted);
   display: grid;

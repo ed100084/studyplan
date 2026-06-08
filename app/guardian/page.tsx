@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { FatigueLevel, FixedEventType, TaskStatus, TaskType, Weekday } from "@prisma/client";
-import type { FixedEvent, StudyTask, Subject, TutoringSession } from "@prisma/client";
+import { CalendarEventType, FatigueLevel, FixedEventType, TaskStatus, TaskType, Weekday } from "@prisma/client";
+import type { CalendarEvent, FixedEvent, StudyTask, Subject, TutoringSession } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
@@ -8,8 +8,10 @@ import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZo
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
+  createCalendarEvent,
   createStudyTask,
   createTutoringSession,
+  deleteCalendarEvent,
   deleteFixedEvent,
   deleteStudyTask,
   deleteTutoringSession,
@@ -62,6 +64,15 @@ const taskTypeLabels: Record<TaskType, string> = {
   EXAM_SPRINT: "考前衝刺",
 };
 
+const calendarEventLabels: Record<CalendarEventType, string> = {
+  SECTION_EXAM: "段考",
+  MOCK_EXAM: "模擬考",
+  ENTRANCE_EXAM: "升學考試",
+  SCHOOL_EVENT: "學校活動",
+  DEADLINE: "截止日",
+  OTHER: "其他",
+};
+
 const fatigueLabels: Record<FatigueLevel, string> = {
   LOW: "低",
   NORMAL: "普通",
@@ -79,6 +90,7 @@ const statusLabels: Record<TaskStatus, string> = {
 const weekdayOptions = Object.entries(weekdayLabels);
 const fixedEventOptions = Object.entries(fixedEventLabels);
 const taskTypeOptions = Object.entries(taskTypeLabels);
+const calendarEventOptions = Object.entries(calendarEventLabels);
 const readableWeekdayLabels: Record<Weekday, string> = {
   MONDAY: "週一",
   TUESDAY: "週二",
@@ -90,6 +102,19 @@ const readableWeekdayLabels: Record<Weekday, string> = {
 };
 function gradeLabel(grade: number) {
   return `國${grade - 6}`;
+}
+function eventFallsOnDate(event: CalendarEvent, date: string, timeZone: string) {
+  const startDate = formatDateInput(event.startDate, timeZone);
+  const endDate = event.endDate ? formatDateInput(event.endDate, timeZone) : startDate;
+
+  return startDate <= date && date <= endDate;
+}
+
+function eventDateLabel(event: CalendarEvent, timeZone: string) {
+  const startDate = formatDateInput(event.startDate, timeZone);
+  const endDate = event.endDate ? formatDateInput(event.endDate, timeZone) : startDate;
+
+  return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
 }
 
 function StudentIdInput({ studentId }: { studentId: string }) {
@@ -293,12 +318,14 @@ function PartialProgressForm({ taskId, studentId }: { taskId: string; studentId:
 }
 
 function WeekCalendar({
+  calendarEvents,
   fixedEvents,
   tutoringSessions,
   tasks,
   week,
   timeZone,
 }: {
+  calendarEvents: CalendarEvent[];
   fixedEvents: FixedEvent[];
   tutoringSessions: TutoringSession[];
   tasks: StudyTaskWithSubject[];
@@ -330,6 +357,7 @@ function WeekCalendar({
       <div className="week-grid">
         {week.days.map((day) => {
           const dayTasks = weekTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
+          const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
           const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
           const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
           const planned = dayTasks.filter((task) => task.status === "PLANNED").length;
@@ -345,6 +373,7 @@ function WeekCalendar({
               </div>
               <div className="week-metrics">
                 <span>{dayTutoringSessions.length} 補習</span>
+                <span>{dayCalendarEvents.length} 事件</span>
                 <span>{dayFixedEvents.length} 作息</span>
                 <span>{dayTasks.length} 任務</span>
               </div>
@@ -355,6 +384,9 @@ function WeekCalendar({
               <div className="week-items">
                 {dayTutoringSessions.slice(0, 2).map((sessionItem) => (
                   <span key={sessionItem.id}>{sessionItem.subjectName}</span>
+                ))}
+                {dayCalendarEvents.slice(0, 2).map((event) => (
+                  <span key={event.id}>{calendarEventLabels[event.type]}：{event.title}</span>
                 ))}
                 {dayTasks.slice(0, 2).map((task) => (
                   <span key={task.id}>
@@ -371,12 +403,14 @@ function WeekCalendar({
 }
 
 function MonthCalendar({
+  calendarEvents,
   fixedEvents,
   tutoringSessions,
   tasks,
   month,
   timeZone,
 }: {
+  calendarEvents: CalendarEvent[];
   fixedEvents: FixedEvent[];
   tutoringSessions: TutoringSession[];
   tasks: StudyTaskWithSubject[];
@@ -414,6 +448,7 @@ function MonthCalendar({
         ))}
         {month.days.map((day) => {
           const dayTasks = monthTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
+          const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
           const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
           const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
@@ -433,10 +468,14 @@ function MonthCalendar({
               </div>
               <div className="month-metrics">
                 <span>{dayTutoringSessions.length} 補習</span>
+                <span>{dayCalendarEvents.length} 事件</span>
                 <span>{dayFixedEvents.length} 作息</span>
                 <span>{dayTasks.length} 任務</span>
               </div>
               <div className="month-items">
+                {dayCalendarEvents.slice(0, 2).map((event) => (
+                  <span key={event.id}>{calendarEventLabels[event.type]}：{event.title}</span>
+                ))}
                 {dayTasks.slice(0, 2).map((task) => (
                   <span key={task.id}>{task.subject?.name ?? "未指定"}：{task.title}</span>
                 ))}
@@ -507,6 +546,33 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                             subject: true,
                           },
                           orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+                        },
+                        calendarEvents: {
+                          where: {
+                            OR: [
+                              {
+                                startDate: {
+                                  gte: taskRangeStart,
+                                  lt: taskRangeEnd,
+                                },
+                              },
+                              {
+                                endDate: {
+                                  gte: taskRangeStart,
+                                  lt: taskRangeEnd,
+                                },
+                              },
+                              {
+                                startDate: {
+                                  lt: taskRangeStart,
+                                },
+                                endDate: {
+                                  gte: taskRangeEnd,
+                                },
+                              },
+                            ],
+                          },
+                          orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
                         },
                       },
                     },
@@ -635,6 +701,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   </div>
 
                   <WeekCalendar
+                    calendarEvents={activeStudent.calendarEvents}
                     fixedEvents={activeStudent.fixedEvents}
                     tutoringSessions={activeStudent.tutoringSessions}
                     tasks={activeStudent.studyTasks}
@@ -643,12 +710,45 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   />
 
                   <MonthCalendar
+                    calendarEvents={activeStudent.calendarEvents}
                     fixedEvents={activeStudent.fixedEvents}
                     tutoringSessions={activeStudent.tutoringSessions}
                     tasks={activeStudent.studyTasks}
                     month={month}
                     timeZone={timeZone}
                   />
+
+                  <section className="panel event-panel">
+                    <div className="panel-header">
+                      <h2>近期考試 / 活動</h2>
+                      <span>{activeStudent.calendarEvents.length} 筆</span>
+                    </div>
+                    <div className="task-list compact-list">
+                      {activeStudent.calendarEvents.map((event) => (
+                        <div className="task" key={event.id}>
+                          <span className="task-dot" aria-hidden="true" />
+                          <div>
+                            <strong>
+                              {calendarEventLabels[event.type]}：{event.title}
+                            </strong>
+                            <span>
+                              {eventDateLabel(event, timeZone)}
+                              {event.subjectName ? `，${event.subjectName}` : ""}
+                            </span>
+                          </div>
+                          <form className="inline-actions" action={deleteCalendarEvent}>
+                            <input name="studentId" type="hidden" value={activeStudent.id} />
+                            <input name="calendarEventId" type="hidden" value={event.id} />
+                            <button className="small-button danger-button" type="submit">
+                              刪除
+                            </button>
+                          </form>
+                        </div>
+                      ))}
+
+                      {activeStudent.calendarEvents.length === 0 && <div className="empty-state">本週或本月尚未輸入考試與學校活動。</div>}
+                    </div>
+                  </section>
 
                   <div className="dashboard-grid">
                     <section className="panel">
@@ -953,6 +1053,45 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       </div>
                       <button className="button primary" type="submit">
                         加入任務
+                      </button>
+                    </form>
+                    <form className="form-card" action={createCalendarEvent}>
+                      <h2>替 {activeStudent.user.displayName} 新增考試 / 學校活動</h2>
+                      <input name="studentId" type="hidden" value={activeStudent.id} />
+                      <label>
+                        類型
+                        <select name="type" defaultValue="SECTION_EXAM">
+                          {calendarEventOptions.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        標題
+                        <input name="title" placeholder="例如：第一次段考、校慶、報名截止" required />
+                      </label>
+                      <label>
+                        科目
+                        <input name="subjectName" placeholder="可留空；例如：數學、英文" />
+                      </label>
+                      <div className="field-row">
+                        <label>
+                          開始日期
+                          <input name="startDate" type="date" defaultValue={today.date} required />
+                        </label>
+                        <label>
+                          結束日期
+                          <input name="endDate" type="date" />
+                        </label>
+                      </div>
+                      <label>
+                        備註
+                        <input name="note" placeholder="例如：範圍、攜帶物品、報名資訊" />
+                      </label>
+                      <button className="button primary" type="submit">
+                        新增事件
                       </button>
                     </form>
                   </div>
