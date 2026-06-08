@@ -2,7 +2,14 @@
 
 ## Version
 
-`1.2.0`
+`1.3.0`
+
+## Update 1.3.0
+
+- Added a current-week calendar summary to the student page.
+- Added the same weekly calendar summary to the guardian page for the selected linked student.
+- Weekly calendar cards show fixed routine count, tutoring count, task count, completion status counts, estimated minutes, and key item labels per weekday.
+- Daily timeline, daily task list, and generated schedule remain scoped to today while the weekly calendar reads the full current week.
 
 ## Update 1.2.0
 
@@ -60,10 +67,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, and split-scheduling MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct, edit, partially complete, or carry over tasks.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, and weekly-calendar MVP. It can auto-place today's planned tasks into available after-school slots, show the current week's workload, and let students or guardians correct, edit, partially complete, or carry over tasks.
 
 ## Next
 
 - Persist generated schedule runs for later review.
-- Add cross-day rollover and weekly planning.
 - Add persisted weekly planning with schedule history.
+- Add a month calendar for longer exam and school-event planning.

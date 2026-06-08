@@ -78,6 +78,16 @@ const statusLabels: Record<TaskStatus, string> = {
 const weekdayOptions = Object.entries(weekdayLabels);
 const fixedEventOptions = Object.entries(fixedEventLabels);
 const taskTypeOptions = Object.entries(taskTypeLabels);
+const orderedWeekdays: Weekday[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+const readableWeekdayLabels: Record<Weekday, string> = {
+  MONDAY: "週一",
+  TUESDAY: "週二",
+  WEDNESDAY: "週三",
+  THURSDAY: "週四",
+  FRIDAY: "週五",
+  SATURDAY: "週六",
+  SUNDAY: "週日",
+};
 const weekdayByEnglish: Record<string, Weekday> = {
   Monday: "MONDAY",
   Tuesday: "TUESDAY",
@@ -122,6 +132,31 @@ function taipeiDayRange(date: string) {
     start,
     end: new Date(`${nextTaipeiDate}T00:00:00+08:00`),
   };
+}
+
+function getTaipeiWeek(date: string) {
+  const start = new Date(`${date}T00:00:00+08:00`);
+  const day = start.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + mondayOffset);
+
+  const days = orderedWeekdays.map((weekday, index) => {
+    const current = new Date(start);
+    current.setDate(start.getDate() + index);
+    const dateValue = formatDateInput(current);
+
+    return {
+      date: dateValue,
+      dayNumber: dateValue.slice(5),
+      weekday,
+      isToday: dateValue === date,
+    };
+  });
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  return { days, start, end };
 }
 
 function gradeLabel(grade: number) {
@@ -337,6 +372,78 @@ function PartialProgressForm({ taskId, studentId }: { taskId: string; studentId:
   );
 }
 
+function WeekCalendar({
+  fixedEvents,
+  tutoringSessions,
+  tasks,
+  week,
+}: {
+  fixedEvents: FixedEvent[];
+  tutoringSessions: TutoringSession[];
+  tasks: StudyTaskWithSubject[];
+  week: ReturnType<typeof getTaipeiWeek>;
+}) {
+  const totalEstimatedMinutes = tasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+  const completedTasks = tasks.filter((task) => task.status === "DONE").length;
+  const openTasks = tasks.filter((task) => task.status === "PLANNED").length;
+
+  return (
+    <section className="panel week-panel">
+      <div className="panel-header">
+        <div>
+          <h2>本週行事曆</h2>
+          <p className="panel-copy">
+            {week.days[0]?.date} - {week.days[6]?.date}
+          </p>
+        </div>
+        <span>
+          任務 {tasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘
+        </span>
+      </div>
+
+      <div className="week-grid">
+        {week.days.map((day) => {
+          const dayTasks = tasks.filter((task) => formatDateInput(task.plannedDate) === day.date);
+          const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
+          const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
+          const planned = dayTasks.filter((task) => task.status === "PLANNED").length;
+          const done = dayTasks.filter((task) => task.status === "DONE").length;
+          const partial = dayTasks.filter((task) => task.status === "PARTIAL").length;
+          const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+
+          return (
+            <div className={day.isToday ? "week-day today" : "week-day"} key={day.date}>
+              <div className="week-day-header">
+                <strong>{readableWeekdayLabels[day.weekday]}</strong>
+                <span>{day.dayNumber}</span>
+              </div>
+              <div className="week-metrics">
+                <span>{dayTutoringSessions.length} 補習</span>
+                <span>{dayFixedEvents.length} 作息</span>
+                <span>{dayTasks.length} 任務</span>
+              </div>
+              <p>
+                完成 {done}，待辦 {planned}，部分 {partial}
+              </p>
+              <p>預估 {minutes} 分鐘</p>
+              <div className="week-items">
+                {dayTutoringSessions.slice(0, 2).map((sessionItem) => (
+                  <span key={sessionItem.id}>{sessionItem.subjectName}</span>
+                ))}
+                {dayTasks.slice(0, 2).map((task) => (
+                  <span key={task.id}>
+                    {task.subject?.name ?? "未指定"}：{task.title}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default async function GuardianPage({ searchParams }: GuardianPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
@@ -346,6 +453,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const error = params?.error;
   const today = getTaipeiToday();
   const todayRange = taipeiDayRange(today.date);
+  const week = getTaipeiWeek(today.date);
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "GUARDIAN"
@@ -370,17 +478,11 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           },
                         },
                         fixedEvents: {
-                          where: {
-                            weekday: today.weekday,
-                          },
                           orderBy: {
                             startTime: "asc",
                           },
                         },
                         tutoringSessions: {
-                          where: {
-                            weekday: today.weekday,
-                          },
                           orderBy: {
                             startTime: "asc",
                           },
@@ -388,8 +490,8 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                         studyTasks: {
                           where: {
                             plannedDate: {
-                              gte: todayRange.start,
-                              lt: todayRange.end,
+                              gte: week.start,
+                              lt: week.end,
                             },
                           },
                           include: {
@@ -409,13 +511,21 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
   const linkedStudents = currentUser?.guardianProfile?.studentLinks.map((link) => link.student) ?? [];
   const activeStudent = linkedStudents.find((student) => student.id === params?.studentId) ?? linkedStudents[0];
-  const openTasks = activeStudent?.studyTasks.filter((task) => task.status === "PLANNED") ?? [];
+  const activeTodayTasks =
+    activeStudent?.studyTasks.filter((task) => {
+      const plannedDate = task.plannedDate.getTime();
+      return plannedDate >= todayRange.start.getTime() && plannedDate < todayRange.end.getTime();
+    }) ?? [];
+  const activeTodayFixedEvents = activeStudent?.fixedEvents.filter((event) => event.weekday === today.weekday) ?? [];
+  const activeTodayTutoringSessions =
+    activeStudent?.tutoringSessions.filter((sessionItem) => sessionItem.weekday === today.weekday) ?? [];
+  const openTasks = activeTodayTasks.filter((task) => task.status === "PLANNED");
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const activeClass = activeStudent?.classMemberships[0]?.classroom.name;
   const todaySchedule = activeStudent
     ? buildTodaySchedule({
-        fixedEvents: activeStudent.fixedEvents,
-        tutoringSessions: activeStudent.tutoringSessions,
+        fixedEvents: activeTodayFixedEvents,
+        tutoringSessions: activeTodayTutoringSessions,
         tasks: openTasks.map((task) => ({
           id: task.id,
           title: task.title,
@@ -513,6 +623,13 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     <span className="version-badge">{today.date}</span>
                   </div>
 
+                  <WeekCalendar
+                    fixedEvents={activeStudent.fixedEvents}
+                    tutoringSessions={activeStudent.tutoringSessions}
+                    tasks={activeStudent.studyTasks}
+                    week={week}
+                  />
+
                   <div className="dashboard-grid">
                     <section className="panel">
                       <div className="panel-header">
@@ -521,7 +638,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       </div>
 
                       <div className="timeline-list">
-                        {activeStudent.fixedEvents.map((event) => (
+                        {activeTodayFixedEvents.map((event) => (
                           <div className="timeline-item" key={event.id}>
                             <span className="timeline-time">
                               {event.startTime}-{event.endTime}
@@ -541,7 +658,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           </div>
                         ))}
 
-                        {activeStudent.tutoringSessions.map((sessionItem) => (
+                        {activeTodayTutoringSessions.map((sessionItem) => (
                           <div className="timeline-item accent-item" key={sessionItem.id}>
                             <span className="timeline-time">
                               {sessionItem.startTime}-{sessionItem.endTime}
@@ -564,7 +681,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           </div>
                         ))}
 
-                        {activeStudent.fixedEvents.length === 0 && activeStudent.tutoringSessions.length === 0 && (
+                        {activeTodayFixedEvents.length === 0 && activeTodayTutoringSessions.length === 0 && (
                           <div className="empty-state">今天尚未輸入固定行程。</div>
                         )}
                       </div>
@@ -577,7 +694,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       </div>
 
                       <div className="task-list compact-list">
-                        {activeStudent.studyTasks.map((task) => (
+                        {activeTodayTasks.map((task) => (
                           <div className={task.status === "PLANNED" ? "task" : "task muted-task"} key={task.id}>
                             <span className="task-dot" aria-hidden="true" />
                             <div>
@@ -639,7 +756,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           </div>
                         ))}
 
-                        {activeStudent.studyTasks.length === 0 && <div className="empty-state">今天尚未輸入任務。</div>}
+                        {activeTodayTasks.length === 0 && <div className="empty-state">今天尚未輸入任務。</div>}
                       </div>
                     </section>
                   </div>

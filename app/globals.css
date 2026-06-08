@@ -405,6 +405,74 @@ h1 {
   line-height: 1.6;
 }
 
+.week-panel {
+  margin: 20px 0;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.week-day {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.week-day.today {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.week-day-header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.week-day-header span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.week-metrics,
+.week-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.week-metrics {
+  margin-bottom: 8px;
+}
+
+.week-metrics span,
+.week-items span {
+  background: #f1f5f9;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 7px;
+}
+
+.week-day p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.week-items {
+  margin-top: 8px;
+}
+
 .timeline-list {
   display: grid;
   gap: 10px;
@@ -684,6 +752,7 @@ h1 {
   .hero-grid,
   .role-grid,
   .dashboard-grid,
+  .week-grid,
   .form-grid,
   .guardian-tools {
     grid-template-columns: 1fr;

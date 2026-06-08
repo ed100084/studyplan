@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+- Added a weekly calendar summary to student and guardian pages.
+- Student and guardian views now load the current Taipei week while keeping today's task and timeline sections scoped to today.
+- Weekly cards summarize tutoring sessions, fixed routine events, task counts, completion counts, and estimated study minutes by day.
+- Added responsive weekly calendar styling for desktop and mobile.
+
 ## 1.2.0
 
 - Added split-task scheduling for large tasks that can fit across multiple free slots.
