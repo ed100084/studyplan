@@ -162,6 +162,41 @@ function getTaipeiWeek(date: string) {
   };
 }
 
+function getTaipeiMonth(date: string) {
+  const [year, month] = date.split("-").map(Number);
+  const monthValue = String(month).padStart(2, "0");
+  const monthLabel = `${year}-${monthValue}`;
+  const start = new Date(`${monthLabel}-01T00:00:00+08:00`);
+  const end = new Date(start);
+  end.setMonth(start.getMonth() + 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, index) => {
+    const dayNumber = String(index + 1).padStart(2, "0");
+    const dateValue = `${monthLabel}-${dayNumber}`;
+    const weekdayName = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Taipei",
+      weekday: "long",
+    }).format(new Date(`${dateValue}T00:00:00+08:00`));
+    const weekday = weekdayByEnglish[weekdayName] ?? Weekday.MONDAY;
+
+    return {
+      date: dateValue,
+      dayNumber,
+      weekday,
+      isToday: dateValue === date,
+    };
+  });
+  const leadingBlankCount = orderedWeekdays.indexOf(days[0]?.weekday ?? Weekday.MONDAY);
+
+  return {
+    days,
+    start,
+    end,
+    monthLabel,
+    leadingBlankCount,
+  };
+}
+
 function gradeLabel(grade: number) {
   return `國${grade - 6}`;
 }
@@ -378,9 +413,13 @@ function WeekCalendar({
   tasks: StudyTaskWithSubject[];
   week: ReturnType<typeof getTaipeiWeek>;
 }) {
-  const totalEstimatedMinutes = tasks.reduce((total, task) => total + task.estimatedMinutes, 0);
-  const completedTasks = tasks.filter((task) => task.status === "DONE").length;
-  const openTasks = tasks.filter((task) => task.status === "PLANNED").length;
+  const weekTasks = tasks.filter((task) => {
+    const plannedDate = task.plannedDate.getTime();
+    return plannedDate >= week.start.getTime() && plannedDate < week.end.getTime();
+  });
+  const totalEstimatedMinutes = weekTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+  const completedTasks = weekTasks.filter((task) => task.status === "DONE").length;
+  const openTasks = weekTasks.filter((task) => task.status === "PLANNED").length;
 
   return (
     <section className="panel week-panel">
@@ -392,13 +431,13 @@ function WeekCalendar({
           </p>
         </div>
         <span>
-          任務 {tasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘
+          任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘
         </span>
       </div>
 
       <div className="week-grid">
         {week.days.map((day) => {
-          const dayTasks = tasks.filter((task) => formatDateInput(task.plannedDate) === day.date);
+          const dayTasks = weekTasks.filter((task) => formatDateInput(task.plannedDate) === day.date);
           const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
           const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
           const planned = dayTasks.filter((task) => task.status === "PLANNED").length;
@@ -437,6 +476,83 @@ function WeekCalendar({
   );
 }
 
+function MonthCalendar({
+  fixedEvents,
+  tutoringSessions,
+  tasks,
+  month,
+}: {
+  fixedEvents: FixedEvent[];
+  tutoringSessions: TutoringSession[];
+  tasks: StudyTaskWithSubject[];
+  month: ReturnType<typeof getTaipeiMonth>;
+}) {
+  const monthTasks = tasks.filter((task) => {
+    const plannedDate = task.plannedDate.getTime();
+    return plannedDate >= month.start.getTime() && plannedDate < month.end.getTime();
+  });
+  const totalEstimatedMinutes = monthTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+  const completedTasks = monthTasks.filter((task) => task.status === "DONE").length;
+  const openTasks = monthTasks.filter((task) => task.status === "PLANNED").length;
+
+  return (
+    <section className="panel month-panel">
+      <div className="panel-header">
+        <div>
+          <h2>本月行事曆</h2>
+          <p className="panel-copy">{month.monthLabel}</p>
+        </div>
+        <span>
+          任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘
+        </span>
+      </div>
+
+      <div className="month-weekdays">
+        {orderedWeekdays.map((weekday) => (
+          <span key={weekday}>{readableWeekdayLabels[weekday]}</span>
+        ))}
+      </div>
+      <div className="month-grid">
+        {Array.from({ length: month.leadingBlankCount }, (_, index) => (
+          <div className="month-day empty" key={`blank-${index}`} />
+        ))}
+        {month.days.map((day) => {
+          const dayTasks = monthTasks.filter((task) => formatDateInput(task.plannedDate) === day.date);
+          const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
+          const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
+          const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+          const dayClassName = [
+            "month-day",
+            day.isToday ? "today" : "",
+            dayTasks.length >= 3 || minutes >= 120 ? "heavy" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return (
+            <div className={dayClassName} key={day.date}>
+              <div className="month-day-header">
+                <strong>{day.dayNumber}</strong>
+                <span>{minutes} 分鐘</span>
+              </div>
+              <div className="month-metrics">
+                <span>{dayTutoringSessions.length} 補習</span>
+                <span>{dayFixedEvents.length} 作息</span>
+                <span>{dayTasks.length} 任務</span>
+              </div>
+              <div className="month-items">
+                {dayTasks.slice(0, 2).map((task) => (
+                  <span key={task.id}>{task.subject?.name ?? "未指定"}：{task.title}</span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default async function StudentPage({ searchParams }: StudentPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
@@ -447,6 +563,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const today = getTaipeiToday();
   const todayRange = taipeiDayRange(today.date);
   const week = getTaipeiWeek(today.date);
+  const month = getTaipeiMonth(today.date);
+  const taskRangeStart = week.start.getTime() < month.start.getTime() ? week.start : month.start;
+  const taskRangeEnd = week.end.getTime() > month.end.getTime() ? week.end : month.end;
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "STUDENT"
@@ -475,8 +594,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 studyTasks: {
                   where: {
                     plannedDate: {
-                      gte: week.start,
-                      lt: week.end,
+                      gte: taskRangeStart,
+                      lt: taskRangeEnd,
                     },
                   },
                   include: {
@@ -567,6 +686,13 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 tutoringSessions={student.tutoringSessions}
                 tasks={student.studyTasks}
                 week={week}
+              />
+
+              <MonthCalendar
+                fixedEvents={student.fixedEvents}
+                tutoringSessions={student.tutoringSessions}
+                tasks={student.studyTasks}
+                month={month}
               />
 
               <div className="dashboard-grid">

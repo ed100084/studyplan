@@ -473,6 +473,86 @@ h1 {
   margin-top: 8px;
 }
 
+.month-panel {
+  margin: 20px 0;
+}
+
+.month-weekdays {
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  gap: 10px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.month-weekdays span {
+  padding: 0 4px;
+}
+
+.month-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
+.month-day {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 112px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.month-day.empty {
+  background: transparent;
+  border-color: transparent;
+}
+
+.month-day.today {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.month-day.heavy {
+  border-color: #f59e0b;
+}
+
+.month-day-header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.month-day-header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.month-metrics,
+.month-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.month-metrics span,
+.month-items span {
+  background: #f1f5f9;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 7px;
+}
+
+.month-items {
+  margin-top: 8px;
+}
+
 .timeline-list {
   display: grid;
   gap: 10px;
@@ -753,9 +833,19 @@ h1 {
   .role-grid,
   .dashboard-grid,
   .week-grid,
+  .month-grid,
+  .month-weekdays,
   .form-grid,
   .guardian-tools {
     grid-template-columns: 1fr;
+  }
+
+  .month-weekdays {
+    display: none;
+  }
+
+  .month-day.empty {
+    display: none;
   }
 
   .hero-grid {

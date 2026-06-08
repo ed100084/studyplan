@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+
+- Added a monthly calendar summary to student and guardian pages.
+- Monthly cards show recurring tutoring and routine counts, daily task counts, and estimated study minutes.
+- Student and guardian schedule queries now cover the current week and current month together so cross-month weeks do not lose data.
+- Added responsive monthly calendar styling.
+
 ## 1.3.0
 
 - Added a weekly calendar summary to student and guardian pages.

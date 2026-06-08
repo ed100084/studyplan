@@ -2,7 +2,14 @@
 
 ## Version
 
-`1.3.0`
+`1.4.0`
+
+## Update 1.4.0
+
+- Added a current-month calendar summary to the student page.
+- Added the same monthly calendar summary to the guardian page for the selected linked student.
+- Monthly calendar cards show recurring tutoring count, fixed routine count, task count, key task labels, and estimated study minutes.
+- Schedule queries now cover the union of the current week and current month so week cards remain complete when a week crosses month boundaries.
 
 ## Update 1.3.0
 
@@ -67,10 +74,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, and weekly-calendar MVP. It can auto-place today's planned tasks into available after-school slots, show the current week's workload, and let students or guardians correct, edit, partially complete, or carry over tasks.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, and monthly-calendar MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload, and let students or guardians correct, edit, partially complete, or carry over tasks.
 
 ## Next
 
 - Persist generated schedule runs for later review.
 - Add persisted weekly planning with schedule history.
-- Add a month calendar for longer exam and school-event planning.
+- Add school events and exam dates for longer-range planning.
