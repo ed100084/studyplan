@@ -2,7 +2,14 @@
 
 ## Version
 
-`1.5.0`
+`1.6.0`
+
+## Update 1.6.0
+
+- Added class-admin shared calendar events for class-wide exams, school activities, deadlines, and other dates.
+- Class admins can apply one event to every student currently in the managed class.
+- Rebuilt the class-admin page with clean Traditional Chinese copy and a roster panel.
+- Class-wide events reuse the existing student calendar event table, so student and guardian weekly/monthly calendars show them automatically.
 
 ## Update 1.5.0
 
@@ -88,10 +95,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, calendar-event, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload and events in the user's time zone, and let students or guardians correct, edit, partially complete, or carry over tasks.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, student/class calendar-event, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload and events in the user's time zone, and let students, guardians, or class admins manage relevant planning data.
 
 ## Next
 
 - Persist generated schedule runs for later review.
 - Add persisted weekly planning with schedule history.
-- Add class-admin bulk import for school events and exam dates.
+- Add CSV/Excel bulk import for class-admin school events and exam dates.

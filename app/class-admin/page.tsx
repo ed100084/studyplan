@@ -1,23 +1,43 @@
 import Link from "next/link";
+import { CalendarEventType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
+import { getCurrentDay, getRequestTimeZone } from "@/lib/timezone";
+import { createClassCalendarEvent } from "./actions";
 import { createClassroom, signOut } from "../onboarding/actions";
 
 type ClassAdminPageProps = {
   searchParams?: Promise<{
+    code?: string;
+    count?: string;
     created?: string;
     error?: string;
+    event?: string;
     existing?: string;
-    code?: string;
   }>;
 };
+
+const calendarEventLabels: Record<CalendarEventType, string> = {
+  SECTION_EXAM: "段考",
+  MOCK_EXAM: "模擬考",
+  ENTRANCE_EXAM: "升學考試",
+  SCHOOL_EVENT: "學校活動",
+  DEADLINE: "截止日",
+  OTHER: "其他",
+};
+
+const calendarEventOptions = Object.entries(calendarEventLabels);
 
 export default async function ClassAdminPage({ searchParams }: ClassAdminPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
   const existing = params?.existing === "1";
+  const eventCreated = params?.event === "1";
   const error = params?.error;
   const code = params?.code;
+  const appliedCount = Number.parseInt(params?.count ?? "0", 10);
+  const timeZone = await getRequestTimeZone();
+  const today = getCurrentDay(timeZone);
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "CLASS_ADMIN"
@@ -28,12 +48,21 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
           include: {
             managedClasses: {
               include: {
-                members: true,
+                members: {
+                  include: {
+                    student: {
+                      include: {
+                        user: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
         })
       : null;
+  const activeClassroom = currentUser?.managedClasses[0];
 
   return (
     <main className="page">
@@ -42,10 +71,10 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
           <Link className="back-link" href="/">
             回首頁
           </Link>
-          <span className="eyebrow">班級管理者入口</span>
-          <h1 className="page-title">建立班級</h1>
+          <span className="eyebrow">老師端</span>
+          <h1 className="page-title">班級共用設定</h1>
           <p className="lead">
-            班級管理者先建立班級代碼，學生加入後會套用阿蓮國中 114 學年的教材版本資料。
+            建立阿蓮國中的班級代碼，讓學生加入班級；老師也可以把段考、模擬考、校內活動套用到全班學生行事曆。
           </p>
 
           {created && code && (
@@ -54,72 +83,153 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
             </div>
           )}
 
-          {existing && <div className="notice">這個 Email 已有班級管理者資料，已切換到既有帳號。</div>}
+          {existing && <div className="notice">這個 Email 已有老師端資料，已直接登入。</div>}
 
-          {error === "email-used" && (
-            <div className="error-notice">
-              這個 Email 已被其他角色使用。請改用另一個 Email，或先登出後再操作。
+          {eventCreated && (
+            <div className="notice">
+              已套用班級事件到 {Number.isFinite(appliedCount) ? appliedCount : 0} 位學生。
             </div>
           )}
+
+          {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用另一個 Email。</div>}
 
           {error === "class-code-used" && (
             <div className="error-notice">
-              班級代碼 {code ? <strong>{code}</strong> : null} 已被使用，請換一個代碼或留空自動產生。
+              班級代碼 {code ? <strong>{code}</strong> : null} 已被使用，請換一個代碼。
             </div>
           )}
 
-          {currentUser && currentUser.managedClasses.length > 0 && (
-            <div className="session-card">
-              <div>
-                <strong>目前班級管理者</strong>
-                <p>
-                  {currentUser.displayName}，管理 {currentUser.managedClasses[0].name}，
-                  班級代碼 {currentUser.managedClasses[0].code}，
-                  已加入學生 {currentUser.managedClasses[0].members.length} 人
-                </p>
+          {error === "class-admin-required" && <div className="error-notice">請先建立或登入班級管理者資料。</div>}
+
+          {error === "class-not-found" && <div className="error-notice">找不到可管理的班級。</div>}
+
+          {error === "no-class-members" && <div className="error-notice">班上目前沒有學生，還不能套用班級事件。</div>}
+
+          {currentUser && activeClassroom ? (
+            <>
+              <div className="session-card">
+                <div>
+                  <strong>目前班級</strong>
+                  <p>
+                    {currentUser.displayName}，管理 {activeClassroom.name}，班級代碼 {activeClassroom.code}，目前{" "}
+                    {activeClassroom.members.length} 位學生
+                  </p>
+                </div>
+                <form action={signOut}>
+                  <button className="button secondary" type="submit">
+                    登出
+                  </button>
+                </form>
               </div>
-              <form action={signOut}>
-                <button className="button secondary" type="submit">
-                  登出
-                </button>
-              </form>
-            </div>
+
+              <section className="panel event-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>班級共用考試 / 活動</h2>
+                    <p className="panel-copy">
+                      會套用到目前班級全部 {activeClassroom.members.length} 位學生，學生與家長端週/月行事曆會同步顯示。
+                    </p>
+                  </div>
+                  <span>
+                    {today.date}，{timeZone}
+                  </span>
+                </div>
+
+                <form className="form-card" action={createClassCalendarEvent}>
+                  <input name="classroomId" type="hidden" value={activeClassroom.id} />
+                  <label>
+                    類型
+                    <select name="type" defaultValue="SECTION_EXAM">
+                      {calendarEventOptions.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    標題
+                    <input name="title" placeholder="例如：第一次段考、校慶、畢旅報名截止" required />
+                  </label>
+                  <label>
+                    科目
+                    <input name="subjectName" placeholder="可留空；例如：數學、英文" />
+                  </label>
+                  <div className="field-row">
+                    <label>
+                      開始日期
+                      <input name="startDate" type="date" defaultValue={today.date} required />
+                    </label>
+                    <label>
+                      結束日期
+                      <input name="endDate" type="date" />
+                    </label>
+                  </div>
+                  <label>
+                    備註
+                    <input name="note" placeholder="例如：考試範圍、攜帶物品、報名資訊" />
+                  </label>
+                  <button className="button primary" type="submit">
+                    套用到全班學生
+                  </button>
+                </form>
+              </section>
+
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>班級學生</h2>
+                  <span>{activeClassroom.members.length} 位</span>
+                </div>
+                <div className="task-list compact-list">
+                  {activeClassroom.members.map((member) => (
+                    <div className="task" key={member.id}>
+                      <span className="task-dot" aria-hidden="true" />
+                      <div>
+                        <strong>{member.student.user.displayName}</strong>
+                        <span>{member.seatNumber ? `座號 ${member.seatNumber}` : "未填座號"}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {activeClassroom.members.length === 0 && <div className="empty-state">尚未有學生加入班級。</div>}
+                </div>
+              </section>
+            </>
+          ) : (
+            <form className="form-card" action={createClassroom}>
+              <label>
+                老師姓名
+                <input name="displayName" placeholder="例如：701 導師" required />
+              </label>
+
+              <label>
+                老師 Email
+                <input name="email" type="email" placeholder="可空白" />
+              </label>
+
+              <label>
+                年級
+                <select name="grade" defaultValue="7">
+                  <option value="7">國一 / 七年級</option>
+                  <option value="8">國二 / 八年級</option>
+                  <option value="9">國三 / 九年級</option>
+                </select>
+              </label>
+
+              <label>
+                班級名稱
+                <input name="className" placeholder="例如：701、國三 1 班" required />
+              </label>
+
+              <label>
+                自訂班級代碼
+                <input name="classCode" placeholder="可空白，系統會自動產生" />
+              </label>
+
+              <button className="button primary" type="submit">
+                建立班級
+              </button>
+            </form>
           )}
-
-          <form className="form-card" action={createClassroom}>
-            <label>
-              管理者姓名
-              <input name="displayName" placeholder="例如：201 班導師" required />
-            </label>
-
-            <label>
-              管理者 Email
-              <input name="email" type="email" placeholder="可選填" />
-            </label>
-
-            <label>
-              年級
-              <select name="grade" defaultValue="7">
-                <option value="7">國一 / 七年級</option>
-                <option value="8">國二 / 八年級</option>
-                <option value="9">國三 / 九年級</option>
-              </select>
-            </label>
-
-            <label>
-              班級名稱
-              <input name="className" placeholder="例如：701、201、九年一班" required />
-            </label>
-
-            <label>
-              自訂班級代碼
-              <input name="classCode" placeholder="可選填；空白會自動產生" />
-            </label>
-
-            <button className="button primary" type="submit">
-              建立班級
-            </button>
-          </form>
         </div>
       </section>
     </main>

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0
+
+- Added class-admin shared calendar events for class-wide exams, school activities, deadlines, and other dates.
+- Class admins can apply one event to every student currently in the managed class.
+- Rebuilt the class-admin page with clean Traditional Chinese copy and a student roster panel.
+- Class-wide events reuse existing student calendar event rendering in student and guardian weekly/monthly calendars.
+
 ## 1.5.0
 
 - Added student-specific calendar events for exams, school activities, deadlines, and other dates.
