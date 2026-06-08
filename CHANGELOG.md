@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.1
+
+- Added browser time zone detection and a persistent time zone cookie.
+- Student and guardian daily, weekly, and monthly calendar calculations now use the user's time zone with Asia/Taipei as fallback.
+- Task date creation, editing, and carryover actions now calculate local dates from the user's time zone.
+- Student and guardian pages show the active time zone next to today's date.
+
 ## 1.4.0
 
 - Added a monthly calendar summary to student and guardian pages.

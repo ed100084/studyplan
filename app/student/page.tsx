@@ -4,6 +4,7 @@ import type { FixedEvent, StudyTask, Subject, TutoringSession } from "@prisma/cl
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
+import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZone, getWeek, orderedWeekdays } from "@/lib/timezone";
 import { createStudent, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -77,7 +78,6 @@ const statusLabels: Record<TaskStatus, string> = {
 const weekdayOptions = Object.entries(weekdayLabels);
 const fixedEventOptions = Object.entries(fixedEventLabels);
 const taskTypeOptions = Object.entries(taskTypeLabels);
-const orderedWeekdays: Weekday[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
 const readableWeekdayLabels: Record<Weekday, string> = {
   MONDAY: "週一",
   TUESDAY: "週二",
@@ -87,127 +87,8 @@ const readableWeekdayLabels: Record<Weekday, string> = {
   SATURDAY: "週六",
   SUNDAY: "週日",
 };
-const weekdayByEnglish: Record<string, Weekday> = {
-  Monday: "MONDAY",
-  Tuesday: "TUESDAY",
-  Wednesday: "WEDNESDAY",
-  Thursday: "THURSDAY",
-  Friday: "FRIDAY",
-  Saturday: "SATURDAY",
-  Sunday: "SUNDAY",
-};
-
-function getTaipeiToday() {
-  const now = new Date();
-  const date = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-  const weekdayName = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Taipei",
-    weekday: "long",
-  }).format(now);
-
-  return {
-    date,
-    weekday: weekdayByEnglish[weekdayName] ?? Weekday.MONDAY,
-  };
-}
-
-function taipeiDayRange(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const start = new Date(`${date}T00:00:00+08:00`);
-  const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
-  const nextTaipeiDate = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(nextDate);
-
-  return {
-    start,
-    end: new Date(`${nextTaipeiDate}T00:00:00+08:00`),
-  };
-}
-
-function getTaipeiWeek(date: string) {
-  const start = new Date(`${date}T00:00:00+08:00`);
-  const day = start.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  start.setDate(start.getDate() + mondayOffset);
-
-  const days = orderedWeekdays.map((weekday, index) => {
-    const current = new Date(start);
-    current.setDate(start.getDate() + index);
-    const dateValue = formatDateInput(current);
-
-    return {
-      date: dateValue,
-      dayNumber: dateValue.slice(5),
-      weekday,
-      isToday: dateValue === date,
-    };
-  });
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
-
-  return {
-    days,
-    start,
-    end,
-  };
-}
-
-function getTaipeiMonth(date: string) {
-  const [year, month] = date.split("-").map(Number);
-  const monthValue = String(month).padStart(2, "0");
-  const monthLabel = `${year}-${monthValue}`;
-  const start = new Date(`${monthLabel}-01T00:00:00+08:00`);
-  const end = new Date(start);
-  end.setMonth(start.getMonth() + 1);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const days = Array.from({ length: daysInMonth }, (_, index) => {
-    const dayNumber = String(index + 1).padStart(2, "0");
-    const dateValue = `${monthLabel}-${dayNumber}`;
-    const weekdayName = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Taipei",
-      weekday: "long",
-    }).format(new Date(`${dateValue}T00:00:00+08:00`));
-    const weekday = weekdayByEnglish[weekdayName] ?? Weekday.MONDAY;
-
-    return {
-      date: dateValue,
-      dayNumber,
-      weekday,
-      isToday: dateValue === date,
-    };
-  });
-  const leadingBlankCount = orderedWeekdays.indexOf(days[0]?.weekday ?? Weekday.MONDAY);
-
-  return {
-    days,
-    start,
-    end,
-    monthLabel,
-    leadingBlankCount,
-  };
-}
-
 function gradeLabel(grade: number) {
   return `國${grade - 6}`;
-}
-
-function formatDateInput(date: Date) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
 }
 
 function FixedEventEditor({ event }: { event: FixedEvent }) {
@@ -323,7 +204,7 @@ type StudyTaskWithSubject = StudyTask & {
   subject: Subject | null;
 };
 
-function StudyTaskEditor({ task }: { task: StudyTaskWithSubject }) {
+function StudyTaskEditor({ task, timeZone }: { task: StudyTaskWithSubject; timeZone: string }) {
   return (
     <details className="item-editor">
       <summary>編輯</summary>
@@ -349,7 +230,7 @@ function StudyTaskEditor({ task }: { task: StudyTaskWithSubject }) {
         </label>
         <label>
           日期
-          <input name="plannedDate" type="date" defaultValue={formatDateInput(task.plannedDate)} required />
+          <input name="plannedDate" type="date" defaultValue={formatDateInput(task.plannedDate, timeZone)} required />
         </label>
         <div className="field-row">
           <label>
@@ -407,11 +288,13 @@ function WeekCalendar({
   tutoringSessions,
   tasks,
   week,
+  timeZone,
 }: {
   fixedEvents: FixedEvent[];
   tutoringSessions: TutoringSession[];
   tasks: StudyTaskWithSubject[];
-  week: ReturnType<typeof getTaipeiWeek>;
+  week: ReturnType<typeof getWeek>;
+  timeZone: string;
 }) {
   const weekTasks = tasks.filter((task) => {
     const plannedDate = task.plannedDate.getTime();
@@ -437,7 +320,7 @@ function WeekCalendar({
 
       <div className="week-grid">
         {week.days.map((day) => {
-          const dayTasks = weekTasks.filter((task) => formatDateInput(task.plannedDate) === day.date);
+          const dayTasks = weekTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
           const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
           const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
           const planned = dayTasks.filter((task) => task.status === "PLANNED").length;
@@ -481,11 +364,13 @@ function MonthCalendar({
   tutoringSessions,
   tasks,
   month,
+  timeZone,
 }: {
   fixedEvents: FixedEvent[];
   tutoringSessions: TutoringSession[];
   tasks: StudyTaskWithSubject[];
-  month: ReturnType<typeof getTaipeiMonth>;
+  month: ReturnType<typeof getMonth>;
+  timeZone: string;
 }) {
   const monthTasks = tasks.filter((task) => {
     const plannedDate = task.plannedDate.getTime();
@@ -517,7 +402,7 @@ function MonthCalendar({
           <div className="month-day empty" key={`blank-${index}`} />
         ))}
         {month.days.map((day) => {
-          const dayTasks = monthTasks.filter((task) => formatDateInput(task.plannedDate) === day.date);
+          const dayTasks = monthTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
           const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
           const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
@@ -560,10 +445,11 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const joined = params?.joined === "1";
   const scheduleUpdated = params?.schedule === "1";
   const error = params?.error;
-  const today = getTaipeiToday();
-  const todayRange = taipeiDayRange(today.date);
-  const week = getTaipeiWeek(today.date);
-  const month = getTaipeiMonth(today.date);
+  const timeZone = await getRequestTimeZone();
+  const today = getCurrentDay(timeZone);
+  const todayRange = getDayRange(today.date, timeZone);
+  const week = getWeek(today.date, timeZone);
+  const month = getMonth(today.date, timeZone);
   const taskRangeStart = week.start.getTime() < month.start.getTime() ? week.start : month.start;
   const taskRangeEnd = week.end.getTime() > month.end.getTime() ? week.end : month.end;
   const session = await getCurrentSession();
@@ -686,6 +572,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 tutoringSessions={student.tutoringSessions}
                 tasks={student.studyTasks}
                 week={week}
+                timeZone={timeZone}
               />
 
               <MonthCalendar
@@ -693,13 +580,16 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 tutoringSessions={student.tutoringSessions}
                 tasks={student.studyTasks}
                 month={month}
+                timeZone={timeZone}
               />
 
               <div className="dashboard-grid">
                 <section className="panel">
                   <div className="panel-header">
                     <h2>今天時間軸</h2>
-                    <span>{today.date}</span>
+                    <span>
+                      {today.date}，{timeZone}
+                    </span>
                   </div>
 
                   <div className="timeline-list">
@@ -802,7 +692,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                           </form>
                         </div>
                         <PartialProgressForm taskId={task.id} />
-                        <StudyTaskEditor task={task} />
+                        <StudyTaskEditor task={task} timeZone={timeZone} />
                       </div>
                     ))}
 
@@ -824,7 +714,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             刪除
                           </button>
                         </form>
-                        <StudyTaskEditor task={task} />
+                        <StudyTaskEditor task={task} timeZone={timeZone} />
                       </div>
                     ))}
                   </div>

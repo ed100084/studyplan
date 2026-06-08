@@ -2,7 +2,14 @@
 
 ## Version
 
-`1.4.0`
+`1.4.1`
+
+## Update 1.4.1
+
+- Added browser time zone detection with a persistent cookie.
+- Calendar and daily schedule pages now calculate today, week, month, and task date boundaries from the user's time zone.
+- Task creation, editing, and carryover actions now preserve the user's local date semantics.
+- Student and guardian pages display the active time zone next to today's date.
 
 ## Update 1.4.0
 
@@ -74,7 +81,7 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, and monthly-calendar MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload, and let students or guardians correct, edit, partially complete, or carry over tasks.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload in the user's time zone, and let students or guardians correct, edit, partially complete, or carry over tasks.
 
 ## Next
 

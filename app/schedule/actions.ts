@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { FatigueLevel, FixedEventType, RecordSource, TaskStatus, TaskType, UserRole, Weekday } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
+import { formatDateInput, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -24,9 +25,10 @@ function enumValue<T extends Record<string, string>>(source: T, rawValue: string
   return Object.values(source).includes(rawValue) ? (rawValue as T[keyof T]) : fallback;
 }
 
-function taipeiDateValue(rawValue: string) {
-  const value = rawValue || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date());
-  return new Date(`${value}T00:00:00+08:00`);
+async function userDateValue(rawValue: string) {
+  const timeZone = await getRequestTimeZone();
+  const value = rawValue || formatDateInput(new Date(), timeZone);
+  return zonedDateStart(value, timeZone);
 }
 
 async function getSubjectId(subjectName: string) {
@@ -47,10 +49,18 @@ async function getSubjectId(subjectName: string) {
   return subject.id;
 }
 
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
+function addDays(date: Date, days: number, timeZone: string) {
+  const dateValue = formatDateInput(date, timeZone);
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));
+  const nextValue = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(next);
+
+  return zonedDateStart(nextValue, timeZone);
 }
 
 function addQuery(path: string, query: string) {
@@ -175,7 +185,7 @@ export async function createStudyTask(formData: FormData) {
   const title = textValue(formData, "title") || "讀書任務";
   const description = textValue(formData, "description") || undefined;
   const type = enumValue(TaskType, textValue(formData, "type"), TaskType.SCHOOL_HOMEWORK);
-  const plannedDate = taipeiDateValue(textValue(formData, "plannedDate"));
+  const plannedDate = await userDateValue(textValue(formData, "plannedDate"));
   const estimatedMinutes = Math.max(10, intValue(formData, "estimatedMinutes", 30));
   const priority = Math.min(5, Math.max(1, intValue(formData, "priority", 3)));
 
@@ -296,7 +306,7 @@ export async function updateStudyTask(formData: FormData) {
       title: textValue(formData, "title") || task.title,
       description: textValue(formData, "description") || null,
       type: enumValue(TaskType, textValue(formData, "type"), task.type),
-      plannedDate: taipeiDateValue(textValue(formData, "plannedDate")),
+      plannedDate: await userDateValue(textValue(formData, "plannedDate")),
       estimatedMinutes: Math.max(10, intValue(formData, "estimatedMinutes", task.estimatedMinutes)),
       priority: Math.min(5, Math.max(1, intValue(formData, "priority", task.priority))),
       source: editable.source,
@@ -312,6 +322,7 @@ export async function updateTaskStatus(formData: FormData) {
   const taskId = textValue(formData, "taskId");
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
+  const timeZone = await getRequestTimeZone();
   const status = enumValue(TaskStatus, textValue(formData, "status"), TaskStatus.DONE);
   const actualMinutes = intValue(formData, "actualMinutes", 0);
   const difficulty = intValue(formData, "difficulty", 0);
@@ -332,7 +343,7 @@ export async function updateTaskStatus(formData: FormData) {
     status === TaskStatus.RESCHEDULED
       ? {
           status: TaskStatus.PLANNED,
-          plannedDate: addDays(task.plannedDate, 1),
+          plannedDate: addDays(task.plannedDate, 1, timeZone),
         }
       : {
           status,
@@ -365,6 +376,7 @@ export async function updateTaskStatus(formData: FormData) {
 export async function moveTasksToTomorrow(formData: FormData) {
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
+  const timeZone = await getRequestTimeZone();
   const taskIds = formData
     .getAll("taskId")
     .filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -390,7 +402,7 @@ export async function moveTasksToTomorrow(formData: FormData) {
           id: task.id,
         },
         data: {
-          plannedDate: addDays(task.plannedDate, 1),
+          plannedDate: addDays(task.plannedDate, 1, timeZone),
           status: TaskStatus.PLANNED,
           logs: {
             create: {
