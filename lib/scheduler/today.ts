@@ -55,6 +55,12 @@ type FreeSlot = {
   end: number;
 };
 
+type TaskPlacement = {
+  chunks: FreeSlot[];
+  slotIndex: number;
+  cursor: number;
+};
+
 const DAY_START = "17:30";
 const DAY_END = "22:30";
 const BREAK_MINUTES = 10;
@@ -64,8 +70,8 @@ const fixedEventLabels: Record<FixedEventType, string> = {
   SCHOOL: "學校",
   TUTORING: "補習",
   COMMUTE: "通勤",
-  MEAL: "吃飯",
-  HYGIENE: "洗澡",
+  MEAL: "用餐",
+  HYGIENE: "盥洗",
   SLEEP: "睡覺",
   FAMILY: "家庭時間",
   OTHER: "其他",
@@ -171,22 +177,112 @@ function reduceLateCapacityForFatigue(slots: FreeSlot[], tutoringSessions: Sched
   });
 }
 
+function remainingSlotsFrom(freeSlots: FreeSlot[], slotIndex: number, cursor: number) {
+  return freeSlots.slice(slotIndex).map((slot, index) => (index === 0 ? { ...slot, start: Math.max(cursor, slot.start) } : slot));
+}
+
 function explainUnplacedTask(task: SchedulerStudyTask, slots: FreeSlot[], availableMinutes: number) {
   const largestSlot = slots.reduce((largest, slot) => Math.max(largest, Math.max(0, slot.end - slot.start)), 0);
 
   if (slots.length === 0 || availableMinutes === 0) {
-    return `No usable study slot remains today; this task needs ${task.estimatedMinutes} minutes.`;
-  }
-
-  if (largestSlot < task.estimatedMinutes) {
-    return `Needs ${task.estimatedMinutes} minutes, but the largest remaining continuous slot is ${largestSlot} minutes. Split it or move it to tomorrow.`;
+    return `今天已沒有可用自習空檔，這個任務需要 ${task.estimatedMinutes} 分鐘。`;
   }
 
   if (availableMinutes < task.estimatedMinutes) {
-    return `Only ${availableMinutes} free minutes remain today, but this task needs ${task.estimatedMinutes} minutes.`;
+    return `今天剩下 ${availableMinutes} 分鐘，但這個任務需要 ${task.estimatedMinutes} 分鐘。`;
   }
 
-  return "Higher-priority or longer tasks used the available slots first; move this task to tomorrow or lower another task.";
+  if (largestSlot < MIN_TASK_MINUTES) {
+    return `剩餘空檔都小於 ${MIN_TASK_MINUTES} 分鐘，不適合再安排自習。`;
+  }
+
+  return "剩餘時間太零碎或已被高優先任務使用，建議降低預估時間或移到明天。";
+}
+
+function planTaskChunks(task: SchedulerStudyTask, freeSlots: FreeSlot[], slotIndex: number, cursor: number, dayEnd: number): TaskPlacement | null {
+  const chunks: FreeSlot[] = [];
+  let remaining = task.estimatedMinutes;
+  let localSlotIndex = slotIndex;
+  let localCursor = cursor;
+
+  while (localSlotIndex < freeSlots.length && remaining > 0) {
+    const slot = freeSlots[localSlotIndex];
+    localCursor = Math.max(localCursor, slot.start);
+    const available = slot.end - localCursor;
+
+    if (available <= 0 || (available < MIN_TASK_MINUTES && remaining > available)) {
+      localSlotIndex += 1;
+      localCursor = freeSlots[localSlotIndex]?.start ?? dayEnd;
+      continue;
+    }
+
+    let chunkMinutes = Math.min(remaining, available);
+    const remainingAfterChunk = remaining - chunkMinutes;
+
+    if (remainingAfterChunk > 0 && remainingAfterChunk < MIN_TASK_MINUTES && chunkMinutes > MIN_TASK_MINUTES) {
+      const adjustedChunkMinutes = chunkMinutes - (MIN_TASK_MINUTES - remainingAfterChunk);
+      if (adjustedChunkMinutes >= MIN_TASK_MINUTES) {
+        chunkMinutes = adjustedChunkMinutes;
+      }
+    }
+
+    const start = localCursor;
+    const end = start + chunkMinutes;
+    chunks.push({ start, end });
+    remaining -= chunkMinutes;
+    localCursor = end;
+
+    if (remaining > 0) {
+      localSlotIndex += 1;
+      localCursor = freeSlots[localSlotIndex]?.start ?? dayEnd;
+    }
+  }
+
+  if (remaining > 0 || chunks.length === 0) {
+    return null;
+  }
+
+  return {
+    chunks,
+    slotIndex: localSlotIndex,
+    cursor: localCursor,
+  };
+}
+
+function addStudySegments(task: SchedulerStudyTask, placement: TaskPlacement, segments: ScheduleSegment[]) {
+  const totalParts = placement.chunks.length;
+
+  placement.chunks.forEach((chunk, index) => {
+    segments.push({
+      id: totalParts === 1 ? `study-${task.id}` : `study-${task.id}-${index + 1}`,
+      kind: "study",
+      title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
+      detail:
+        totalParts === 1
+          ? `${taskTypeLabels[task.type]}，優先度 ${task.priority}`
+          : `${taskTypeLabels[task.type]}，優先度 ${task.priority}，第 ${index + 1}/${totalParts} 段`,
+      startTime: toTime(chunk.start),
+      endTime: toTime(chunk.end),
+      minutes: chunk.end - chunk.start,
+      taskId: task.id,
+    });
+  });
+}
+
+function addBreakAfterTask(taskId: string, slot: FreeSlot | undefined, start: number, cursor: number, segments: ScheduleSegment[]) {
+  if (!slot || cursor > slot.end || slot.end - cursor < MIN_TASK_MINUTES) {
+    return;
+  }
+
+  segments.push({
+    id: `break-${taskId}`,
+    kind: "break",
+    title: "休息",
+    detail: "任務後保留 10 分鐘休息",
+    startTime: toTime(start),
+    endTime: toTime(Math.min(cursor, slot.end)),
+    minutes: Math.min(BREAK_MINUTES, slot.end - start),
+  });
 }
 
 export function buildTodaySchedule(input: {
@@ -238,50 +334,10 @@ export function buildTodaySchedule(input: {
   let cursor = freeSlots[0]?.start ?? dayStart;
 
   for (const task of tasks) {
-    let placed = false;
+    const placement = planTaskChunks(task, freeSlots, slotIndex, cursor, dayEnd);
 
-    while (slotIndex < freeSlots.length) {
-      const slot = freeSlots[slotIndex];
-      cursor = Math.max(cursor, slot.start);
-      const available = slot.end - cursor;
-
-      if (available >= task.estimatedMinutes) {
-        const start = cursor;
-        const end = start + task.estimatedMinutes;
-        studySegments.push({
-          id: `study-${task.id}`,
-          kind: "study",
-          title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
-          detail: `${taskTypeLabels[task.type]}，優先度 ${task.priority}`,
-          startTime: toTime(start),
-          endTime: toTime(end),
-          minutes: task.estimatedMinutes,
-          taskId: task.id,
-        });
-        cursor = end + BREAK_MINUTES;
-
-        if (cursor <= slot.end && slot.end - cursor >= MIN_TASK_MINUTES) {
-          studySegments.push({
-            id: `break-${task.id}`,
-            kind: "break",
-            title: "休息",
-            detail: "任務間自動保留 10 分鐘",
-            startTime: toTime(end),
-            endTime: toTime(Math.min(cursor, slot.end)),
-            minutes: Math.min(BREAK_MINUTES, slot.end - end),
-          });
-        }
-
-        placed = true;
-        break;
-      }
-
-      slotIndex += 1;
-      cursor = freeSlots[slotIndex]?.start ?? dayEnd;
-    }
-
-    if (!placed) {
-      const remainingSlots = freeSlots.slice(slotIndex).map((slot, index) => (index === 0 ? { ...slot, start: Math.max(cursor, slot.start) } : slot));
+    if (!placement) {
+      const remainingSlots = remainingSlotsFrom(freeSlots, slotIndex, cursor);
       const remainingAvailableMinutes = remainingSlots.reduce((total, slot) => total + Math.max(0, slot.end - slot.start), 0);
       unplaced.push({
         id: `unplaced-${task.id}`,
@@ -291,6 +347,19 @@ export function buildTodaySchedule(input: {
         minutes: task.estimatedMinutes,
         taskId: task.id,
       });
+      continue;
+    }
+
+    addStudySegments(task, placement, studySegments);
+    slotIndex = placement.slotIndex;
+    cursor = placement.cursor + BREAK_MINUTES;
+
+    const slot = freeSlots[slotIndex];
+    addBreakAfterTask(task.id, slot, placement.cursor, cursor, studySegments);
+
+    if (!slot || cursor > slot.end) {
+      slotIndex += 1;
+      cursor = freeSlots[slotIndex]?.start ?? dayEnd;
     }
   }
 

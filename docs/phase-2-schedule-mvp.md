@@ -2,7 +2,14 @@
 
 ## Version
 
-`1.1.0`
+`1.2.0`
+
+## Update 1.2.0
+
+- Added split-task scheduling for large tasks that do not fit one continuous slot.
+- Split segments keep the same task id and show their part number in schedule details.
+- Large tasks are only placed when all segments can fit today, so impossible tasks do not consume smaller slots that shorter tasks could use.
+- Updated unplaced explanations for fragmented remaining time.
 
 ## Update 1.1.0
 
@@ -53,10 +60,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, and progress-tracking MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct, edit, partially complete, or carry over tasks.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, and split-scheduling MVP. It can auto-place today's planned tasks into available after-school slots and lets students or guardians correct, edit, partially complete, or carry over tasks.
 
 ## Next
 
 - Persist generated schedule runs for later review.
 - Add cross-day rollover and weekly planning.
-- Add split-task scheduling for large tasks that do not fit one continuous slot.
+- Add persisted weekly planning with schedule history.

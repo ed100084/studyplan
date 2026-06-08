@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- Added split-task scheduling for large tasks that can fit across multiple free slots.
+- Split study segments now show their part number in the generated schedule.
+- Tasks are only split when the full task can still fit today; otherwise shorter later tasks can still use remaining slots.
+- Updated unplaced-task explanations for the new split scheduling behavior.
+
 ## 1.1.0
 
 - Added partial-completion forms for planned tasks with actual minutes, difficulty, and blocker reason.
