@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZone, getWeek, orderedWeekdays } from "@/lib/timezone";
+import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { createStudent, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -29,6 +30,7 @@ type StudentPageProps = {
     existing?: string;
     joined?: string;
     schedule?: string;
+    examPlan?: string;
   }>;
 };
 
@@ -483,6 +485,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const existing = params?.existing === "1";
   const joined = params?.joined === "1";
   const scheduleUpdated = params?.schedule === "1";
+  const examPlanUpdated = params?.examPlan === "1";
   const error = params?.error;
   const timeZone = await getRequestTimeZone();
   const today = getCurrentDay(timeZone);
@@ -528,6 +531,24 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   },
                   orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
                 },
+                examReviewPlans: {
+                  where: {
+                    examDate: {
+                      gte: todayRange.start,
+                    },
+                  },
+                  include: {
+                    subject: true,
+                    calendarEvent: true,
+                    tasks: {
+                      include: {
+                        logs: true,
+                      },
+                      orderBy: [{ plannedDate: "asc" }, { createdAt: "asc" }],
+                    },
+                  },
+                  orderBy: [{ examDate: "asc" }, { createdAt: "asc" }],
+                },
                 calendarEvents: {
                   where: {
                     OR: [
@@ -549,6 +570,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                         },
                         endDate: {
                           gte: taskRangeEnd,
+                        },
+                      },
+                      {
+                        type: {
+                          in: ["SECTION_EXAM", "MOCK_EXAM", "ENTRANCE_EXAM"],
+                        },
+                        startDate: {
+                          gte: todayRange.start,
                         },
                       },
                     ],
@@ -604,7 +633,13 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {created && <div className="notice">學生資料已建立。{joined ? "已加入班級。" : "尚未加入班級，可之後補上班級代碼。"}</div>}
           {existing && <div className="notice">這個 Email 已有學生資料，已切換到既有資料。{joined ? "目前有班級連結。" : "尚未連結班級。"}</div>}
           {scheduleUpdated && <div className="notice">讀書計畫資料已更新。</div>}
+          {examPlanUpdated && <div className="notice">考前複習計畫已更新，剩餘進度已重新分配。</div>}
           {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用學生自己的 Email。</div>}
+          {error === "exam-event-not-found" && <div className="error-notice">找不到可建立計畫的考試事件。</div>}
+          {error === "exam-plan-date" && <div className="error-notice">複習開始日期必須早於考試日期。</div>}
+          {error === "exam-plan-exists" && <div className="error-notice">這個考試與科目已經有複習計畫。</div>}
+          {error === "exam-plan-not-found" && <div className="error-notice">找不到這個考前複習計畫。</div>}
+          {error === "teacher-event-readonly" && <div className="error-notice">老師套用的班級事件只能由老師管理。</div>}
 
           {student ? (
             <>
@@ -632,6 +667,15 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 </div>
                 <strong>{student.linkCode ?? "尚未產生"}</strong>
               </div>
+
+              <ExamReviewPlans
+                plans={student.examReviewPlans}
+                examEvents={student.calendarEvents.filter((event) =>
+                  ["SECTION_EXAM", "MOCK_EXAM", "ENTRANCE_EXAM"].includes(event.type),
+                )}
+                today={today.date}
+                timeZone={timeZone}
+              />
 
               <WeekCalendar
                 calendarEvents={student.calendarEvents}
@@ -669,12 +713,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                           {event.subjectName ? `，${event.subjectName}` : ""}
                         </span>
                       </div>
-                      <form className="inline-actions" action={deleteCalendarEvent}>
-                        <input name="calendarEventId" type="hidden" value={event.id} />
-                        <button className="small-button danger-button" type="submit">
-                          刪除
-                        </button>
-                      </form>
+                      {event.source !== "TEACHER" && (
+                        <form className="inline-actions" action={deleteCalendarEvent}>
+                          <input name="calendarEventId" type="hidden" value={event.id} />
+                          <button className="small-button danger-button" type="submit">
+                            刪除
+                          </button>
+                        </form>
+                      )}
                     </div>
                   ))}
 
@@ -783,15 +829,17 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                               略過
                             </button>
                           </form>
-                          <form action={deleteStudyTask}>
-                            <input name="taskId" type="hidden" value={task.id} />
-                            <button className="small-button danger-button" type="submit">
-                              刪除
-                            </button>
-                          </form>
+                          {!task.examReviewPlanId && (
+                            <form action={deleteStudyTask}>
+                              <input name="taskId" type="hidden" value={task.id} />
+                              <button className="small-button danger-button" type="submit">
+                                刪除
+                              </button>
+                            </form>
+                          )}
                         </div>
                         <PartialProgressForm taskId={task.id} />
-                        <StudyTaskEditor task={task} timeZone={timeZone} />
+                        {!task.examReviewPlanId && <StudyTaskEditor task={task} timeZone={timeZone} />}
                       </div>
                     ))}
 
@@ -807,13 +855,15 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                           <span>{statusLabels[task.status]}</span>
                         </div>
                         <span className="time">{task.estimatedMinutes} 分</span>
-                        <form className="inline-actions" action={deleteStudyTask}>
-                          <input name="taskId" type="hidden" value={task.id} />
-                          <button className="small-button danger-button" type="submit">
-                            刪除
-                          </button>
-                        </form>
-                        <StudyTaskEditor task={task} timeZone={timeZone} />
+                        {!task.examReviewPlanId && (
+                          <form className="inline-actions" action={deleteStudyTask}>
+                            <input name="taskId" type="hidden" value={task.id} />
+                            <button className="small-button danger-button" type="submit">
+                              刪除
+                            </button>
+                          </form>
+                        )}
+                        {!task.examReviewPlanId && <StudyTaskEditor task={task} timeZone={timeZone} />}
                       </div>
                     ))}
                   </div>

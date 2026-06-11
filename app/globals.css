@@ -486,6 +486,83 @@ h1 {
   margin: 20px 0;
 }
 
+.exam-plan-panel {
+  margin: 20px 0;
+}
+
+.exam-plan-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.exam-plan-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 16px;
+}
+
+.exam-plan-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.exam-plan-heading h3,
+.exam-plan-heading p {
+  margin: 4px 0 0;
+}
+
+.exam-plan-heading p,
+.exam-plan-metrics,
+.exam-plan-tasks {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.exam-plan-heading > strong {
+  color: var(--accent);
+  font-size: 24px;
+}
+
+.exam-plan-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+  margin: 14px 0 10px;
+}
+
+.exam-plan-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.exam-plan-metrics,
+.exam-plan-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 14px;
+}
+
+.exam-plan-tasks {
+  margin: 10px 0 14px;
+}
+
+.warning-text {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.exam-plan-form {
+  margin-top: 18px;
+}
+
 .month-weekdays {
   color: var(--muted);
   display: grid;
@@ -881,7 +958,8 @@ h1 {
 
   .link-code-card,
   .active-student-heading,
-  .child-pill {
+  .child-pill,
+  .exam-plan-heading {
     align-items: stretch;
     flex-direction: column;
   }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.0
+
+- Added exam countdown and multi-day review plans for students and guardians.
+- Review plans generate traceable `EXAM_SPRINT` tasks before the exam date.
+- Task distribution avoids school-event dates and uses remaining capacity after recurring routines and tutoring.
+- Completing, partially completing, or skipping a generated task automatically redistributes the remaining review minutes.
+- Added plan progress, upcoming sessions, unallocated-minute warnings, manual redistribution, and plan deletion.
+- Teacher-created class calendar events are now read-only for students and guardians.
+- Added the `ExamReviewPlan` data model and migration.
+
 ## 1.7.0
 
 - Added CSV and XLSX bulk import for class-admin exams, deadlines, and school activities.

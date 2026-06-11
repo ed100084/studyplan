@@ -2,7 +2,18 @@
 
 ## Version
 
-`1.7.0`
+`1.8.0`
+
+## Update 1.8.0
+
+- Added exam countdown and persisted multi-day review plans.
+- Students and guardians can choose an upcoming exam, subject, scope, total minutes, session size, start date, and priority.
+- Review minutes are distributed across dates before the exam and become normal `EXAM_SPRINT` study tasks used by the existing daily scheduler.
+- Distribution avoids school-event dates and accounts for recurring fixed routines, tutoring, commute time, and fatigue-adjusted capacity.
+- Completing, partially completing, or skipping a generated task automatically rebuilds future planned tasks from the remaining minutes.
+- Added completion percentage, remaining/planned/unallocated minutes, upcoming sessions, manual redistribution, and plan deletion.
+- Teacher-created class events are read-only for students and guardians so linked plans cannot be removed accidentally.
+- Added a Prisma migration for `ExamReviewPlan` and the `StudyTask.examReviewPlanId` relationship.
 
 ## Update 1.7.0
 
@@ -103,10 +114,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, student/class calendar-event, class bulk-import, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload and events in the user's time zone, and let students, guardians, or class admins manage relevant planning data.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, student/class calendar-event, class bulk-import, exam-countdown, multi-day-review, and user-time-zone-aware MVP. It can distribute exam preparation across available dates, auto-place today's planned tasks into after-school slots, and show current week/month workload and events in the user's time zone.
 
 ## Next
 
 - Persist generated schedule runs for later review.
-- Add persisted weekly planning with schedule history.
+- Add schedule history and plan revision history.
 - Add import preview, duplicate detection against existing class events, and import history.

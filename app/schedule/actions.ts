@@ -15,6 +15,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { formatDateInput, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
+import { buildExamReviewTaskDrafts } from "@/lib/exam-review-planner";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -74,6 +75,10 @@ function addDays(date: Date, days: number, timeZone: string) {
 
 function addQuery(path: string, query: string) {
   return `${path}${path.includes("?") ? "&" : "?"}${query}`;
+}
+
+function laterDate(first: string, second: string) {
+  return first > second ? first : second;
 }
 
 async function getEditableStudent(studentId?: string) {
@@ -248,6 +253,173 @@ export async function createCalendarEvent(formData: FormData) {
   redirect(addQuery(editable.redirectTo, "schedule=1"));
 }
 
+async function redistributeExamReviewPlan(planId: string, timeZone: string, earliestDate: string) {
+  const plan = await prisma.examReviewPlan.findUnique({
+    where: { id: planId },
+    include: {
+      student: {
+        include: {
+          fixedEvents: true,
+          tutoringSessions: true,
+          calendarEvents: true,
+        },
+      },
+      tasks: {
+        include: { logs: true },
+      },
+    },
+  });
+
+  if (!plan) return;
+
+  const completedMinutes = plan.tasks.reduce((total, task) => {
+    if (task.status === TaskStatus.DONE) return total + task.estimatedMinutes;
+    if (task.status !== TaskStatus.PARTIAL) return total;
+
+    const actualMinutes = task.logs.reduce((sum, log) => sum + (log.actualMinutes ?? 0), 0);
+    return total + Math.min(task.estimatedMinutes, actualMinutes);
+  }, 0);
+  const remainingMinutes = Math.max(0, plan.totalMinutes - completedMinutes);
+  const examDate = formatDateInput(plan.examDate, timeZone);
+  const startDate = laterDate(formatDateInput(plan.startDate, timeZone), earliestDate);
+  const drafts = buildExamReviewTaskDrafts({
+    startDate,
+    examDate,
+    remainingMinutes,
+    sessionMinutes: plan.sessionMinutes,
+    fixedEvents: plan.student.fixedEvents,
+    tutoringSessions: plan.student.tutoringSessions,
+    calendarEvents: plan.student.calendarEvents.map((event) => ({
+      id: event.id,
+      type: event.type,
+      startDate: formatDateInput(event.startDate, timeZone),
+      endDate: event.endDate ? formatDateInput(event.endDate, timeZone) : null,
+    })),
+  });
+
+  const operations = [
+    prisma.studyTask.deleteMany({
+      where: {
+        examReviewPlanId: plan.id,
+        status: TaskStatus.PLANNED,
+      },
+    }),
+  ];
+  if (drafts.tasks.length > 0) {
+    operations.push(
+      prisma.studyTask.createMany({
+        data: drafts.tasks.map((draft) => ({
+          studentId: plan.studentId,
+          subjectId: plan.subjectId,
+          examReviewPlanId: plan.id,
+          title: `${plan.title}（第 ${draft.sequence} 次）`,
+          description: plan.scope,
+          type: TaskType.EXAM_SPRINT,
+          status: TaskStatus.PLANNED,
+          plannedDate: zonedDateStart(draft.plannedDate, timeZone),
+          estimatedMinutes: draft.estimatedMinutes,
+          priority: plan.priority,
+          source: RecordSource.SYSTEM,
+        })),
+      }),
+    );
+  }
+  await prisma.$transaction(operations);
+}
+
+export async function createExamReviewPlan(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const timeZone = await getRequestTimeZone();
+  const today = formatDateInput(new Date(), timeZone);
+  const calendarEventId = textValue(formData, "calendarEventId");
+  const event = await prisma.calendarEvent.findFirst({
+    where: {
+      id: calendarEventId,
+      studentId: editable.student.id,
+      type: {
+        in: [CalendarEventType.SECTION_EXAM, CalendarEventType.MOCK_EXAM, CalendarEventType.ENTRANCE_EXAM],
+      },
+    },
+  });
+
+  if (!event) {
+    redirect(addQuery(editable.redirectTo, "error=exam-event-not-found"));
+  }
+
+  const examDate = formatDateInput(event.startDate, timeZone);
+  const startDate = laterDate(textValue(formData, "startDate") || today, today);
+  if (startDate >= examDate) {
+    redirect(addQuery(editable.redirectTo, "error=exam-plan-date"));
+  }
+
+  const subjectName = textValue(formData, "subjectName") || event.subjectName || "綜合複習";
+  const subjectId = await getSubjectId(subjectName);
+  const existingPlan = await prisma.examReviewPlan.findFirst({
+    where: {
+      studentId: editable.student.id,
+      calendarEventId: event.id,
+      subjectId,
+    },
+  });
+  if (existingPlan) {
+    redirect(addQuery(editable.redirectTo, "error=exam-plan-exists"));
+  }
+  const title = textValue(formData, "title") || event.title;
+  const scope = textValue(formData, "scope") || event.note || null;
+  const totalMinutes = Math.min(5000, Math.max(30, Math.ceil(intValue(formData, "totalMinutes", 300) / 5) * 5));
+  const sessionMinutes = Math.min(180, Math.max(10, Math.ceil(intValue(formData, "sessionMinutes", 30) / 5) * 5));
+  const priority = Math.min(5, Math.max(1, intValue(formData, "priority", 4)));
+
+  const plan = await prisma.examReviewPlan.create({
+    data: {
+      studentId: editable.student.id,
+      calendarEventId: event.id,
+      subjectId,
+      title,
+      scope,
+      totalMinutes,
+      sessionMinutes,
+      priority,
+      startDate: zonedDateStart(startDate, timeZone),
+      examDate: event.startDate,
+      source: editable.source,
+    },
+  });
+
+  await redistributeExamReviewPlan(plan.id, timeZone, startDate);
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "examPlan=1"));
+}
+
+export async function redistributeExamReviewPlanAction(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const planId = textValue(formData, "examReviewPlanId");
+  const plan = await prisma.examReviewPlan.findFirst({ where: { id: planId, studentId: editable.student.id } });
+  if (!plan) redirect(addQuery(editable.redirectTo, "error=exam-plan-not-found"));
+
+  const timeZone = await getRequestTimeZone();
+  await redistributeExamReviewPlan(plan.id, timeZone, formatDateInput(new Date(), timeZone));
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "examPlan=1"));
+}
+
+export async function deleteExamReviewPlan(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const planId = textValue(formData, "examReviewPlanId");
+  const plan = await prisma.examReviewPlan.findFirst({ where: { id: planId, studentId: editable.student.id } });
+  if (!plan) redirect(addQuery(editable.redirectTo, "error=exam-plan-not-found"));
+
+  await prisma.examReviewPlan.delete({ where: { id: plan.id } });
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "examPlan=1"));
+}
+
 export async function updateFixedEvent(formData: FormData) {
   const fixedEventId = textValue(formData, "fixedEventId");
   const studentId = textValue(formData, "studentId") || undefined;
@@ -406,6 +578,13 @@ export async function updateTaskStatus(formData: FormData) {
     },
   });
 
+  if (
+    task.examReviewPlanId &&
+    (status === TaskStatus.DONE || status === TaskStatus.PARTIAL || status === TaskStatus.SKIPPED)
+  ) {
+    await redistributeExamReviewPlan(task.examReviewPlanId, timeZone, formatDateInput(new Date(), timeZone));
+  }
+
   revalidatePath("/student");
   revalidatePath("/guardian");
   redirect(addQuery(editable.redirectTo, "schedule=1"));
@@ -554,6 +733,10 @@ export async function deleteCalendarEvent(formData: FormData) {
 
   if (!event) {
     redirect(addQuery(editable.redirectTo, "error=calendar-event-not-found"));
+  }
+
+  if (event.source === RecordSource.TEACHER) {
+    redirect(addQuery(editable.redirectTo, "error=teacher-event-readonly"));
   }
 
   await prisma.calendarEvent.delete({
