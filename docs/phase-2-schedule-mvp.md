@@ -2,7 +2,15 @@
 
 ## Version
 
-`1.6.0`
+`1.7.0`
+
+## Update 1.7.0
+
+- Added class-admin bulk import for UTF-8 CSV and XLSX calendar event files.
+- Added a downloadable CSV template with supported headers and example event types.
+- Import validation checks required columns, event types, dates, field lengths, duplicate rows, file size, and a 500-row limit.
+- Imports are all-or-nothing: invalid files show row-level issues and create no calendar events.
+- Valid rows are applied to every student currently in the managed class.
 
 ## Update 1.6.0
 
@@ -95,10 +103,10 @@
 
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, student/class calendar-event, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload and events in the user's time zone, and let students, guardians, or class admins manage relevant planning data.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, student/class calendar-event, class bulk-import, and user-time-zone-aware MVP. It can auto-place today's planned tasks into available after-school slots, show current week and month workload and events in the user's time zone, and let students, guardians, or class admins manage relevant planning data.
 
 ## Next
 
 - Persist generated schedule runs for later review.
 - Add persisted weekly planning with schedule history.
-- Add CSV/Excel bulk import for class-admin school events and exam dates.
+- Add import preview, duplicate detection against existing class events, and import history.

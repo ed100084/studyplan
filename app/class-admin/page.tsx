@@ -3,7 +3,7 @@ import { CalendarEventType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { getCurrentDay, getRequestTimeZone } from "@/lib/timezone";
-import { createClassCalendarEvent } from "./actions";
+import { createClassCalendarEvent, importClassCalendarEvents } from "./actions";
 import { createClassroom, signOut } from "../onboarding/actions";
 
 type ClassAdminPageProps = {
@@ -14,6 +14,10 @@ type ClassAdminPageProps = {
     error?: string;
     event?: string;
     existing?: string;
+    imported?: string;
+    issues?: string;
+    rows?: string;
+    students?: string;
   }>;
 };
 
@@ -28,14 +32,29 @@ const calendarEventLabels: Record<CalendarEventType, string> = {
 
 const calendarEventOptions = Object.entries(calendarEventLabels);
 
+function parsedImportIssues(value?: string) {
+  if (!value) return [];
+
+  try {
+    const issues = JSON.parse(value);
+    return Array.isArray(issues) ? issues.filter((issue) => typeof issue === "string").slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function ClassAdminPage({ searchParams }: ClassAdminPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
   const existing = params?.existing === "1";
   const eventCreated = params?.event === "1";
+  const imported = params?.imported === "1";
   const error = params?.error;
   const code = params?.code;
   const appliedCount = Number.parseInt(params?.count ?? "0", 10);
+  const importedRows = Number.parseInt(params?.rows ?? "0", 10);
+  const importedStudents = Number.parseInt(params?.students ?? "0", 10);
+  const importIssues = parsedImportIssues(params?.issues);
   const timeZone = await getRequestTimeZone();
   const today = getCurrentDay(timeZone);
   const session = await getCurrentSession();
@@ -91,6 +110,14 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
             </div>
           )}
 
+          {imported && (
+            <div className="notice">
+              已匯入 {Number.isFinite(importedRows) ? importedRows : 0} 筆班級事件，套用到{" "}
+              {Number.isFinite(importedStudents) ? importedStudents : 0} 位學生，共建立{" "}
+              {Number.isFinite(appliedCount) ? appliedCount : 0} 筆行事曆資料。
+            </div>
+          )}
+
           {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用另一個 Email。</div>}
 
           {error === "class-code-used" && (
@@ -104,6 +131,19 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
           {error === "class-not-found" && <div className="error-notice">找不到可管理的班級。</div>}
 
           {error === "no-class-members" && <div className="error-notice">班上目前沒有學生，還不能套用班級事件。</div>}
+
+          {error === "import-validation" && (
+            <div className="error-notice">
+              <strong>檔案未匯入，請修正以下問題：</strong>
+              <ul>
+                {(importIssues.length > 0 ? importIssues : ["匯入檔案驗證失敗。請下載範本並確認欄位格式。"]).map(
+                  (issue) => (
+                    <li key={issue}>{issue}</li>
+                  ),
+                )}
+              </ul>
+            </div>
+          )}
 
           {currentUser && activeClassroom ? (
             <>
@@ -171,6 +211,34 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
                   </label>
                   <button className="button primary" type="submit">
                     套用到全班學生
+                  </button>
+                </form>
+              </section>
+
+              <section className="panel event-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>CSV / Excel 批次匯入</h2>
+                    <p className="panel-copy">
+                      一次最多 500 筆、檔案上限 2 MB。支援 UTF-8 CSV 與 XLSX；任何一列有誤時整批不會寫入。
+                    </p>
+                  </div>
+                  <Link className="button secondary" href="/class-admin/calendar-event-template">
+                    下載 CSV 範本
+                  </Link>
+                </div>
+
+                <form className="form-card" action={importClassCalendarEvents}>
+                  <input name="classroomId" type="hidden" value={activeClassroom.id} />
+                  <label>
+                    匯入檔案
+                    <input name="file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
+                  </label>
+                  <p className="panel-copy">
+                    必填欄位：類型、標題、開始日期。類型可填段考、模擬考、升學考試、學校活動、截止日或其他。
+                  </p>
+                  <button className="button primary" type="submit">
+                    驗證並匯入全班
                   </button>
                 </form>
               </section>

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.0
+
+- Added CSV and XLSX bulk import for class-admin exams, deadlines, and school activities.
+- Added a downloadable UTF-8 CSV template.
+- Added all-or-nothing row validation with clear import issue summaries.
+- Uses focused spreadsheet parsers with no known npm audit vulnerabilities.
+
 ## 1.6.0
 
 - Added class-admin shared calendar events for class-wide exams, school activities, deadlines, and other dates.
