@@ -46,6 +46,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {params?.error === "account-not-found" && (
             <div className="error-notice">找不到符合這個角色與 Email 的帳號，請確認角色或改用建立資料。</div>
           )}
+          {params?.error === "database-unavailable" && (
+            <div className="error-notice">登入服務暫時無法連接資料庫，請稍後再試一次。</div>
+          )}
 
           {currentUser && session ? (
             <div className="session-card">

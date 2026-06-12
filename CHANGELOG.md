@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1
+
+- Fixed intermittent guardian and student login failures caused by Supabase Supavisor prepared-statement collisions.
+- Prisma runtime connections now automatically enable pooler-compatible parameters for Supabase pooled URLs.
+- Login database failures now return to the login page with a retryable error instead of exposing a server error.
+- Added guardian-login and pooled-database regression tests.
+
 ## 2.0.0
 
 - Added student and guardian score entry with subject, date, source attribution, recent history, and a five-score average.

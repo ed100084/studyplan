@@ -29,7 +29,17 @@ export async function POST(request: Request) {
 
   if (!email || !role) return loginRedirect(request, "missing-fields");
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  let user;
+  try {
+    user = await prisma.user.findUnique({ where: { email } });
+  } catch (error) {
+    console.error("[api/login] user lookup failed", {
+      role,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return loginRedirect(request, "database-unavailable", role);
+  }
+
   if (!user || user.role !== role) {
     return loginRedirect(request, "account-not-found", role);
   }
