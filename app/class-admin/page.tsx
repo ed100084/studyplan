@@ -3,7 +3,8 @@ import { CalendarEventType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { getCurrentDay, getRequestTimeZone } from "@/lib/timezone";
-import { createClassCalendarEvent, importClassCalendarEvents } from "./actions";
+import { createClassCalendarEvent } from "./actions";
+import { ClassCalendarImport } from "./class-calendar-import";
 import { createClassroom, signOut } from "../onboarding/actions";
 
 type ClassAdminPageProps = {
@@ -15,6 +16,7 @@ type ClassAdminPageProps = {
     event?: string;
     existing?: string;
     imported?: string;
+    duplicates?: string;
     issues?: string;
     rows?: string;
     students?: string;
@@ -54,6 +56,7 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
   const appliedCount = Number.parseInt(params?.count ?? "0", 10);
   const importedRows = Number.parseInt(params?.rows ?? "0", 10);
   const importedStudents = Number.parseInt(params?.students ?? "0", 10);
+  const duplicateRows = Number.parseInt(params?.duplicates ?? "0", 10);
   const importIssues = parsedImportIssues(params?.issues);
   const timeZone = await getRequestTimeZone();
   const today = getCurrentDay(timeZone);
@@ -75,6 +78,10 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
                       },
                     },
                   },
+                },
+                calendarImports: {
+                  orderBy: { createdAt: "desc" },
+                  take: 8,
                 },
               },
             },
@@ -115,6 +122,7 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
               已匯入 {Number.isFinite(importedRows) ? importedRows : 0} 筆班級事件，套用到{" "}
               {Number.isFinite(importedStudents) ? importedStudents : 0} 位學生，共建立{" "}
               {Number.isFinite(appliedCount) ? appliedCount : 0} 筆行事曆資料。
+              {Number.isFinite(duplicateRows) && duplicateRows > 0 ? ` 已略過 ${duplicateRows} 筆既有事件。` : ""}
             </div>
           )}
 
@@ -228,19 +236,29 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
                   </Link>
                 </div>
 
-                <form className="form-card" action={importClassCalendarEvents}>
-                  <input name="classroomId" type="hidden" value={activeClassroom.id} />
-                  <label>
-                    匯入檔案
-                    <input name="file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
-                  </label>
-                  <p className="panel-copy">
-                    必填欄位：類型、標題、開始日期。類型可填段考、模擬考、升學考試、學校活動、截止日或其他。
-                  </p>
-                  <button className="button primary" type="submit">
-                    驗證並匯入全班
-                  </button>
-                </form>
+                <ClassCalendarImport classroomId={activeClassroom.id} />
+              </section>
+
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>匯入歷史</h2>
+                  <span>{activeClassroom.calendarImports.length} 筆</span>
+                </div>
+                <div className="task-list compact-list">
+                  {activeClassroom.calendarImports.map((item) => (
+                    <div className="task" key={item.id}>
+                      <span className="task-dot" aria-hidden="true" />
+                      <div>
+                        <strong>{item.fileName}</strong>
+                        <span>
+                          {item.createdAt.toLocaleString("zh-TW", { timeZone })} · 匯入 {item.importedRows}/{item.totalRows} 筆
+                          {item.duplicateRows > 0 ? ` · 略過 ${item.duplicateRows} 筆` : ""} · {item.studentCount} 位學生
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {activeClassroom.calendarImports.length === 0 && <div className="empty-state">尚未有批次匯入紀錄。</div>}
+                </div>
               </section>
 
               <section className="panel">

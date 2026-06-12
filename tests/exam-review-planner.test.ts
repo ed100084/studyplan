@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CalendarEventType, FixedEventType, Weekday } from "@prisma/client";
 import { buildExamReviewTaskDrafts } from "../lib/exam-review-planner";
+import { classCalendarImportRowKey, validateClassCalendarImportRows } from "../lib/class-calendar-import";
 
 test("distributes all minutes before the exam and skips school events", () => {
   const result = buildExamReviewTaskDrafts({
@@ -52,6 +53,40 @@ test("reports unallocated minutes when recurring events consume the whole day", 
   assert.deepEqual(result.tasks, []);
   assert.equal(result.scheduledMinutes, 0);
   assert.equal(result.unscheduledMinutes, 60);
+});
+
+test("validates serialized class calendar rows before confirmation", () => {
+  const result = validateClassCalendarImportRows([
+    {
+      type: CalendarEventType.SECTION_EXAM,
+      title: "第一次段考",
+      subjectName: "數學",
+      startDate: "2026-06-18",
+      endDate: "2026-06-19",
+      note: "第一冊",
+      duplicate: false,
+    },
+  ]);
+
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.rows.length, 1);
+  assert.equal(classCalendarImportRowKey(result.rows[0]), "SECTION_EXAM|第一次段考|數學|2026-06-18|2026-06-19|第一冊");
+});
+
+test("rejects duplicate and invalid serialized class calendar rows", () => {
+  const row = {
+    type: CalendarEventType.SCHOOL_EVENT,
+    title: "校慶",
+    subjectName: null,
+    startDate: "2026-06-20",
+    endDate: null,
+    note: null,
+  };
+  const duplicateResult = validateClassCalendarImportRows([row, row]);
+  const invalidResult = validateClassCalendarImportRows([{ ...row, startDate: "2026-02-30" }]);
+
+  assert.ok(duplicateResult.issues.some((issue) => issue.includes("重複")));
+  assert.ok(invalidResult.issues.some((issue) => issue.includes("開始日期格式無效")));
 });
 
 test("never leaves a generated task shorter than ten minutes", () => {

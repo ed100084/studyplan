@@ -20,6 +20,61 @@ export type ClassCalendarImportResult =
   | { rows: ClassCalendarImportRow[]; issues: [] }
   | { rows: []; issues: string[] };
 
+export function classCalendarImportRowKey(row: ClassCalendarImportRow) {
+  return [row.type, row.title, row.subjectName ?? "", row.startDate, row.endDate ?? "", row.note ?? ""].join("|");
+}
+
+export function validateClassCalendarImportRows(value: unknown): ClassCalendarImportResult {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { rows: [], issues: ["沒有可匯入的資料列。"] };
+  }
+
+  if (value.length > MAX_IMPORT_ROWS) {
+    return { rows: [], issues: [`一次最多匯入 ${MAX_IMPORT_ROWS} 列，目前有 ${value.length} 列。`] };
+  }
+
+  const rows: ClassCalendarImportRow[] = [];
+  const issues: string[] = [];
+  const duplicateKeys = new Set<string>();
+
+  value.forEach((item, index) => {
+    if (!item || typeof item !== "object") {
+      issues.push(`第 ${index + 1} 列：資料格式無效`);
+      return;
+    }
+
+    const candidate = item as Record<string, unknown>;
+    const type = typeof candidate.type === "string" ? normalizedType(candidate.type) : null;
+    const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
+    const subjectName = typeof candidate.subjectName === "string" ? candidate.subjectName.trim() || null : null;
+    const startDate = typeof candidate.startDate === "string" ? normalizedDate(candidate.startDate) : null;
+    const endDate = typeof candidate.endDate === "string" && candidate.endDate ? normalizedDate(candidate.endDate) : null;
+    const note = typeof candidate.note === "string" ? candidate.note.trim() || null : null;
+    const rowIssues: string[] = [];
+
+    if (!type) rowIssues.push("類型無效");
+    if (!title) rowIssues.push("標題必填");
+    if (title.length > 120) rowIssues.push("標題不可超過 120 字");
+    if (subjectName && subjectName.length > 80) rowIssues.push("科目不可超過 80 字");
+    if (!startDate) rowIssues.push("開始日期格式無效");
+    if (candidate.endDate && !endDate) rowIssues.push("結束日期格式無效");
+    if (startDate && endDate && endDate < startDate) rowIssues.push("結束日期不可早於開始日期");
+    if (note && note.length > 500) rowIssues.push("備註不可超過 500 字");
+
+    if (type && startDate) {
+      const row = { type, title, subjectName, startDate, endDate, note };
+      const key = classCalendarImportRowKey(row);
+      if (duplicateKeys.has(key)) rowIssues.push("與其他資料重複");
+      duplicateKeys.add(key);
+      if (rowIssues.length === 0) rows.push(row);
+    }
+
+    if (rowIssues.length > 0) issues.push(`第 ${index + 1} 列：${rowIssues.join("、")}`);
+  });
+
+  return issues.length > 0 ? { rows: [], issues: issues.slice(0, 8) } : { rows, issues: [] };
+}
+
 const headerAliases: Record<string, ImportField> = {
   type: "type",
   eventtype: "type",
@@ -188,7 +243,9 @@ export async function parseClassCalendarImport(file: File): Promise<ClassCalenda
     if (startDate && endDate && endDate < startDate) rowIssues.push("結束日期不可早於開始日期");
     if (note && note.length > 500) rowIssues.push("備註不可超過 500 字");
 
-    const duplicateKey = [type, title, subjectName, startDate, endDate, note].join("|");
+    const duplicateKey = type && startDate
+      ? classCalendarImportRowKey({ type, title, subjectName, startDate, endDate, note })
+      : "";
     if (duplicateKeys.has(duplicateKey)) rowIssues.push("與檔案內其他資料重複");
 
     if (rowIssues.length > 0 || !type || !startDate) {

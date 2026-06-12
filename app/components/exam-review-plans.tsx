@@ -1,4 +1,4 @@
-import { TaskStatus } from "@prisma/client";
+import { ReviewPlanRevisionTrigger, TaskStatus } from "@prisma/client";
 import { formatDateInput } from "@/lib/timezone";
 import {
   createExamReviewPlan,
@@ -34,6 +34,22 @@ type ReviewPlan = {
   subject: { name: string } | null;
   calendarEvent: ExamEvent;
   tasks: ReviewTask[];
+  revisions: Array<{
+    id: string;
+    revision: number;
+    trigger: ReviewPlanRevisionTrigger;
+    remainingMinutes: number;
+    scheduledMinutes: number;
+    unscheduledMinutes: number;
+    taskCount: number;
+    createdAt: Date;
+  }>;
+};
+
+const revisionTriggerLabels: Record<ReviewPlanRevisionTrigger, string> = {
+  CREATED: "建立計畫",
+  MANUAL_REDISTRIBUTION: "手動重新分配",
+  TASK_PROGRESS: "依完成進度調整",
 };
 
 function dateDifference(from: string, to: string) {
@@ -131,6 +147,18 @@ export function ExamReviewPlans({
                 ))}
                 {nextTasks.length === 0 && <span>{progress.remainingMinutes === 0 ? "複習計畫已完成。" : "目前沒有可排入的考前日期。"}</span>}
               </div>
+
+              {plan.revisions.length > 0 && (
+                <div className="exam-plan-tasks">
+                  <strong>版本歷史</strong>
+                  {plan.revisions.map((revision) => (
+                    <span key={revision.id}>
+                      第 {revision.revision} 版 · {revisionTriggerLabels[revision.trigger]} · 已排 {revision.scheduledMinutes} 分
+                      {revision.unscheduledMinutes > 0 ? `，未排 ${revision.unscheduledMinutes} 分` : ""}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="inline-actions">
                 <form action={redistributeExamReviewPlanAction}>

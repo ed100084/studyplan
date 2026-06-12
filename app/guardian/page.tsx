@@ -6,6 +6,7 @@ import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZone, getWeek, orderedWeekdays } from "@/lib/timezone";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
+import { ScheduleHistory } from "@/app/components/schedule-history";
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -17,6 +18,7 @@ import {
   deleteStudyTask,
   deleteTutoringSession,
   moveTasksToTomorrow,
+  saveTodaySchedule,
   updateFixedEvent,
   updateStudyTask,
   updateTaskStatus,
@@ -30,6 +32,7 @@ type GuardianPageProps = {
     existing?: string;
     linked?: string;
     schedule?: string;
+    scheduleHistory?: string;
     examPlan?: string;
     studentId?: string;
   }>;
@@ -496,6 +499,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const existing = params?.existing === "1";
   const linked = params?.linked === "1";
   const scheduleUpdated = params?.schedule === "1";
+  const scheduleHistoryUpdated = params?.scheduleHistory === "1";
   const examPlanUpdated = params?.examPlan === "1";
   const error = params?.error;
   const timeZone = await getRequestTimeZone();
@@ -565,8 +569,16 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                               },
                               orderBy: [{ plannedDate: "asc" }, { createdAt: "asc" }],
                             },
+                            revisions: {
+                              orderBy: { revision: "desc" },
+                              take: 3,
+                            },
                           },
                           orderBy: [{ examDate: "asc" }, { createdAt: "asc" }],
+                        },
+                        scheduleRuns: {
+                          orderBy: { createdAt: "desc" },
+                          take: 8,
                         },
                         calendarEvents: {
                           where: {
@@ -658,6 +670,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           {existing && <div className="notice">這個 Email 已有家長資料，已切換到既有資料。</div>}
           {linked && <div className="notice">學生已加入你的孩子清單。</div>}
           {scheduleUpdated && <div className="notice">孩子的讀書計畫資料已更新。</div>}
+          {scheduleHistoryUpdated && <div className="notice">孩子今天的排程版本已儲存。</div>}
           {examPlanUpdated && <div className="notice">孩子的考前複習計畫已更新，剩餘進度已重新分配。</div>}
 
           {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用家長 Email。</div>}
@@ -943,6 +956,19 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                         </span>
                       </div>
 
+                      <div className="inline-actions">
+                        <form action={saveTodaySchedule}>
+                          <input name="studentId" type="hidden" value={activeStudent.id} />
+                          <input name="trigger" type="hidden" value="SAVED" />
+                          <button className="small-button" type="submit">儲存目前排程</button>
+                        </form>
+                        <form action={saveTodaySchedule}>
+                          <input name="studentId" type="hidden" value={activeStudent.id} />
+                          <input name="trigger" type="hidden" value="REGENERATED" />
+                          <button className="small-button" type="submit">重新產生並儲存</button>
+                        </form>
+                      </div>
+
                       <div className="timeline-list">
                         {todaySchedule.scheduled.map((segment) => (
                           <div className={`timeline-item schedule-${segment.kind}`} key={segment.id}>
@@ -978,6 +1004,8 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       )}
                     </section>
                   )}
+
+                  <ScheduleHistory runs={activeStudent.scheduleRuns} timeZone={timeZone} />
 
                   <div className="form-grid">
                     <form className="form-card" action={createTutoringSession}>

@@ -7,6 +7,8 @@ import {
   FatigueLevel,
   FixedEventType,
   RecordSource,
+  ReviewPlanRevisionTrigger,
+  ScheduleRunTrigger,
   TaskStatus,
   TaskType,
   UserRole,
@@ -14,8 +16,9 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
-import { formatDateInput, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
+import { formatDateInput, getCurrentDay, getDayRange, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
 import { buildExamReviewTaskDrafts } from "@/lib/exam-review-planner";
+import { buildTodaySchedule } from "@/lib/scheduler/today";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -253,7 +256,12 @@ export async function createCalendarEvent(formData: FormData) {
   redirect(addQuery(editable.redirectTo, "schedule=1"));
 }
 
-async function redistributeExamReviewPlan(planId: string, timeZone: string, earliestDate: string) {
+async function redistributeExamReviewPlan(
+  planId: string,
+  timeZone: string,
+  earliestDate: string,
+  trigger: ReviewPlanRevisionTrigger,
+) {
   const plan = await prisma.examReviewPlan.findUnique({
     where: { id: planId },
     include: {
@@ -297,17 +305,20 @@ async function redistributeExamReviewPlan(planId: string, timeZone: string, earl
     })),
   });
 
-  const operations = [
-    prisma.studyTask.deleteMany({
+  await prisma.$transaction(async (transaction) => {
+    const latestRevision = await transaction.examReviewPlanRevision.aggregate({
+      where: { examReviewPlanId: plan.id },
+      _max: { revision: true },
+    });
+
+    await transaction.studyTask.deleteMany({
       where: {
         examReviewPlanId: plan.id,
         status: TaskStatus.PLANNED,
       },
-    }),
-  ];
-  if (drafts.tasks.length > 0) {
-    operations.push(
-      prisma.studyTask.createMany({
+    });
+    if (drafts.tasks.length > 0) {
+      await transaction.studyTask.createMany({
         data: drafts.tasks.map((draft) => ({
           studentId: plan.studentId,
           subjectId: plan.subjectId,
@@ -321,10 +332,27 @@ async function redistributeExamReviewPlan(planId: string, timeZone: string, earl
           priority: plan.priority,
           source: RecordSource.SYSTEM,
         })),
-      }),
-    );
-  }
-  await prisma.$transaction(operations);
+      });
+    }
+
+    await transaction.examReviewPlanRevision.create({
+      data: {
+        examReviewPlanId: plan.id,
+        revision: (latestRevision._max.revision ?? 0) + 1,
+        trigger,
+        remainingMinutes,
+        scheduledMinutes: drafts.scheduledMinutes,
+        unscheduledMinutes: drafts.unscheduledMinutes,
+        taskCount: drafts.tasks.length,
+        snapshot: {
+          startDate,
+          examDate,
+          availableDayCount: drafts.availableDayCount,
+          tasks: drafts.tasks,
+        },
+      },
+    });
+  });
 }
 
 export async function createExamReviewPlan(formData: FormData) {
@@ -387,7 +415,7 @@ export async function createExamReviewPlan(formData: FormData) {
     },
   });
 
-  await redistributeExamReviewPlan(plan.id, timeZone, startDate);
+  await redistributeExamReviewPlan(plan.id, timeZone, startDate, ReviewPlanRevisionTrigger.CREATED);
   revalidatePath("/student");
   revalidatePath("/guardian");
   redirect(addQuery(editable.redirectTo, "examPlan=1"));
@@ -401,7 +429,12 @@ export async function redistributeExamReviewPlanAction(formData: FormData) {
   if (!plan) redirect(addQuery(editable.redirectTo, "error=exam-plan-not-found"));
 
   const timeZone = await getRequestTimeZone();
-  await redistributeExamReviewPlan(plan.id, timeZone, formatDateInput(new Date(), timeZone));
+  await redistributeExamReviewPlan(
+    plan.id,
+    timeZone,
+    formatDateInput(new Date(), timeZone),
+    ReviewPlanRevisionTrigger.MANUAL_REDISTRIBUTION,
+  );
   revalidatePath("/student");
   revalidatePath("/guardian");
   redirect(addQuery(editable.redirectTo, "examPlan=1"));
@@ -582,12 +615,79 @@ export async function updateTaskStatus(formData: FormData) {
     task.examReviewPlanId &&
     (status === TaskStatus.DONE || status === TaskStatus.PARTIAL || status === TaskStatus.SKIPPED)
   ) {
-    await redistributeExamReviewPlan(task.examReviewPlanId, timeZone, formatDateInput(new Date(), timeZone));
+    await redistributeExamReviewPlan(
+      task.examReviewPlanId,
+      timeZone,
+      formatDateInput(new Date(), timeZone),
+      ReviewPlanRevisionTrigger.TASK_PROGRESS,
+    );
   }
 
   revalidatePath("/student");
   revalidatePath("/guardian");
   redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function saveTodaySchedule(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const trigger = enumValue(ScheduleRunTrigger, textValue(formData, "trigger"), ScheduleRunTrigger.SAVED);
+  const timeZone = await getRequestTimeZone();
+  const today = getCurrentDay(timeZone);
+  const range = getDayRange(today.date, timeZone);
+  const student = await prisma.studentProfile.findUnique({
+    where: { id: editable.student.id },
+    include: {
+      fixedEvents: { where: { weekday: today.weekday } },
+      tutoringSessions: { where: { weekday: today.weekday } },
+      studyTasks: {
+        where: {
+          plannedDate: { gte: range.start, lt: range.end },
+          status: TaskStatus.PLANNED,
+        },
+        include: { subject: true },
+      },
+    },
+  });
+
+  if (!student) redirect(addQuery(editable.redirectTo, "error=student-required"));
+
+  const schedule = buildTodaySchedule({
+    fixedEvents: student.fixedEvents,
+    tutoringSessions: student.tutoringSessions,
+    tasks: student.studyTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      subjectName: task.subject?.name,
+      type: task.type,
+      estimatedMinutes: task.estimatedMinutes,
+      priority: task.priority,
+    })),
+  });
+
+  await prisma.$transaction(async (transaction) => {
+    const latestRevision = await transaction.scheduleRun.aggregate({
+      where: { studentId: student.id, scheduleDate: range.start },
+      _max: { revision: true },
+    });
+
+    await transaction.scheduleRun.create({
+      data: {
+        studentId: student.id,
+        scheduleDate: range.start,
+        revision: (latestRevision._max.revision ?? 0) + 1,
+        trigger,
+        availableMinutes: schedule.availableMinutes,
+        scheduledStudyMinutes: schedule.scheduledStudyMinutes,
+        snapshot: JSON.parse(JSON.stringify({ scheduled: schedule.scheduled, unplaced: schedule.unplaced })),
+        source: editable.source,
+      },
+    });
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, "scheduleHistory=1"));
 }
 
 export async function moveTasksToTomorrow(formData: FormData) {

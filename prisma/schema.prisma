@@ -84,17 +84,29 @@ enum RecordSource {
   SYSTEM
 }
 
+enum ScheduleRunTrigger {
+  SAVED
+  REGENERATED
+}
+
+enum ReviewPlanRevisionTrigger {
+  CREATED
+  MANUAL_REDISTRIBUTION
+  TASK_PROGRESS
+}
+
 model User {
-  id              String           @id @default(cuid())
-  email           String?          @unique
+  id              String                @id @default(cuid())
+  email           String?               @unique
   displayName     String
   role            UserRole
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
   studentProfile  StudentProfile?
   guardianProfile GuardianProfile?
-  managedClasses  Classroom[]      @relation("ClassroomManager")
+  managedClasses  Classroom[]           @relation("ClassroomManager")
   taskLogs        TaskLog[]
+  calendarImports ClassCalendarImport[] @relation("ClassCalendarImportManager")
 }
 
 model StudentProfile {
@@ -112,6 +124,7 @@ model StudentProfile {
   studyTasks       StudyTask[]
   calendarEvents   CalendarEvent[]
   examReviewPlans  ExamReviewPlan[]
+  scheduleRuns     ScheduleRun[]
   scores           Score[]
   weakPoints       WeakPoint[]
   reviewItems      ReviewItem[]
@@ -220,17 +233,18 @@ model Chapter {
 }
 
 model Classroom {
-  id             String        @id @default(cuid())
-  academicYearId String
-  name           String
-  code           String        @unique
-  grade          Int
-  managerId      String?
-  createdAt      DateTime      @default(now())
-  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  manager        User?         @relation("ClassroomManager", fields: [managerId], references: [id], onDelete: SetNull)
-  members        ClassMember[]
-  exams          Exam[]
+  id              String                @id @default(cuid())
+  academicYearId  String
+  name            String
+  code            String                @unique
+  grade           Int
+  managerId       String?
+  createdAt       DateTime              @default(now())
+  academicYear    AcademicYear          @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  manager         User?                 @relation("ClassroomManager", fields: [managerId], references: [id], onDelete: SetNull)
+  members         ClassMember[]
+  exams           Exam[]
+  calendarImports ClassCalendarImport[]
 }
 
 model ClassMember {
@@ -349,27 +363,78 @@ model CalendarEvent {
 }
 
 model ExamReviewPlan {
-  id              String         @id @default(cuid())
+  id              String                   @id @default(cuid())
   studentId       String
   calendarEventId String
   subjectId       String?
   title           String
   scope           String?
   totalMinutes    Int
-  sessionMinutes  Int            @default(30)
-  priority        Int            @default(4)
+  sessionMinutes  Int                      @default(30)
+  priority        Int                      @default(4)
   startDate       DateTime
   examDate        DateTime
-  source          RecordSource   @default(STUDENT)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  student         StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  calendarEvent   CalendarEvent  @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
-  subject         Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  source          RecordSource             @default(STUDENT)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  student         StudentProfile           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  calendarEvent   CalendarEvent            @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  subject         Subject?                 @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   tasks           StudyTask[]
+  revisions       ExamReviewPlanRevision[]
 
   @@index([studentId, examDate])
   @@index([calendarEventId])
+}
+
+model ExamReviewPlanRevision {
+  id                 String                    @id @default(cuid())
+  examReviewPlanId   String
+  revision           Int
+  trigger            ReviewPlanRevisionTrigger
+  remainingMinutes   Int
+  scheduledMinutes   Int
+  unscheduledMinutes Int
+  taskCount          Int
+  snapshot           Json
+  createdAt          DateTime                  @default(now())
+  examReviewPlan     ExamReviewPlan            @relation(fields: [examReviewPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([examReviewPlanId, revision])
+  @@index([examReviewPlanId, createdAt])
+}
+
+model ScheduleRun {
+  id                    String             @id @default(cuid())
+  studentId             String
+  scheduleDate          DateTime
+  revision              Int
+  trigger               ScheduleRunTrigger
+  availableMinutes      Int
+  scheduledStudyMinutes Int
+  snapshot              Json
+  source                RecordSource       @default(STUDENT)
+  createdAt             DateTime           @default(now())
+  student               StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, scheduleDate, revision])
+  @@index([studentId, scheduleDate, createdAt])
+}
+
+model ClassCalendarImport {
+  id            String    @id @default(cuid())
+  classroomId   String
+  managerId     String?
+  fileName      String
+  totalRows     Int
+  importedRows  Int
+  duplicateRows Int
+  studentCount  Int
+  createdAt     DateTime  @default(now())
+  classroom     Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  manager       User?     @relation("ClassCalendarImportManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  @@index([classroomId, createdAt])
 }
 
 model TaskLog {

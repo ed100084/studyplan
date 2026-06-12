@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.0
+
+- Added saved daily schedule versions for students and guardians, including source, revision number, capacity metrics, and schedule snapshots.
+- Added revision history for exam review plans when plans are created, manually redistributed, or adjusted after task progress.
+- Added CSV/XLSX import preview with duplicate detection against existing teacher-created class events.
+- Class calendar imports now revalidate preview data before writing, skip existing events, and keep import history with row and student counts.
+- Added the `ScheduleRun`, `ExamReviewPlanRevision`, and `ClassCalendarImport` data models and migration.
+
 ## 1.8.0
 
 - Added exam countdown and multi-day review plans for students and guardians.

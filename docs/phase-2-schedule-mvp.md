@@ -112,12 +112,19 @@
 - Guardians can mark linked student tasks as done.
 - Schedule mutations are implemented as Next.js Server Actions.
 
+## Update 1.9.0
+
+- Added persisted daily schedule runs with revision numbers, actor source, capacity metrics, and immutable schedule snapshots.
+- Added exam review plan revisions for creation, manual redistribution, and task-progress redistribution.
+- Added CSV/XLSX import preview with duplicate detection against existing class events.
+- Added server-side confirmation validation, duplicate rechecking, and class import history.
+
 ## Current Scope
 
-This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, student/class calendar-event, class bulk-import, exam-countdown, multi-day-review, and user-time-zone-aware MVP. It can distribute exam preparation across available dates, auto-place today's planned tasks into after-school slots, and show current week/month workload and events in the user's time zone.
+This version is a data-entry, daily timeline, correction, edit, progress-tracking, split-scheduling, weekly-calendar, monthly-calendar, student/class calendar-event, previewed class bulk-import, exam-countdown, multi-day-review, schedule-history, and user-time-zone-aware MVP. It can distribute exam preparation across available dates, persist generated schedule versions, retain plan redistribution history, and show current week/month workload and events in the user's time zone.
 
 ## Next
 
-- Persist generated schedule runs for later review.
-- Add schedule history and plan revision history.
-- Add import preview, duplicate detection against existing class events, and import history.
+- Add comparison and restore actions for saved schedule versions.
+- Add longer-term workload and completion trend views.
+- Add class import rollback and downloadable import reports.
