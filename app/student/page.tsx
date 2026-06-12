@@ -29,7 +29,6 @@ type StudentPageProps = {
   searchParams?: Promise<{
     created?: string;
     error?: string;
-    existing?: string;
     joined?: string;
     schedule?: string;
     scheduleHistory?: string;
@@ -485,7 +484,6 @@ function MonthCalendar({
 export default async function StudentPage({ searchParams }: StudentPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
-  const existing = params?.existing === "1";
   const joined = params?.joined === "1";
   const scheduleUpdated = params?.schedule === "1";
   const scheduleHistoryUpdated = params?.scheduleHistory === "1";
@@ -643,11 +641,13 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           </p>
 
           {created && <div className="notice">學生資料已建立。{joined ? "已加入班級。" : "尚未加入班級，可之後補上班級代碼。"}</div>}
-          {existing && <div className="notice">這個 Email 已有學生資料，已切換到既有資料。{joined ? "目前有班級連結。" : "尚未連結班級。"}</div>}
           {scheduleUpdated && <div className="notice">讀書計畫資料已更新。</div>}
           {scheduleHistoryUpdated && <div className="notice">今天的排程版本已儲存。</div>}
           {examPlanUpdated && <div className="notice">考前複習計畫已更新，剩餘進度已重新分配。</div>}
-          {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用學生自己的 Email。</div>}
+          {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
+          {error === "account-exists" && (
+            <div className="error-notice">這個 Email 已有帳號，請改用 <Link href="/login?role=STUDENT">學生登入頁</Link>。</div>
+          )}
           {error === "exam-event-not-found" && <div className="error-notice">找不到可建立計畫的考試事件。</div>}
           {error === "exam-plan-date" && <div className="error-notice">複習開始日期必須早於考試日期。</div>}
           {error === "exam-plan-exists" && <div className="error-notice">這個考試與科目已經有複習計畫。</div>}
@@ -1118,6 +1118,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           ) : (
             <form className="form-card narrow-form" action={createStudent}>
               <h2>建立學生資料</h2>
+              <p className="panel-copy">這裡只建立新帳號。已有學生帳號請前往 <Link href="/login?role=STUDENT">登入頁</Link>。</p>
               <label>
                 學生姓名或暱稱
                 <input name="displayName" placeholder="例如：小明" required />
@@ -1125,7 +1126,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
               <label>
                 Email
-                <input name="email" type="email" placeholder="可用學生自己的 Email，也可以先空白" />
+                <input name="email" type="email" autoComplete="email" placeholder="學生自己的 Email" required />
               </label>
 
               <label>

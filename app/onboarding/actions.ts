@@ -30,6 +30,31 @@ function normalizeStudentLinkCode(value: string) {
   return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
 }
 
+const loginRoles = [UserRole.STUDENT, UserRole.GUARDIAN, UserRole.CLASS_ADMIN] as const;
+type LoginRole = (typeof loginRoles)[number];
+
+function rolePath(role: LoginRole) {
+  if (role === UserRole.STUDENT) return "/student";
+  if (role === UserRole.GUARDIAN) return "/guardian";
+  return "/class-admin";
+}
+
+export async function login(formData: FormData) {
+  const email = optionalEmail(formData, "email");
+  const roleValue = textValue(formData, "role");
+  const role = loginRoles.find((candidate) => candidate === roleValue) ?? null;
+
+  if (!email || !role) redirect("/login?error=missing-fields");
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || user.role !== role) {
+    redirect(`/login?error=account-not-found&role=${role}`);
+  }
+
+  await setCurrentSession({ userId: user.id, role: user.role });
+  redirect(rolePath(user.role));
+}
+
 async function createStudentLinkCode(grade: number) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -108,6 +133,8 @@ export async function createClassroom(formData: FormData) {
   const classCode = requestedCode || createClassCode(grade, className);
   const academicYear = await getAlianAcademicYear();
 
+  if (!email) redirect("/class-admin?error=email-required");
+
   const existingClassroom = await prisma.classroom.findUnique({
     where: {
       code: classCode,
@@ -119,30 +146,9 @@ export async function createClassroom(formData: FormData) {
   }
 
   if (email) {
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-      include: {
-        managedClasses: {
-          include: {
-            members: true,
-          },
-        },
-      },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
-    if (existingUser?.role === UserRole.CLASS_ADMIN) {
-      await setCurrentSession({
-        userId: existingUser.id,
-        role: existingUser.role,
-      });
-      redirect("/class-admin?existing=1");
-    }
-
-    if (existingUser) {
-      redirect("/class-admin?error=email-used");
-    }
+    if (existingUser) redirect("/class-admin?error=account-exists");
   }
 
   const manager = await prisma.user.create({
@@ -178,71 +184,12 @@ export async function createStudent(formData: FormData) {
   const seatNumber = intValue(formData, "seatNumber", 0);
   const classCode = textValue(formData, "classCode").toUpperCase();
 
+  if (!email) redirect("/student?error=email-required");
+
   if (email) {
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-      include: {
-        studentProfile: {
-          include: {
-            classMemberships: true,
-          },
-        },
-      },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
-    if (existingUser?.role === UserRole.STUDENT && existingUser.studentProfile) {
-      let joined = existingUser.studentProfile.classMemberships.length > 0;
-
-      if (!existingUser.studentProfile.linkCode) {
-        await prisma.studentProfile.update({
-          where: {
-            id: existingUser.studentProfile.id,
-          },
-          data: {
-            linkCode: await createStudentLinkCode(existingUser.studentProfile.grade),
-          },
-        });
-      }
-
-      if (classCode) {
-        const classroom = await prisma.classroom.findUnique({
-          where: {
-            code: classCode,
-          },
-        });
-
-        if (classroom) {
-          await prisma.classMember.upsert({
-            where: {
-              classroomId_studentId: {
-                classroomId: classroom.id,
-                studentId: existingUser.studentProfile.id,
-              },
-            },
-            update: seatNumber > 0 ? { seatNumber } : {},
-            create: {
-              classroomId: classroom.id,
-              studentId: existingUser.studentProfile.id,
-              seatNumber: seatNumber > 0 ? seatNumber : null,
-            },
-          });
-          joined = true;
-        }
-      }
-
-      await setCurrentSession({
-        userId: existingUser.id,
-        role: existingUser.role,
-      });
-
-      redirect(`/student?existing=1&joined=${joined ? "1" : "0"}`);
-    }
-
-    if (existingUser) {
-      redirect("/student?error=email-used");
-    }
+    if (existingUser) redirect("/student?error=account-exists");
   }
 
   const student = await prisma.user.create({
@@ -295,28 +242,12 @@ export async function createGuardian(formData: FormData) {
   const email = optionalEmail(formData, "email");
   const studentLinkCode = textValue(formData, "studentLinkCode");
 
+  if (!email) redirect("/guardian?error=email-required");
+
   if (email) {
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-      include: {
-        guardianProfile: true,
-      },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
-    if (existingUser?.role === UserRole.GUARDIAN && existingUser.guardianProfile) {
-      const linkedStudent = await linkGuardianToStudent(existingUser.guardianProfile.id, studentLinkCode);
-      await setCurrentSession({
-        userId: existingUser.id,
-        role: existingUser.role,
-      });
-      redirect(`/guardian?existing=1&linked=${linkedStudent ? "1" : "0"}${linkedStudent ? `&studentId=${linkedStudent.id}` : ""}`);
-    }
-
-    if (existingUser) {
-      redirect("/guardian?error=email-used");
-    }
+    if (existingUser) redirect("/guardian?error=account-exists");
   }
 
   const guardian = await prisma.user.create({

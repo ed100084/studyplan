@@ -29,7 +29,6 @@ type GuardianPageProps = {
   searchParams?: Promise<{
     created?: string;
     error?: string;
-    existing?: string;
     linked?: string;
     schedule?: string;
     scheduleHistory?: string;
@@ -496,7 +495,6 @@ function MonthCalendar({
 export default async function GuardianPage({ searchParams }: GuardianPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
-  const existing = params?.existing === "1";
   const linked = params?.linked === "1";
   const scheduleUpdated = params?.schedule === "1";
   const scheduleHistoryUpdated = params?.scheduleHistory === "1";
@@ -667,13 +665,15 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           </p>
 
           {created && <div className="notice">家長資料已建立。{linked ? "已連結學生。" : "尚未連結學生，可在下方輸入學生連結碼。"}</div>}
-          {existing && <div className="notice">這個 Email 已有家長資料，已切換到既有資料。</div>}
           {linked && <div className="notice">學生已加入你的孩子清單。</div>}
           {scheduleUpdated && <div className="notice">孩子的讀書計畫資料已更新。</div>}
           {scheduleHistoryUpdated && <div className="notice">孩子今天的排程版本已儲存。</div>}
           {examPlanUpdated && <div className="notice">孩子的考前複習計畫已更新，剩餘進度已重新分配。</div>}
 
-          {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用家長 Email。</div>}
+          {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
+          {error === "account-exists" && (
+            <div className="error-notice">這個 Email 已有帳號，請改用 <Link href="/login?role=GUARDIAN">家長登入頁</Link>。</div>
+          )}
           {error === "student-code-not-found" && <div className="error-notice">找不到這組學生連結碼，請確認學生端顯示的連結碼是否輸入正確。</div>}
           {error === "student-not-linked" && <div className="error-notice">這位學生尚未和此家長連結，不能代填資料。</div>}
           {error === "exam-event-not-found" && <div className="error-notice">找不到可建立計畫的考試事件。</div>}
@@ -1182,6 +1182,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           ) : (
             <form className="form-card narrow-form" action={createGuardian}>
               <h2>建立家長資料</h2>
+              <p className="panel-copy">這裡只建立新帳號。已有家長帳號請前往 <Link href="/login?role=GUARDIAN">登入頁</Link>。</p>
               <label>
                 家長姓名
                 <input name="displayName" placeholder="例如：王媽媽" required />
@@ -1189,7 +1190,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
               <label>
                 家長 Email
-                <input name="email" type="email" placeholder="可空白，但建議填寫" />
+                <input name="email" type="email" autoComplete="email" placeholder="家長使用的 Email" required />
               </label>
 
               <label>

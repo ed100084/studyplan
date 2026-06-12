@@ -14,7 +14,6 @@ type ClassAdminPageProps = {
     created?: string;
     error?: string;
     event?: string;
-    existing?: string;
     imported?: string;
     duplicates?: string;
     issues?: string;
@@ -48,7 +47,6 @@ function parsedImportIssues(value?: string) {
 export default async function ClassAdminPage({ searchParams }: ClassAdminPageProps) {
   const params = await searchParams;
   const created = params?.created === "1";
-  const existing = params?.existing === "1";
   const eventCreated = params?.event === "1";
   const imported = params?.imported === "1";
   const error = params?.error;
@@ -109,8 +107,6 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
             </div>
           )}
 
-          {existing && <div className="notice">這個 Email 已有老師端資料，已直接登入。</div>}
-
           {eventCreated && (
             <div className="notice">
               已套用班級事件到 {Number.isFinite(appliedCount) ? appliedCount : 0} 位學生。
@@ -126,7 +122,10 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
             </div>
           )}
 
-          {error === "email-used" && <div className="error-notice">這個 Email 已被其他角色使用，請改用另一個 Email。</div>}
+          {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
+          {error === "account-exists" && (
+            <div className="error-notice">這個 Email 已有帳號，請改用 <Link href="/login?role=CLASS_ADMIN">班級管理者登入頁</Link>。</div>
+          )}
 
           {error === "class-code-used" && (
             <div className="error-notice">
@@ -282,6 +281,8 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
             </>
           ) : (
             <form className="form-card" action={createClassroom}>
+              <h2>建立班級管理者資料</h2>
+              <p className="panel-copy">這裡只建立新帳號。已有管理者帳號請前往 <Link href="/login?role=CLASS_ADMIN">登入頁</Link>。</p>
               <label>
                 老師姓名
                 <input name="displayName" placeholder="例如：701 導師" required />
@@ -289,7 +290,7 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
 
               <label>
                 老師 Email
-                <input name="email" type="email" placeholder="可空白" />
+                <input name="email" type="email" autoComplete="email" placeholder="管理者使用的 Email" required />
               </label>
 
               <label>

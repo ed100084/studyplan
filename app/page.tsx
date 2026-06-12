@@ -28,18 +28,21 @@ const roles = [
   {
     title: "學生",
     href: "/student",
+    loginHref: "/login?role=STUDENT",
     action: "建立學生資料",
     text: "每天看到今日任務，快速回報完成、部分完成或需要重排。",
   },
   {
     title: "家長",
     href: "/guardian",
+    loginHref: "/login?role=GUARDIAN",
     action: "建立家長資料",
     text: "協助輸入補習、作息與成績，掌握孩子本週是否穩定。",
   },
   {
     title: "班級管理者",
     href: "/class-admin",
+    loginHref: "/login?role=CLASS_ADMIN",
     action: "建立班級",
     text: "設定班級代碼、段考日期、考試範圍與班級共用進度。",
   },
@@ -56,7 +59,12 @@ export default function Home() {
               <span>StudyPlan</span>
               <span className="version-badge">v{appVersion}</span>
             </div>
-            <span className="nav-pill">阿蓮國中 114 學年試用規劃</span>
+            <div className="inline-actions">
+              <span className="nav-pill">阿蓮國中 114 學年試用規劃</span>
+              <Link className="button secondary" href="/login">
+                登入
+              </Link>
+            </div>
           </nav>
 
           <div className="hero-grid">
@@ -69,7 +77,10 @@ export default function Home() {
               </p>
               <div className="actions">
                 <Link className="button primary" href="/student">
-                  學生開始
+                  建立學生資料
+                </Link>
+                <Link className="button secondary" href="/login">
+                  登入既有帳號
                 </Link>
                 <Link className="button secondary" href="/class-admin">
                   建立班級
@@ -124,6 +135,9 @@ export default function Home() {
                 <p>{role.text}</p>
                 <Link className="role-link" href={role.href}>
                   {role.action}
+                </Link>
+                <Link className="role-link" href={role.loginHref}>
+                  登入{role.title}帳號
                 </Link>
               </article>
             ))}

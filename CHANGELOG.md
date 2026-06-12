@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.1
+
+- Added a dedicated `/login` page with explicit student, guardian, and class-admin role selection.
+- Registration pages now only create new accounts and no longer sign in automatically when an Email already exists.
+- Added clear login links on the homepage and all three role registration forms.
+- New registrations now require an Email so users can return through the login page.
+- Restricted the public login flow to the three supported user-facing roles.
+
 ## 1.9.0
 
 - Added saved daily schedule versions for students and guardians, including source, revision number, capacity metrics, and schedule snapshots.
