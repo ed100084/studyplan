@@ -7,6 +7,7 @@ import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZone, getWeek, orderedWeekdays } from "@/lib/timezone";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
+import { LearningProgress } from "@/app/components/learning-progress";
 import { createStudent, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -33,6 +34,7 @@ type StudentPageProps = {
     schedule?: string;
     scheduleHistory?: string;
     examPlan?: string;
+    learning?: string;
   }>;
 };
 
@@ -594,6 +596,20 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   },
                   orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
                 },
+                scores: {
+                  include: {
+                    subject: true,
+                  },
+                  orderBy: [{ takenAt: "desc" }, { createdAt: "desc" }],
+                  take: 12,
+                },
+                weakPoints: {
+                  include: {
+                    subject: true,
+                  },
+                  orderBy: { updatedAt: "desc" },
+                  take: 12,
+                },
               },
             },
           },
@@ -606,6 +622,11 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
     student?.studyTasks.filter((task) => {
       const plannedDate = task.plannedDate.getTime();
       return plannedDate >= todayRange.start.getTime() && plannedDate < todayRange.end.getTime();
+    }) ?? [];
+  const weekTasks =
+    student?.studyTasks.filter((task) => {
+      const plannedDate = task.plannedDate.getTime();
+      return plannedDate >= week.start.getTime() && plannedDate < week.end.getTime();
     }) ?? [];
   const todayFixedEvents = student?.fixedEvents.filter((event) => event.weekday === today.weekday) ?? [];
   const todayTutoringSessions = student?.tutoringSessions.filter((sessionItem) => sessionItem.weekday === today.weekday) ?? [];
@@ -644,6 +665,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {scheduleUpdated && <div className="notice">讀書計畫資料已更新。</div>}
           {scheduleHistoryUpdated && <div className="notice">今天的排程版本已儲存。</div>}
           {examPlanUpdated && <div className="notice">考前複習計畫已更新，剩餘進度已重新分配。</div>}
+          {params?.learning === "1" && <div className="notice">學習成果資料已更新。</div>}
           {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
           {error === "account-exists" && (
             <div className="error-notice">這個 Email 已有帳號，請改用 <Link href="/login?role=STUDENT">學生登入頁</Link>。</div>
@@ -653,6 +675,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {error === "exam-plan-exists" && <div className="error-notice">這個考試與科目已經有複習計畫。</div>}
           {error === "exam-plan-not-found" && <div className="error-notice">找不到這個考前複習計畫。</div>}
           {error === "teacher-event-readonly" && <div className="error-notice">老師套用的班級事件只能由老師管理。</div>}
+          {error === "invalid-score" && <div className="error-notice">成績必須是 0 到 100 分，並填寫科目。</div>}
+          {error === "invalid-weak-point" && <div className="error-notice">請填寫弱點科目與內容。</div>}
 
           {student ? (
             <>
@@ -680,6 +704,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 </div>
                 <strong>{student.linkCode ?? "尚未產生"}</strong>
               </div>
+
+              <LearningProgress
+                scores={student.scores}
+                weakPoints={student.weakPoints}
+                weeklyTasks={weekTasks}
+                today={today.date}
+                timeZone={timeZone}
+              />
 
               <ExamReviewPlans
                 plans={student.examReviewPlans}

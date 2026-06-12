@@ -7,6 +7,7 @@ import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZone, getWeek, orderedWeekdays } from "@/lib/timezone";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
+import { LearningProgress } from "@/app/components/learning-progress";
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -33,6 +34,7 @@ type GuardianPageProps = {
     schedule?: string;
     scheduleHistory?: string;
     examPlan?: string;
+    learning?: string;
     studentId?: string;
   }>;
 };
@@ -613,6 +615,20 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           },
                           orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
                         },
+                        scores: {
+                          include: {
+                            subject: true,
+                          },
+                          orderBy: [{ takenAt: "desc" }, { createdAt: "desc" }],
+                          take: 12,
+                        },
+                        weakPoints: {
+                          include: {
+                            subject: true,
+                          },
+                          orderBy: { updatedAt: "desc" },
+                          take: 12,
+                        },
                       },
                     },
                   },
@@ -629,6 +645,11 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
     activeStudent?.studyTasks.filter((task) => {
       const plannedDate = task.plannedDate.getTime();
       return plannedDate >= todayRange.start.getTime() && plannedDate < todayRange.end.getTime();
+    }) ?? [];
+  const activeWeekTasks =
+    activeStudent?.studyTasks.filter((task) => {
+      const plannedDate = task.plannedDate.getTime();
+      return plannedDate >= week.start.getTime() && plannedDate < week.end.getTime();
     }) ?? [];
   const activeTodayFixedEvents = activeStudent?.fixedEvents.filter((event) => event.weekday === today.weekday) ?? [];
   const activeTodayTutoringSessions =
@@ -669,6 +690,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           {scheduleUpdated && <div className="notice">孩子的讀書計畫資料已更新。</div>}
           {scheduleHistoryUpdated && <div className="notice">孩子今天的排程版本已儲存。</div>}
           {examPlanUpdated && <div className="notice">孩子的考前複習計畫已更新，剩餘進度已重新分配。</div>}
+          {params?.learning === "1" && <div className="notice">孩子的學習成果資料已更新。</div>}
 
           {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
           {error === "account-exists" && (
@@ -681,6 +703,8 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           {error === "exam-plan-exists" && <div className="error-notice">這個考試與科目已經有複習計畫。</div>}
           {error === "exam-plan-not-found" && <div className="error-notice">找不到這個考前複習計畫。</div>}
           {error === "teacher-event-readonly" && <div className="error-notice">老師套用的班級事件只能由老師管理。</div>}
+          {error === "invalid-score" && <div className="error-notice">成績必須是 0 到 100 分，並填寫科目。</div>}
+          {error === "invalid-weak-point" && <div className="error-notice">請填寫弱點科目與內容。</div>}
 
           {currentUser?.guardianProfile ? (
             <>
@@ -747,6 +771,15 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       {today.date}，{timeZone}
                     </span>
                   </div>
+
+                  <LearningProgress
+                    studentId={activeStudent.id}
+                    scores={activeStudent.scores}
+                    weakPoints={activeStudent.weakPoints}
+                    weeklyTasks={activeWeekTasks}
+                    today={today.date}
+                    timeZone={timeZone}
+                  />
 
                   <ExamReviewPlans
                     studentId={activeStudent.id}

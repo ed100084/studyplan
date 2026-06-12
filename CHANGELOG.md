@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0
+
+- Added student and guardian score entry with subject, date, source attribution, recent history, and a five-score average.
+- Added weak-point tracking with subject, wrong-answer count, reason, and an option to create a scheduled weak-point study task immediately.
+- Added a weekly learning summary showing weighted task completion rate, completed tasks, credited study minutes, and recent score average.
+- Guardians can manage learning results only for linked students, with server-side relationship authorization on every write and delete action.
+- Added focused tests for weekly completion calculations, rescheduled-task handling, empty weeks, and score averages.
+
 ## 1.9.2
 
 - Fixed student login navigation by replacing the login Server Action with a standard `POST /api/login` route.

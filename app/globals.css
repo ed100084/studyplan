@@ -914,6 +914,90 @@ h1 {
   margin-top: 12px;
 }
 
+.learning-panel {
+  margin: 20px 0;
+}
+
+.learning-panel .panel-header p {
+  margin: 6px 0 0;
+}
+
+.learning-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.learning-metrics > div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+}
+
+.learning-metrics strong,
+.learning-metrics span {
+  display: block;
+}
+
+.learning-metrics strong {
+  color: var(--accent);
+  font-size: 26px;
+}
+
+.learning-metrics span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.learning-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.learning-form {
+  margin-top: 16px;
+}
+
+.learning-form h3,
+.learning-history h3 {
+  margin: 0;
+}
+
+.learning-history {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 18px;
+}
+
+.learning-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.learning-item {
+  align-items: center;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.learning-item span {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
 @media (max-width: 820px) {
   .hero-grid,
   .role-grid,
@@ -922,7 +1006,9 @@ h1 {
   .month-grid,
   .month-weekdays,
   .form-grid,
-  .guardian-tools {
+  .guardian-tools,
+  .learning-grid,
+  .learning-metrics {
     grid-template-columns: 1fr;
   }
 
@@ -959,7 +1045,8 @@ h1 {
   .link-code-card,
   .active-student-heading,
   .child-pill,
-  .exam-plan-heading {
+  .exam-plan-heading,
+  .learning-item {
     align-items: stretch;
     flex-direction: column;
   }
