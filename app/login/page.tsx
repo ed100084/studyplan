@@ -2,7 +2,7 @@ import Link from "next/link";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
-import { login, signOut } from "../onboarding/actions";
+import { signOut } from "../onboarding/actions";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -61,7 +61,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </div>
             </div>
           ) : (
-            <form className="form-card narrow-form" action={login}>
+            <form className="form-card narrow-form" action="/api/login" method="post">
               <h2>既有帳號登入</h2>
               <label>
                 帳號角色

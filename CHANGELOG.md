@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.2
+
+- Fixed student login navigation by replacing the login Server Action with a standard `POST /api/login` route.
+- Login responses now set the session cookie and return an explicit `303` redirect in the same response.
+- Added an automated test for the student redirect and session-cookie contract.
+
 ## 1.9.1
 
 - Added a dedicated `/login` page with explicit student, guardian, and class-admin role selection.

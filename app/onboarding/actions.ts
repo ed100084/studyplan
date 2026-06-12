@@ -30,31 +30,6 @@ function normalizeStudentLinkCode(value: string) {
   return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
 }
 
-const loginRoles = [UserRole.STUDENT, UserRole.GUARDIAN, UserRole.CLASS_ADMIN] as const;
-type LoginRole = (typeof loginRoles)[number];
-
-function rolePath(role: LoginRole) {
-  if (role === UserRole.STUDENT) return "/student";
-  if (role === UserRole.GUARDIAN) return "/guardian";
-  return "/class-admin";
-}
-
-export async function login(formData: FormData) {
-  const email = optionalEmail(formData, "email");
-  const roleValue = textValue(formData, "role");
-  const role = loginRoles.find((candidate) => candidate === roleValue) ?? null;
-
-  if (!email || !role) redirect("/login?error=missing-fields");
-
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || user.role !== role) {
-    redirect(`/login?error=account-not-found&role=${role}`);
-  }
-
-  await setCurrentSession({ userId: user.id, role: user.role });
-  redirect(rolePath(user.role));
-}
-
 async function createStudentLinkCode(grade: number) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
