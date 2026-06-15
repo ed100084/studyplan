@@ -2,10 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
-import { hashPassword, isValidPassword } from "@/lib/password";
+import { hashPassword, isValidPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { secretsEqual } from "@/lib/secrets";
-import { setCurrentSession } from "@/lib/session";
+import { clearCurrentSession, setCurrentSession } from "@/lib/session";
 import { getCurrentSystemAdmin, isResettableUserRole } from "@/lib/system-admin";
 
 function formText(formData: FormData, key: string) {
@@ -84,4 +84,25 @@ export async function resetUserPassword(formData: FormData) {
   ]);
 
   redirect(`/system-admin/users?updated=${encodeURIComponent(targetUser.id)}`);
+}
+
+export async function deleteCurrentSystemAdmin(formData: FormData) {
+  const admin = await getCurrentSystemAdmin();
+  if (!admin) redirect("/system-admin/login");
+
+  const password = passwordValue(formData, "password");
+  const confirmation = formText(formData, "confirmation");
+  if (confirmation !== "DELETE SYSTEM ADMIN") redirect("/system-admin/users?error=delete-confirmation");
+  if (!admin.passwordHash || !(await verifyPassword(password, admin.passwordHash))) {
+    redirect("/system-admin/users?error=delete-password");
+  }
+
+  const resetCount = await prisma.passwordResetAudit.count({
+    where: { OR: [{ actorId: admin.id }, { targetUserId: admin.id }] },
+  });
+  if (resetCount > 0) redirect("/system-admin/users?error=delete-audit");
+
+  await prisma.user.delete({ where: { id: admin.id } });
+  await clearCurrentSession();
+  redirect("/system-admin/setup?deleted=1");
 }
