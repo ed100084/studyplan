@@ -19,6 +19,20 @@
 7. Output Directory 保持預設。
 8. Deploy。
 
+正式環境還必須設定：
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `SESSION_SECRET`：至少 32 個字元的隨機值
+
+Vercel build command 會先執行 `npm run db:deploy`，成功後才執行 `npm run build`。Migration 失敗時部署會停止，不會切換 production alias。
+
+本機或其他環境仍可手動執行：
+
+```bash
+npm run db:deploy
+```
+
 完成後，Vercel 會自動啟用 GitHub 整合：
 
 - push 到 `main` 會觸發 Production Deployment。
@@ -54,4 +68,3 @@ npx vercel --prod
 ```
 
 目前本機偵測到既有 Vercel token 無效，需要重新登入後才能用 CLI 建立或連接專案。
-

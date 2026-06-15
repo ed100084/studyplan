@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0
+
+- Added password authentication for student, guardian, and class-admin accounts using Node.js `scrypt` password hashing.
+- Replaced forgeable role/user cookies with signed, expiring HMAC session tokens.
+- Added a required production `SESSION_SECRET` and secure production cookie settings.
+- Vercel deployments now apply committed Prisma migrations before building the application.
+- Legacy accounts without a password are blocked from public login until an administrator resets or recreates them.
+- Added authentication security tests covering password verification, incorrect passwords, session tampering, expiration, and legacy cookies.
+- Replaced the removed Next.js `next lint` command with ESLint 9 flat configuration.
+
 ## 2.0.1
 
 - Fixed intermittent guardian and student login failures caused by Supabase Supavisor prepared-statement collisions.

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { hashPassword, isValidPassword } from "@/lib/password";
 import { clearCurrentSession, getCurrentSession, setCurrentSession } from "@/lib/session";
 
 function textValue(formData: FormData, key: string) {
@@ -13,6 +14,11 @@ function textValue(formData: FormData, key: string) {
 function optionalEmail(formData: FormData, key: string) {
   const value = textValue(formData, key).toLowerCase();
   return value.length > 0 ? value : undefined;
+}
+
+function passwordValue(formData: FormData) {
+  const value = formData.get("password");
+  return typeof value === "string" ? value : "";
 }
 
 function intValue(formData: FormData, key: string, fallback: number) {
@@ -105,10 +111,12 @@ export async function createClassroom(formData: FormData) {
   const grade = intValue(formData, "grade", 7);
   const className = textValue(formData, "className") || `${grade}01`;
   const requestedCode = textValue(formData, "classCode").toUpperCase();
+  const password = passwordValue(formData);
   const classCode = requestedCode || createClassCode(grade, className);
   const academicYear = await getAlianAcademicYear();
 
   if (!email) redirect("/class-admin?error=email-required");
+  if (!isValidPassword(password)) redirect("/class-admin?error=password-invalid");
 
   const existingClassroom = await prisma.classroom.findUnique({
     where: {
@@ -130,6 +138,7 @@ export async function createClassroom(formData: FormData) {
     data: {
       displayName,
       email,
+      passwordHash: await hashPassword(password),
       role: UserRole.CLASS_ADMIN,
     },
   });
@@ -158,8 +167,10 @@ export async function createStudent(formData: FormData) {
   const grade = intValue(formData, "grade", 7);
   const seatNumber = intValue(formData, "seatNumber", 0);
   const classCode = textValue(formData, "classCode").toUpperCase();
+  const password = passwordValue(formData);
 
   if (!email) redirect("/student?error=email-required");
+  if (!isValidPassword(password)) redirect("/student?error=password-invalid");
 
   if (email) {
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -171,6 +182,7 @@ export async function createStudent(formData: FormData) {
     data: {
       displayName,
       email,
+      passwordHash: await hashPassword(password),
       role: UserRole.STUDENT,
       studentProfile: {
         create: {
@@ -216,8 +228,10 @@ export async function createGuardian(formData: FormData) {
   const displayName = textValue(formData, "displayName") || "家長";
   const email = optionalEmail(formData, "email");
   const studentLinkCode = textValue(formData, "studentLinkCode");
+  const password = passwordValue(formData);
 
   if (!email) redirect("/guardian?error=email-required");
+  if (!isValidPassword(password)) redirect("/guardian?error=password-invalid");
 
   if (email) {
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -229,6 +243,7 @@ export async function createGuardian(formData: FormData) {
     data: {
       displayName,
       email,
+      passwordHash: await hashPassword(password),
       role: UserRole.GUARDIAN,
       guardianProfile: {
         create: {},

@@ -8,11 +8,11 @@
 - 家長
 - 班級管理者
 
-這階段先不做正式登入，先使用無密碼 onboarding 流程，讓資料能寫入 Supabase 並驗證角色流程。
+最初使用無密碼 onboarding 驗證角色流程；`2.1.0` 起已加入密碼登入與簽章 session。
 
 ## 目前版次
 
-`0.6.1`
+`2.1.0`
 
 ## 已建立頁面
 
@@ -36,10 +36,10 @@
 
 ## Session
 
-目前已建立簡易 cookie session：
+目前已建立簽章 cookie session：
 
 - cookie：`studyplan_session`
-- 內容：`role:userId`
+- 內容：版本、角色、使用者 ID、到期時間與 HMAC-SHA256 簽章
 - 有效期：30 天
 
 用途：
@@ -47,11 +47,7 @@
 - 建立角色資料後，頁面可顯示目前使用者。
 - 學生、家長、班級管理者頁面可提供登出。
 
-注意：
-
-- 這不是正式登入機制。
-- cookie 只用於 MVP onboarding 流程。
-- 後續接 Supabase Auth 時，會替換這個簡易 session。
+密碼使用 Node.js `scrypt` 加鹽雜湊；正式環境必須設定 `SESSION_SECRET`。詳細內容見 [authentication.md](authentication.md)。
 
 ## 表單錯誤處理
 
@@ -64,13 +60,12 @@
 
 ## 暫定限制
 
-- 尚未建立正式登入與密碼驗證。
-- 尚未建立 session / cookie。
-- Email 目前只作為識別與家長綁定用途。
-- 班級代碼若重複，下一版會補錯誤處理。
+- 尚未建立 Email 驗證與忘記密碼流程。
+- 尚未建立持久化登入 rate limit。
+- 升級前建立的無密碼帳號需要管理者重設或重建。
 
 ## 下一步
 
-- 建立角色 dashboard。
-- 新增班級列表與學生加入狀態。
-- 補表單錯誤訊息，不讓 Prisma error 直接進 error page。
+- 建立班級考試範圍、老師進度與班級弱點統計。
+- 建立 Email 驗證的密碼重設流程。
+- 補登入與主要角色流程的端到端測試。

@@ -667,6 +667,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {examPlanUpdated && <div className="notice">考前複習計畫已更新，剩餘進度已重新分配。</div>}
           {params?.learning === "1" && <div className="notice">學習成果資料已更新。</div>}
           {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
+          {error === "password-invalid" && <div className="error-notice">密碼長度必須為 8 到 128 個字元。</div>}
           {error === "account-exists" && (
             <div className="error-notice">這個 Email 已有帳號，請改用 <Link href="/login?role=STUDENT">學生登入頁</Link>。</div>
           )}
@@ -1159,6 +1160,11 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               <label>
                 Email
                 <input name="email" type="email" autoComplete="email" placeholder="學生自己的 Email" required />
+              </label>
+
+              <label>
+                密碼
+                <input name="password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required />
               </label>
 
               <label>

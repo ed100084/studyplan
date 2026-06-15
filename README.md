@@ -21,6 +21,7 @@
 - 作業、補習、自習分開排程
 - 未完成任務自動重排
 - 基本進度、成績與弱點追蹤
+- 密碼登入與簽章 session
 
 ## 文件
 
@@ -34,4 +35,5 @@
 - [版次規則](docs/versioning.md)
 - [資料庫](docs/database.md)
 - [雲端資料庫](docs/cloud-database.md)
+- [登入與 session](docs/authentication.md)
 - [阿蓮國中 114 學年教材版本公告附件](docs/assets/alian-textbook-versions-114.png)

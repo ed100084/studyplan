@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { prisma } from "../lib/prisma";
+import { hashPassword } from "../lib/password";
+import { parseSessionToken } from "../lib/session";
 import { POST } from "../app/api/login/route";
 
 type LoginRole = "STUDENT" | "GUARDIAN";
+const TEST_PASSWORD = "correct-horse-123";
+
+process.env.SESSION_SECRET = "test-session-secret-that-is-long-enough";
 
 async function withUserLookup(
   lookup: typeof prisma.user.findUnique,
@@ -21,9 +26,11 @@ async function withUserLookup(
 
 async function assertSuccessfulLogin(role: LoginRole, path: string) {
   const id = `${role.toLowerCase()}-test-id`;
+  const passwordHash = await hashPassword(TEST_PASSWORD);
   await withUserLookup((async () => ({
     id,
     email: `${role.toLowerCase()}@example.test`,
+    passwordHash,
     displayName: `Test ${role}`,
     role,
     createdAt: new Date(),
@@ -32,11 +39,14 @@ async function assertSuccessfulLogin(role: LoginRole, path: string) {
     const formData = new FormData();
     formData.set("role", role);
     formData.set("email", `${role.toLowerCase()}@example.test`);
+    formData.set("password", TEST_PASSWORD);
     const response = await POST(new Request("https://studyplan.example/api/login", { method: "POST", body: formData }));
 
     assert.equal(response.status, 303);
     assert.equal(response.headers.get("location"), `https://studyplan.example${path}`);
-    assert.match(response.headers.get("set-cookie") ?? "", new RegExp(`studyplan_session=${role}%3A${id}`));
+    const sessionCookie = response.headers.get("set-cookie")?.match(/studyplan_session=([^;]+)/)?.[1];
+    assert.ok(sessionCookie);
+    assert.deepEqual(parseSessionToken(decodeURIComponent(sessionCookie)), { role, userId: id });
   });
 }
 
@@ -55,12 +65,63 @@ test("login redirects to a retryable error when the database lookup fails", asyn
     const formData = new FormData();
     formData.set("role", "GUARDIAN");
     formData.set("email", "guardian@example.test");
+    formData.set("password", TEST_PASSWORD);
     const response = await POST(new Request("https://studyplan.example/api/login", { method: "POST", body: formData }));
 
     assert.equal(response.status, 303);
     assert.equal(
       response.headers.get("location"),
       "https://studyplan.example/login?error=database-unavailable&role=GUARDIAN",
+    );
+  });
+});
+
+test("login rejects an incorrect password", async () => {
+  const passwordHash = await hashPassword(TEST_PASSWORD);
+  await withUserLookup((async () => ({
+    id: "student-test-id",
+    email: "student@example.test",
+    passwordHash,
+    displayName: "Test Student",
+    role: "STUDENT",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })) as typeof prisma.user.findUnique, async () => {
+    const formData = new FormData();
+    formData.set("role", "STUDENT");
+    formData.set("email", "student@example.test");
+    formData.set("password", "incorrect-password");
+    const response = await POST(new Request("https://studyplan.example/api/login", { method: "POST", body: formData }));
+
+    assert.equal(response.status, 303);
+    assert.equal(
+      response.headers.get("location"),
+      "https://studyplan.example/login?error=invalid-credentials&role=STUDENT",
+    );
+    assert.equal(response.headers.get("set-cookie"), null);
+  });
+});
+
+test("login rejects a legacy account without a password", async () => {
+  await withUserLookup((async () => ({
+    id: "guardian-test-id",
+    email: "guardian@example.test",
+    passwordHash: null,
+    displayName: "Test Guardian",
+    role: "GUARDIAN",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })) as typeof prisma.user.findUnique, async () => {
+    const formData = new FormData();
+    formData.set("role", "GUARDIAN");
+    formData.set("email", "guardian@example.test");
+    formData.set("password", TEST_PASSWORD);
+    const response = await POST(new Request("https://studyplan.example/api/login", { method: "POST", body: formData }));
+
+    assert.equal(response.status, 303);
+    assert.equal(
+      response.headers.get("location"),
+      "https://studyplan.example/login?error=password-not-set&role=GUARDIAN",
     );
   });
 });

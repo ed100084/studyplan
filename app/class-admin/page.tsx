@@ -123,6 +123,7 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
           )}
 
           {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
+          {error === "password-invalid" && <div className="error-notice">密碼長度必須為 8 到 128 個字元。</div>}
           {error === "account-exists" && (
             <div className="error-notice">這個 Email 已有帳號，請改用 <Link href="/login?role=CLASS_ADMIN">班級管理者登入頁</Link>。</div>
           )}
@@ -291,6 +292,11 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
               <label>
                 老師 Email
                 <input name="email" type="email" autoComplete="email" placeholder="管理者使用的 Email" required />
+              </label>
+
+              <label>
+                密碼
+                <input name="password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required />
               </label>
 
               <label>

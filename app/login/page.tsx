@@ -40,11 +40,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <Link className="back-link" href="/">回首頁</Link>
           <span className="eyebrow">帳號登入</span>
           <h1 className="page-title">登入 StudyPlan</h1>
-          <p className="lead">登入與建立資料已分開。請選擇原本建立帳號時的角色，並輸入相同 Email。</p>
+          <p className="lead">請選擇帳號角色，並使用建立帳號時設定的 Email 與密碼登入。</p>
 
-          {params?.error === "missing-fields" && <div className="error-notice">請選擇角色並輸入 Email。</div>}
-          {params?.error === "account-not-found" && (
-            <div className="error-notice">找不到符合這個角色與 Email 的帳號，請確認角色或改用建立資料。</div>
+          {params?.error === "missing-fields" && <div className="error-notice">請選擇角色並輸入 Email 與密碼。</div>}
+          {params?.error === "invalid-credentials" && (
+            <div className="error-notice">角色、Email 或密碼不正確。</div>
+          )}
+          {params?.error === "password-not-set" && (
+            <div className="error-notice">這是升級前建立的帳號，尚未設定密碼，請由管理者協助重設後再登入。</div>
           )}
           {params?.error === "database-unavailable" && (
             <div className="error-notice">登入服務暫時無法連接資料庫，請稍後再試一次。</div>
@@ -78,7 +81,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 Email
                 <input name="email" type="email" autoComplete="email" placeholder="輸入建立帳號時使用的 Email" required />
               </label>
-              <p className="panel-copy">目前試用版以 Email 辨識帳號，正式對外使用前應升級為密碼或 Email 驗證碼登入。</p>
+              <label>
+                密碼
+                <input name="password" type="password" autoComplete="current-password" minLength={8} maxLength={128} required />
+              </label>
               <button className="button primary" type="submit">登入</button>
             </form>
           )}

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isValidPassword, verifyPassword } from "@/lib/password";
+import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/session";
 
-const SESSION_COOKIE = "studyplan_session";
 const loginRoles = [UserRole.STUDENT, UserRole.GUARDIAN, UserRole.CLASS_ADMIN] as const;
+const DUMMY_PASSWORD_HASH = "scrypt$16384$8$1$c3R1ZHlwbGFuLWxvZ2luLWR1bW15LXNhbHQ$Xgl8KhjbtJZS3vfRheDb2l-9GsEkDmj7ATxeAao602piZuwmouugNcg2Rm0TNFAhhrOY6vvt2MdGAX9eUf8HVQ";
 
 function rolePath(role: (typeof loginRoles)[number]) {
   if (role === UserRole.STUDENT) return "/student";
@@ -21,13 +23,19 @@ function loginRedirect(request: Request, error: string, role?: string) {
 export async function POST(request: Request) {
   const formData = await request.formData();
   const emailValue = formData.get("email");
+  const passwordValue = formData.get("password");
   const roleValue = formData.get("role");
   const email = typeof emailValue === "string" ? emailValue.trim().toLowerCase() : "";
+  const password = typeof passwordValue === "string" ? passwordValue : "";
   const role = typeof roleValue === "string"
     ? loginRoles.find((candidate) => candidate === roleValue)
     : undefined;
 
-  if (!email || !role) return loginRedirect(request, "missing-fields");
+  if (!email || !password || !role) return loginRedirect(request, "missing-fields", role);
+  if (!isValidPassword(password)) {
+    await verifyPassword("invalid-password", DUMMY_PASSWORD_HASH);
+    return loginRedirect(request, "invalid-credentials", role);
+  }
 
   let user;
   try {
@@ -41,16 +49,25 @@ export async function POST(request: Request) {
   }
 
   if (!user || user.role !== role) {
-    return loginRedirect(request, "account-not-found", role);
+    await verifyPassword(password, DUMMY_PASSWORD_HASH);
+    return loginRedirect(request, "invalid-credentials", role);
+  }
+
+  if (!user.passwordHash) {
+    return loginRedirect(request, "password-not-set", role);
+  }
+
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    return loginRedirect(request, "invalid-credentials", role);
   }
 
   const response = NextResponse.redirect(new URL(rolePath(role), request.url), 303);
-  response.cookies.set(SESSION_COOKIE, `${user.role}:${user.id}`, {
+  response.cookies.set(SESSION_COOKIE, createSessionToken({ role: user.role, userId: user.id }), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
   return response;
 }
