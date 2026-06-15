@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSystemAdmin, resettableUserRoles } from "@/lib/system-admin";
 import { signOut } from "@/app/onboarding/actions";
-import { deleteCurrentSystemAdmin, resetUserPassword } from "../actions";
+import { resetUserPassword } from "../actions";
 
 type UsersPageProps = {
   searchParams?: Promise<{
@@ -66,9 +66,6 @@ export default async function SystemAdminUsersPage({ searchParams }: UsersPagePr
           {params?.error === "password-invalid" && <div className="error-notice">密碼長度必須為 8 到 128 個字元。</div>}
           {params?.error === "password-mismatch" && <div className="error-notice">兩次輸入的密碼不一致。</div>}
           {params?.error === "user-not-found" && <div className="error-notice">找不到可重設的使用者。</div>}
-          {params?.error === "delete-confirmation" && <div className="error-notice">刪除確認文字不正確。</div>}
-          {params?.error === "delete-password" && <div className="error-notice">系統管理者密碼不正確。</div>}
-          {params?.error === "delete-audit" && <div className="error-notice">此管理者已有稽核紀錄，不能直接刪除。</div>}
 
           <div className="session-card">
             <div>
@@ -120,26 +117,6 @@ export default async function SystemAdminUsersPage({ searchParams }: UsersPagePr
               ))}
               {users.length === 0 && <div className="empty-state">找不到符合條件的使用者。</div>}
             </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>刪除目前系統管理者</h2>
-                <p className="panel-copy">只適用於尚未執行任何密碼重設的初始化帳號。</p>
-              </div>
-            </div>
-            <form className="form-card" action={deleteCurrentSystemAdmin}>
-              <label>
-                目前密碼
-                <input name="password" type="password" autoComplete="current-password" required />
-              </label>
-              <label>
-                輸入 DELETE SYSTEM ADMIN
-                <input name="confirmation" required />
-              </label>
-              <button className="button secondary" type="submit">刪除系統管理者帳號</button>
-            </form>
           </section>
 
           <section className="panel">

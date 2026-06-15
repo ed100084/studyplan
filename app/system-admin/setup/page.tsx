@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { bootstrapSystemAdmin } from "../actions";
 
 type SetupPageProps = {
-  searchParams?: Promise<{ deleted?: string; error?: string }>;
+  searchParams?: Promise<{ error?: string }>;
 };
 
 export default async function SystemAdminSetupPage({ searchParams }: SetupPageProps) {
@@ -25,7 +25,6 @@ export default async function SystemAdminSetupPage({ searchParams }: SetupPagePr
           <p className="lead">只在系統尚未有管理者時開放。建立完成後，請從 Vercel 移除 bootstrap secret。</p>
 
           {!configured && <div className="error-notice">尚未設定至少 32 個字元的 SYSTEM_ADMIN_BOOTSTRAP_SECRET。</div>}
-          {params?.deleted === "1" && <div className="notice">原系統管理者帳號已刪除，可以重新建立。</div>}
           {params?.error === "bootstrap-secret" && <div className="error-notice">初始化密鑰不正確或尚未設定。</div>}
           {params?.error === "email-required" && <div className="error-notice">請填寫 Email。</div>}
           {params?.error === "password-invalid" && <div className="error-notice">密碼長度必須為 8 到 128 個字元。</div>}
