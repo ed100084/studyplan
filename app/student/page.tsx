@@ -690,11 +690,12 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                     {plannedMinutes} 分鐘。
                   </p>
                 </div>
-                <form action={signOut}>
-                  <button className="button secondary" type="submit">
-                    登出
-                  </button>
-                </form>
+                <div className="inline-actions">
+                  <Link className="button secondary" href="/account/security">帳號安全</Link>
+                  <form action={signOut}>
+                    <button className="button secondary" type="submit">登出</button>
+                  </form>
+                </div>
               </div>
 
               <div className="link-code-card">

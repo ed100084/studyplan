@@ -22,6 +22,7 @@
 - 未完成任務自動重排
 - 基本進度、成績與弱點追蹤
 - 密碼登入與簽章 session
+- 帳號自行變更密碼與系統管理者重設流程
 
 ## 文件
 
@@ -36,4 +37,5 @@
 - [資料庫](docs/database.md)
 - [雲端資料庫](docs/cloud-database.md)
 - [登入與 session](docs/authentication.md)
+- [密碼重設管理](docs/password-reset.md)
 - [阿蓮國中 114 學年教材版本公告附件](docs/assets/alian-textbook-versions-114.png)

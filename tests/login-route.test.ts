@@ -5,7 +5,7 @@ import { hashPassword } from "../lib/password";
 import { parseSessionToken } from "../lib/session";
 import { POST } from "../app/api/login/route";
 
-type LoginRole = "STUDENT" | "GUARDIAN";
+type LoginRole = "STUDENT" | "GUARDIAN" | "SYSTEM_ADMIN";
 const TEST_PASSWORD = "correct-horse-123";
 
 process.env.SESSION_SECRET = "test-session-secret-that-is-long-enough";
@@ -31,6 +31,7 @@ async function assertSuccessfulLogin(role: LoginRole, path: string) {
     id,
     email: `${role.toLowerCase()}@example.test`,
     passwordHash,
+    authVersion: 2,
     displayName: `Test ${role}`,
     role,
     createdAt: new Date(),
@@ -46,7 +47,7 @@ async function assertSuccessfulLogin(role: LoginRole, path: string) {
     assert.equal(response.headers.get("location"), `https://studyplan.example${path}`);
     const sessionCookie = response.headers.get("set-cookie")?.match(/studyplan_session=([^;]+)/)?.[1];
     assert.ok(sessionCookie);
-    assert.deepEqual(parseSessionToken(decodeURIComponent(sessionCookie)), { role, userId: id });
+    assert.deepEqual(parseSessionToken(decodeURIComponent(sessionCookie)), { role, userId: id, authVersion: 2 });
   });
 }
 
@@ -56,6 +57,10 @@ test("student login returns a redirect with a session cookie", async () => {
 
 test("guardian login returns a redirect with a session cookie", async () => {
   await assertSuccessfulLogin("GUARDIAN", "/guardian");
+});
+
+test("system admin login returns the password reset workspace", async () => {
+  await assertSuccessfulLogin("SYSTEM_ADMIN", "/system-admin/users");
 });
 
 test("login redirects to a retryable error when the database lookup fails", async () => {
@@ -82,6 +87,7 @@ test("login rejects an incorrect password", async () => {
     id: "student-test-id",
     email: "student@example.test",
     passwordHash,
+    authVersion: 0,
     displayName: "Test Student",
     role: "STUDENT",
     createdAt: new Date(),
@@ -107,6 +113,7 @@ test("login rejects a legacy account without a password", async () => {
     id: "guardian-test-id",
     email: "guardian@example.test",
     passwordHash: null,
+    authVersion: 0,
     displayName: "Test Guardian",
     role: "GUARDIAN",
     createdAt: new Date(),

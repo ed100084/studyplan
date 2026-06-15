@@ -22,9 +22,9 @@ test("password validation enforces the supported length", () => {
 
 test("signed sessions reject tampering and expiration", () => {
   const now = Date.UTC(2026, 5, 15);
-  const token = createSessionToken({ role: UserRole.STUDENT, userId: "student-1" }, now);
+  const token = createSessionToken({ role: UserRole.STUDENT, userId: "student-1", authVersion: 3 }, now);
 
-  assert.deepEqual(parseSessionToken(token, now), { role: UserRole.STUDENT, userId: "student-1" });
+  assert.deepEqual(parseSessionToken(token, now), { role: UserRole.STUDENT, userId: "student-1", authVersion: 3 });
   assert.equal(parseSessionToken(`${token}tampered`, now), null);
   assert.equal(parseSessionToken(`${token}.extra`, now), null);
   assert.equal(parseSessionToken(token, now + 31 * 24 * 60 * 60 * 1000), null);

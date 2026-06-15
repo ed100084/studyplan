@@ -156,6 +156,7 @@ export async function createClassroom(formData: FormData) {
   await setCurrentSession({
     userId: manager.id,
     role: manager.role,
+    authVersion: manager.authVersion,
   });
 
   redirect(`/class-admin?created=1&code=${encodeURIComponent(classroom.code)}`);
@@ -219,6 +220,7 @@ export async function createStudent(formData: FormData) {
   await setCurrentSession({
     userId: student.id,
     role: student.role,
+    authVersion: student.authVersion,
   });
 
   redirect(`/student?created=1&joined=${joined ? "1" : "0"}`);
@@ -263,6 +265,7 @@ export async function createGuardian(formData: FormData) {
   await setCurrentSession({
     userId: guardian.id,
     role: guardian.role,
+    authVersion: guardian.authVersion,
   });
 
   redirect(`/guardian?created=1&linked=${linkedStudentId ? "1" : "0"}${linkedStudentId ? `&studentId=${linkedStudentId}` : ""}`);

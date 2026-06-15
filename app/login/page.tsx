@@ -32,6 +32,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const session = await getCurrentSession();
   const currentUser = session ? await prisma.user.findUnique({ where: { id: session.userId } }) : null;
   const currentRole = session && loginRoles.find((role) => role === session.role);
+  const currentWorkspace = session?.role === UserRole.SYSTEM_ADMIN ? "/system-admin/users" : currentRole ? rolePaths[currentRole] : "/";
 
   return (
     <main className="page">
@@ -60,7 +61,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 <p>{currentRole ? roleLabels[currentRole] : "系統內部"}帳號</p>
               </div>
               <div className="inline-actions">
-                <Link className="button primary" href={currentRole ? rolePaths[currentRole] : "/"}>前往工作區</Link>
+                <Link className="button primary" href={currentWorkspace}>前往工作區</Link>
                 <form action={signOut}>
                   <button className="button secondary" type="submit">登出</button>
                 </form>

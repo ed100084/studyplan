@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0
+
+- Added `/account/security` so signed-in students, guardians, class admins, and system admins can change their own passwords.
+- Added one-time `/system-admin/setup` bootstrap flow and a separate `/system-admin/login` entry.
+- Added `/system-admin/users` for authorized password resets of student, guardian, and class-admin accounts.
+- Password changes and administrative resets now increment `User.authVersion`, immediately invalidating all older sessions.
+- Added password-reset audit records with the acting system administrator, target user, and timestamp.
+- Added focused tests for bootstrap-secret comparison and resettable-role restrictions.
+
 ## 2.1.0
 
 - Added password authentication for student, guardian, and class-admin accounts using Node.js `scrypt` password hashing.

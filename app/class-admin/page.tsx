@@ -163,11 +163,12 @@ export default async function ClassAdminPage({ searchParams }: ClassAdminPagePro
                     {activeClassroom.members.length} 位學生
                   </p>
                 </div>
-                <form action={signOut}>
-                  <button className="button secondary" type="submit">
-                    登出
-                  </button>
-                </form>
+                <div className="inline-actions">
+                  <Link className="button secondary" href="/account/security">帳號安全</Link>
+                  <form action={signOut}>
+                    <button className="button secondary" type="submit">登出</button>
+                  </form>
+                </div>
               </div>
 
               <section className="panel event-panel">

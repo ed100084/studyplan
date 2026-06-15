@@ -4,17 +4,18 @@ import { prisma } from "@/lib/prisma";
 import { isValidPassword, verifyPassword } from "@/lib/password";
 import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/session";
 
-const loginRoles = [UserRole.STUDENT, UserRole.GUARDIAN, UserRole.CLASS_ADMIN] as const;
+const loginRoles = [UserRole.STUDENT, UserRole.GUARDIAN, UserRole.CLASS_ADMIN, UserRole.SYSTEM_ADMIN] as const;
 const DUMMY_PASSWORD_HASH = "scrypt$16384$8$1$c3R1ZHlwbGFuLWxvZ2luLWR1bW15LXNhbHQ$Xgl8KhjbtJZS3vfRheDb2l-9GsEkDmj7ATxeAao602piZuwmouugNcg2Rm0TNFAhhrOY6vvt2MdGAX9eUf8HVQ";
 
 function rolePath(role: (typeof loginRoles)[number]) {
   if (role === UserRole.STUDENT) return "/student";
   if (role === UserRole.GUARDIAN) return "/guardian";
-  return "/class-admin";
+  if (role === UserRole.CLASS_ADMIN) return "/class-admin";
+  return "/system-admin/users";
 }
 
 function loginRedirect(request: Request, error: string, role?: string) {
-  const url = new URL("/login", request.url);
+  const url = new URL(role === UserRole.SYSTEM_ADMIN ? "/system-admin/login" : "/login", request.url);
   url.searchParams.set("error", error);
   if (role) url.searchParams.set("role", role);
   return NextResponse.redirect(url, 303);
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.redirect(new URL(rolePath(role), request.url), 303);
-  response.cookies.set(SESSION_COOKIE, createSessionToken({ role: user.role, userId: user.id }), {
+  response.cookies.set(SESSION_COOKIE, createSessionToken({ role: user.role, userId: user.id, authVersion: user.authVersion }), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

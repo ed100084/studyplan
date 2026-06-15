@@ -96,18 +96,33 @@ enum ReviewPlanRevisionTrigger {
 }
 
 model User {
-  id              String                @id @default(cuid())
-  email           String?               @unique
-  passwordHash    String?
-  displayName     String
-  role            UserRole
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  studentProfile  StudentProfile?
-  guardianProfile GuardianProfile?
-  managedClasses  Classroom[]           @relation("ClassroomManager")
-  taskLogs        TaskLog[]
-  calendarImports ClassCalendarImport[] @relation("ClassCalendarImportManager")
+  id                      String                @id @default(cuid())
+  email                   String?               @unique
+  passwordHash            String?
+  authVersion             Int                   @default(0)
+  displayName             String
+  role                    UserRole
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  studentProfile          StudentProfile?
+  guardianProfile         GuardianProfile?
+  managedClasses          Classroom[]           @relation("ClassroomManager")
+  taskLogs                TaskLog[]
+  calendarImports         ClassCalendarImport[] @relation("ClassCalendarImportManager")
+  passwordResetsPerformed PasswordResetAudit[]  @relation("PasswordResetActor")
+  passwordResetsReceived  PasswordResetAudit[]  @relation("PasswordResetTarget")
+}
+
+model PasswordResetAudit {
+  id           String   @id @default(cuid())
+  actorId      String
+  targetUserId String
+  createdAt    DateTime @default(now())
+  actor        User     @relation("PasswordResetActor", fields: [actorId], references: [id], onDelete: Restrict)
+  targetUser   User     @relation("PasswordResetTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
 }
 
 model StudentProfile {

@@ -714,11 +714,12 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   <strong>{currentUser.displayName}</strong>
                   <p>已連結 {linkedStudents.length} 位學生。可以繼續新增孩子，也可以切換目前管理的孩子。</p>
                 </div>
-                <form action={signOut}>
-                  <button className="button secondary" type="submit">
-                    登出
-                  </button>
-                </form>
+                <div className="inline-actions">
+                  <Link className="button secondary" href="/account/security">帳號安全</Link>
+                  <form action={signOut}>
+                    <button className="button secondary" type="submit">登出</button>
+                  </form>
+                </div>
               </div>
 
               <div className="guardian-tools">

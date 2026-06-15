@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { UserRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export const SESSION_COOKIE = "studyplan_session";
 const SESSION_VERSION = "v1";
@@ -9,6 +10,7 @@ export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export type StudyPlanSession = {
   userId: string;
   role: UserRole;
+  authVersion: number;
 };
 
 type SessionPayload = StudyPlanSession & {
@@ -58,13 +60,14 @@ export function parseSessionToken(value: string, now = Date.now()): StudyPlanSes
       typeof payload.userId !== "string" ||
       typeof payload.role !== "string" ||
       !Object.values(UserRole).includes(payload.role as UserRole) ||
+      typeof payload.authVersion !== "number" ||
       typeof payload.expiresAt !== "number" ||
       payload.expiresAt <= now
     ) {
       return null;
     }
 
-    return { userId: payload.userId, role: payload.role as UserRole };
+    return { userId: payload.userId, role: payload.role as UserRole, authVersion: payload.authVersion };
   } catch {
     return null;
   }
@@ -89,7 +92,19 @@ export async function getCurrentSession(): Promise<StudyPlanSession | null> {
     return null;
   }
 
-  return parseSessionToken(value);
+  const session = parseSessionToken(value);
+  if (!session) return null;
+
+  const user = await prisma.user.findFirst({
+    where: {
+      id: session.userId,
+      role: session.role,
+      authVersion: session.authVersion,
+    },
+    select: { id: true },
+  });
+
+  return user ? session : null;
 }
 
 export async function clearCurrentSession() {

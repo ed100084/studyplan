@@ -24,6 +24,7 @@
 - `DATABASE_URL`
 - `DIRECT_URL`
 - `SESSION_SECRET`：至少 32 個字元的隨機值
+- `SYSTEM_ADMIN_BOOTSTRAP_SECRET`：只在建立第一位系統管理者時暫時設定，完成後移除
 
 Vercel build command 會先執行 `npm run db:deploy`，成功後才執行 `npm run build`。Migration 失敗時部署會停止，不會切換 production alias。
 
