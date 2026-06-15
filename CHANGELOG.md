@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.1
+
+- System-admin bootstrap can explicitly replace an existing account that uses the same Email.
+- Replacement requires both an opt-in checkbox and an exact confirmation phrase before deleting the old account and related data.
+- Existing-account deletion and system-admin creation run in one database transaction.
+
 ## 2.2.0
 
 - Added `/account/security` so signed-in students, guardians, class admins, and system admins can change their own passwords.

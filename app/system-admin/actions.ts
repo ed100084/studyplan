@@ -6,7 +6,11 @@ import { hashPassword, isValidPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { secretsEqual } from "@/lib/secrets";
 import { setCurrentSession } from "@/lib/session";
-import { getCurrentSystemAdmin, isResettableUserRole } from "@/lib/system-admin";
+import {
+  canReplaceExistingAccount,
+  getCurrentSystemAdmin,
+  isResettableUserRole,
+} from "@/lib/system-admin";
 
 function formText(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -32,19 +36,37 @@ export async function bootstrapSystemAdmin(formData: FormData) {
   const email = formText(formData, "email").toLowerCase();
   const password = passwordValue(formData, "password");
   const confirmPassword = passwordValue(formData, "confirmPassword");
+  const replaceExistingAccount = formData.get("replaceExistingAccount") === "yes";
+  const replaceConfirmation = formText(formData, "replaceConfirmation");
 
   if (!email) redirect("/system-admin/setup?error=email-required");
   if (!isValidPassword(password)) redirect("/system-admin/setup?error=password-invalid");
   if (password !== confirmPassword) redirect("/system-admin/setup?error=password-mismatch");
-  if (await prisma.user.findUnique({ where: { email } })) redirect("/system-admin/setup?error=account-exists");
+  const existingAccount = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existingAccount && !replaceExistingAccount) redirect("/system-admin/setup?error=account-exists");
+  if (existingAccount && !canReplaceExistingAccount(replaceExistingAccount, replaceConfirmation)) {
+    redirect("/system-admin/setup?error=replace-confirmation");
+  }
 
-  const admin = await prisma.user.create({
-    data: {
-      displayName,
-      email,
-      passwordHash: await hashPassword(password),
-      role: UserRole.SYSTEM_ADMIN,
-    },
+  const passwordHash = await hashPassword(password);
+  const admin = await prisma.$transaction(async (transaction) => {
+    if (existingAccount) {
+      await transaction.passwordResetAudit.deleteMany({
+        where: {
+          OR: [{ actorId: existingAccount.id }, { targetUserId: existingAccount.id }],
+        },
+      });
+      await transaction.user.delete({ where: { id: existingAccount.id } });
+    }
+
+    return transaction.user.create({
+      data: {
+        displayName,
+        email,
+        passwordHash,
+        role: UserRole.SYSTEM_ADMIN,
+      },
+    });
   });
 
   await setCurrentSession({ userId: admin.id, role: admin.role, authVersion: admin.authVersion });

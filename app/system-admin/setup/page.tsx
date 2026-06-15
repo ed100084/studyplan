@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { replaceAccountConfirmation } from "@/lib/system-admin";
 import { bootstrapSystemAdmin } from "../actions";
 
 type SetupPageProps = {
@@ -29,7 +30,12 @@ export default async function SystemAdminSetupPage({ searchParams }: SetupPagePr
           {params?.error === "email-required" && <div className="error-notice">請填寫 Email。</div>}
           {params?.error === "password-invalid" && <div className="error-notice">密碼長度必須為 8 到 128 個字元。</div>}
           {params?.error === "password-mismatch" && <div className="error-notice">兩次輸入的密碼不一致。</div>}
-          {params?.error === "account-exists" && <div className="error-notice">這個 Email 已經被使用。</div>}
+          {params?.error === "account-exists" && (
+            <div className="error-notice">這個 Email 已經被使用。若要改建為系統管理者，請勾選清除舊帳號並輸入確認文字。</div>
+          )}
+          {params?.error === "replace-confirmation" && (
+            <div className="error-notice">清除舊帳號的確認文字不正確。</div>
+          )}
 
           <form className="form-card narrow-form" action={bootstrapSystemAdmin}>
             <label>
@@ -52,6 +58,18 @@ export default async function SystemAdminSetupPage({ searchParams }: SetupPagePr
               初始化密鑰
               <input name="bootstrapSecret" type="password" autoComplete="off" required />
             </label>
+            <div className="warning-notice">
+              <strong>同 Email 已有家長帳號時</strong>
+              <p>以下操作會永久刪除該家長帳號、學生連結與其關聯資料，且無法復原。新 Email 不需要勾選。</p>
+              <label className="checkbox-label">
+                <input name="replaceExistingAccount" type="checkbox" value="yes" />
+                清除同 Email 的既有帳號並重建
+              </label>
+              <label>
+                確認文字
+                <input name="replaceConfirmation" autoComplete="off" placeholder={replaceAccountConfirmation} />
+              </label>
+            </div>
             <button className="button primary" type="submit" disabled={!configured}>建立系統管理者</button>
           </form>
         </div>
