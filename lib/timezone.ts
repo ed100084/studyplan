@@ -14,6 +14,16 @@ export const orderedWeekdays: Weekday[] = [
   "SUNDAY",
 ];
 
+export const monthGridWeekdays: Weekday[] = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
+
 export const weekdayByEnglish: Record<string, Weekday> = {
   Monday: "MONDAY",
   Tuesday: "TUESDAY",
@@ -202,7 +212,7 @@ export function getMonth(date: string, timeZone: string) {
       isToday: dateValue === date,
     };
   });
-  const leadingBlankCount = orderedWeekdays.indexOf(days[0]?.weekday ?? Weekday.MONDAY);
+  const leadingBlankCount = monthGridWeekdays.indexOf(days[0]?.weekday ?? Weekday.SUNDAY);
 
   return {
     days,

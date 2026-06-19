@@ -13,8 +13,8 @@ import {
   getMonth,
   getRequestTimeZone,
   getWeek,
+  monthGridWeekdays,
   normalizeDateInput,
-  orderedWeekdays,
 } from "@/lib/timezone";
 import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
@@ -503,13 +503,11 @@ function WeekCalendar({
           const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
           const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
           const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
-          const planned = dayTasks.filter((task) => task.status === "PLANNED").length;
-          const done = dayTasks.filter((task) => task.status === "DONE").length;
-          const partial = dayTasks.filter((task) => task.status === "PARTIAL").length;
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
           const dayClassName = ["week-day", day.isToday ? "today" : "", day.date === selectedDate ? "selected" : ""]
             .filter(Boolean)
             .join(" ");
+          const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
 
           return (
             <Link className={dayClassName} href={calendarHref({ studentId, date: day.date, week: day.date, month: day.date })} key={day.date}>
@@ -517,29 +515,13 @@ function WeekCalendar({
                 <strong>{readableWeekdayLabels[day.weekday]}</strong>
                 <span>{day.dayNumber}</span>
               </div>
-              <div className="week-metrics">
-                <span>{dayTutoringSessions.length} 補習</span>
-                <span>{dayCalendarEvents.length} 事件</span>
-                <span>{dayFixedEvents.length} 作息</span>
-                <span>{dayTasks.length} 任務</span>
+              <div className="calendar-day-summary" aria-label={`${day.date} ${itemCount} 個項目`}>
+                {dayTutoringSessions.length > 0 && <span className="summary-chip tutoring">{dayTutoringSessions.length} 補</span>}
+                {dayCalendarEvents.length > 0 && <span className="summary-chip event">{dayCalendarEvents.length} 事</span>}
+                {dayFixedEvents.length > 0 && <span className="summary-chip fixed">{dayFixedEvents.length} 固</span>}
+                {dayTasks.length > 0 && <span className="summary-chip task">{dayTasks.length} 任</span>}
               </div>
-              <p>
-                完成 {done}，待辦 {planned}，部分 {partial}
-              </p>
-              <p>預估 {minutes} 分鐘</p>
-              <div className="week-items">
-                {dayTutoringSessions.slice(0, 2).map((sessionItem) => (
-                  <span key={sessionItem.id}>{sessionItem.subjectName}</span>
-                ))}
-                {dayCalendarEvents.slice(0, 2).map((event) => (
-                  <span key={event.id}>{calendarEventLabels[event.type]}：{event.title}</span>
-                ))}
-                {dayTasks.slice(0, 2).map((task) => (
-                  <span key={task.id}>
-                    {task.subject?.name ?? "未指定"}：{task.title}
-                  </span>
-                ))}
-              </div>
+              {minutes > 0 && <span className="calendar-day-minutes">{minutes} 分</span>}
             </Link>
           );
         })}
@@ -595,7 +577,7 @@ function MonthCalendar({
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
 
       <div className="month-weekdays">
-        {orderedWeekdays.map((weekday) => (
+        {monthGridWeekdays.map((weekday) => (
           <span key={weekday}>{readableWeekdayLabels[weekday]}</span>
         ))}
       </div>
@@ -617,26 +599,19 @@ function MonthCalendar({
           ]
             .filter(Boolean)
             .join(" ");
+          const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
 
           return (
             <Link className={dayClassName} href={calendarHref({ studentId, date: day.date, week: day.date, month: day.date })} key={day.date}>
               <div className="month-day-header">
                 <strong>{day.dayNumber}</strong>
-                <span>{minutes} 分鐘</span>
+                {minutes > 0 && <span>{minutes} 分</span>}
               </div>
-              <div className="month-metrics">
-                <span>{dayTutoringSessions.length} 補習</span>
-                <span>{dayCalendarEvents.length} 事件</span>
-                <span>{dayFixedEvents.length} 作息</span>
-                <span>{dayTasks.length} 任務</span>
-              </div>
-              <div className="month-items">
-                {dayCalendarEvents.slice(0, 2).map((event) => (
-                  <span key={event.id}>{calendarEventLabels[event.type]}：{event.title}</span>
-                ))}
-                {dayTasks.slice(0, 2).map((task) => (
-                  <span key={task.id}>{task.subject?.name ?? "未指定"}：{task.title}</span>
-                ))}
+              <div className="calendar-day-summary" aria-label={`${day.date} ${itemCount} 個項目`}>
+                {dayTutoringSessions.length > 0 && <span className="summary-dot tutoring" title={`${dayTutoringSessions.length} 補習`} />}
+                {dayCalendarEvents.length > 0 && <span className="summary-dot event" title={`${dayCalendarEvents.length} 事件`} />}
+                {dayFixedEvents.length > 0 && <span className="summary-dot fixed" title={`${dayFixedEvents.length} 作息`} />}
+                {dayTasks.length > 0 && <span className="summary-chip task">{dayTasks.length} 任</span>}
               </div>
             </Link>
           );

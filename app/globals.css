@@ -432,7 +432,7 @@ h1 {
 .week-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 6px;
   margin-top: 14px;
 }
 
@@ -441,8 +441,9 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: inherit;
+  min-height: 88px;
   min-width: 0;
-  padding: 12px;
+  padding: 8px;
   text-decoration: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
@@ -598,9 +599,10 @@ h1 {
   color: var(--muted);
   display: grid;
   font-size: 13px;
-  gap: 10px;
+  gap: 6px;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-top: 14px;
+  text-align: center;
 }
 
 .month-weekdays span {
@@ -609,7 +611,7 @@ h1 {
 
 .month-grid {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-top: 8px;
 }
@@ -619,9 +621,9 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: inherit;
-  min-height: 112px;
+  min-height: 74px;
   min-width: 0;
-  padding: 10px;
+  padding: 8px;
   text-decoration: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
@@ -671,6 +673,58 @@ h1 {
 
 .month-items {
   margin-top: 8px;
+}
+
+.calendar-day-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 20px;
+}
+
+.summary-chip {
+  border-radius: 999px;
+  color: #334155;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+.summary-dot {
+  border-radius: 999px;
+  display: inline-block;
+  height: 8px;
+  width: 8px;
+}
+
+.summary-chip.tutoring,
+.summary-dot.tutoring {
+  background: #ccfbf1;
+}
+
+.summary-chip.event,
+.summary-dot.event {
+  background: #fed7aa;
+}
+
+.summary-chip.fixed,
+.summary-dot.fixed {
+  background: #e2e8f0;
+}
+
+.summary-chip.task,
+.summary-dot.task {
+  background: #dbeafe;
+}
+
+.calendar-day-minutes {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 6px;
 }
 
 .day-detail-panel {
@@ -1318,9 +1372,6 @@ button[aria-disabled="true"] {
   .hero-grid,
   .role-grid,
   .dashboard-grid,
-  .week-grid,
-  .month-grid,
-  .month-weekdays,
   .form-grid,
   .guardian-tools,
   .day-detail-grid,
@@ -1328,14 +1379,6 @@ button[aria-disabled="true"] {
   .learning-grid,
   .learning-metrics {
     grid-template-columns: 1fr;
-  }
-
-  .month-weekdays {
-    display: none;
-  }
-
-  .month-day.empty {
-    display: none;
   }
 
   .hero-grid {
@@ -1376,6 +1419,40 @@ button[aria-disabled="true"] {
 
   .score-summary-metric {
     white-space: normal;
+  }
+
+  .week-grid,
+  .month-grid,
+  .month-weekdays {
+    gap: 4px;
+  }
+
+  .week-day,
+  .month-day {
+    border-radius: 6px;
+    min-height: 58px;
+    padding: 6px 4px;
+  }
+
+  .week-day-header,
+  .month-day-header {
+    margin-bottom: 4px;
+  }
+
+  .week-day-header strong,
+  .month-day-header strong {
+    font-size: 12px;
+  }
+
+  .week-day-header span,
+  .month-day-header span,
+  .month-weekdays {
+    font-size: 11px;
+  }
+
+  .summary-chip {
+    font-size: 10px;
+    padding: 3px 4px;
   }
 
   .link-code-card > strong {
