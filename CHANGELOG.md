@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.2
+
+- Calendar date clicks now update the day-detail panel client-side for already loaded week/month dates instead of triggering a full server navigation.
+- Student and guardian calendar date cells keep a normal fallback link and immediately highlight the selected date after client-side selection.
+
 ## 2.6.1
 
 - Fixed the selected-day chart timeline so morning fixed events and tutoring sessions are included.

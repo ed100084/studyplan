@@ -22,6 +22,7 @@ import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
 import { DayDetailPanel } from "@/app/components/day-detail-panel";
+import { CalendarDayDetailBrowser } from "@/app/components/calendar-day-detail-browser";
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -180,6 +181,10 @@ function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date
 
 function activeFixedEventsForDate(fixedEvents: FixedEvent[], date: string, weekday: Weekday, timeZone: string) {
   return fixedEvents.filter((event) => event.weekday === weekday && fixedEventFallsOnDate(event, date, timeZone));
+}
+
+function uniqueDates(dates: string[]) {
+  return Array.from(new Set(dates));
 }
 
 function calendarHref(params: { tab?: DashboardTab; studentId?: string; date?: string; week?: string; month?: string }) {
@@ -569,7 +574,12 @@ function WeekCalendar({
           const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
 
           return (
-            <Link className={dayClassName} href={calendarHref({ tab: "today", studentId, date: day.date, week: day.date, month: day.date })} key={day.date}>
+            <Link
+              className={dayClassName}
+              href={calendarHref({ tab: "calendar", studentId, date: day.date, week: day.date, month: day.date })}
+              data-calendar-date={day.date}
+              key={day.date}
+            >
               <div className="week-day-header">
                 <strong>{readableWeekdayLabels[day.weekday]}</strong>
                 <span>{day.dayNumber}</span>
@@ -661,7 +671,12 @@ function MonthCalendar({
           const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
 
           return (
-            <Link className={dayClassName} href={calendarHref({ tab: "today", studentId, date: day.date, week: day.date, month: day.date })} key={day.date}>
+            <Link
+              className={dayClassName}
+              href={calendarHref({ tab: "calendar", studentId, date: day.date, week: day.date, month: day.date })}
+              data-calendar-date={day.date}
+              key={day.date}
+            >
               <div className="month-day-header">
                 <strong>{day.dayNumber}</strong>
                 {minutes > 0 && <span>{minutes} 分</span>}
@@ -897,6 +912,43 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
     ? { studentId: activeStudent.id, date: selectedDate, week: selectedWeekDate, month: selectedMonthDate }
     : null;
   const formHref = (anchor: string) => (tabParams ? settingsSectionHref(anchor, tabParams) : anchor);
+  const calendarDetailDays = activeStudent
+    ? uniqueDates([...week.days.map((day) => day.date), ...month.days.map((day) => day.date), selectedDate]).map((date) => {
+        const dateRange = getDayRange(date, timeZone);
+        const dateWeek = getWeek(date, timeZone);
+        const dateDay = dateWeek.days.find((day) => day.date === date) ?? today;
+        const dateTasks = activeStudent.studyTasks.filter((task) => {
+          const plannedDate = task.plannedDate.getTime();
+          return plannedDate >= dateRange.start.getTime() && plannedDate < dateRange.end.getTime();
+        });
+        const dateFixedEvents = activeFixedEventsForDate(activeStudent.fixedEvents, date, dateDay.weekday, timeZone);
+        const dateTutoringSessions = activeTutoringSessionsForDate(activeStudent.tutoringSessions, date, dateDay.weekday, timeZone);
+        const dateCalendarEvents = activeStudent.calendarEvents.filter((event) => eventFallsOnDate(event, date, timeZone));
+        const dateOpenTasks = dateTasks.filter((task) => task.status === "PLANNED");
+
+        return {
+          date,
+          weekdayLabel: weekdayLabels[dateDay.weekday],
+          isToday: date === today.date,
+          fixedEvents: dateFixedEvents,
+          tutoringSessions: dateTutoringSessions,
+          calendarEvents: dateCalendarEvents,
+          tasks: dateTasks,
+          schedule: buildTodaySchedule({
+            fixedEvents: dateFixedEvents,
+            tutoringSessions: dateTutoringSessions,
+            tasks: dateOpenTasks.map((task) => ({
+              id: task.id,
+              title: task.title,
+              subjectName: task.subject?.name,
+              type: task.type,
+              estimatedMinutes: task.estimatedMinutes,
+              priority: task.priority,
+            })),
+          }),
+        };
+      })
+    : [];
 
   return (
     <main className="page">
@@ -1037,33 +1089,46 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   )}
 
                   {activeTab === "calendar" && (
-                  <WeekCalendar
-                    calendarEvents={activeStudent.calendarEvents}
-                    fixedEvents={activeStudent.fixedEvents}
-                    tutoringSessions={activeStudent.tutoringSessions}
-                    tasks={activeStudent.studyTasks}
-                    week={week}
-                    selectedWeekDate={selectedWeekDate}
-                    selectedDate={selectedDate}
-                    todayDate={today.date}
+                  <CalendarDayDetailBrowser
+                    initialDate={selectedDate}
+                    days={calendarDetailDays}
                     timeZone={timeZone}
-                    studentId={activeStudent.id}
-                  />
-                  )}
+                    fixedEventLabels={fixedEventLabels}
+                    taskTypeLabels={taskTypeLabels}
+                    calendarEventLabels={calendarEventLabels}
+                    fatigueLabels={fatigueLabels}
+                    statusLabels={statusLabels}
+                    newStudyTaskHref={formHref("#new-study-task-form")}
+                    newFixedEventHref={formHref("#new-fixed-event-form")}
+                    newTutoringHref={formHref("#new-tutoring-form")}
+                    newCalendarEventHref={formHref("#new-calendar-event-form")}
+                  >
+                    <WeekCalendar
+                      calendarEvents={activeStudent.calendarEvents}
+                      fixedEvents={activeStudent.fixedEvents}
+                      tutoringSessions={activeStudent.tutoringSessions}
+                      tasks={activeStudent.studyTasks}
+                      week={week}
+                      selectedWeekDate={selectedWeekDate}
+                      selectedDate={selectedDate}
+                      todayDate={today.date}
+                      timeZone={timeZone}
+                      studentId={activeStudent.id}
+                    />
 
-                  {activeTab === "calendar" && (
-                  <MonthCalendar
-                    calendarEvents={activeStudent.calendarEvents}
-                    fixedEvents={activeStudent.fixedEvents}
-                    tutoringSessions={activeStudent.tutoringSessions}
-                    tasks={activeStudent.studyTasks}
-                    month={month}
-                    selectedMonthDate={selectedMonthDate}
-                    selectedDate={selectedDate}
-                    todayDate={today.date}
-                    timeZone={timeZone}
-                    studentId={activeStudent.id}
-                  />
+                    <MonthCalendar
+                      calendarEvents={activeStudent.calendarEvents}
+                      fixedEvents={activeStudent.fixedEvents}
+                      tutoringSessions={activeStudent.tutoringSessions}
+                      tasks={activeStudent.studyTasks}
+                      month={month}
+                      selectedMonthDate={selectedMonthDate}
+                      selectedDate={selectedDate}
+                      todayDate={today.date}
+                      timeZone={timeZone}
+                      studentId={activeStudent.id}
+                    />
+                  </CalendarDayDetailBrowser>
                   )}
 
                   {activeTab === "learning" && (
