@@ -793,13 +793,13 @@ h1 {
   border-radius: 8px;
   display: grid;
   grid-template-columns: 58px 1fr;
-  min-height: 360px;
+  min-height: var(--schedule-chart-height, 360px);
   overflow: hidden;
 }
 
 .schedule-chart-axis,
 .schedule-chart-lanes {
-  min-height: 360px;
+  min-height: var(--schedule-chart-height, 360px);
   position: relative;
 }
 

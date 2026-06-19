@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.1
+
+- Fixed the selected-day chart timeline so morning fixed events and tutoring sessions are included.
+- The chart now defaults to a full-day 07:00-22:30 range and scales its height based on the visible time span.
+
 ## 2.6.0
 
 - Changed student and guardian dashboards into Today, Calendar, Learning, and Settings tabs to reduce the single long scroll.

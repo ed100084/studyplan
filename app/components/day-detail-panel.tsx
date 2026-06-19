@@ -10,6 +10,7 @@ import type {
   TaskType,
   TutoringSession,
 } from "@prisma/client";
+import type { CSSProperties } from "react";
 import type { ScheduleSegment } from "@/lib/scheduler/today";
 
 type StudyTaskWithSubject = StudyTask & {
@@ -44,8 +45,9 @@ type DayDetailPanelProps = {
   newCalendarEventHref?: string;
 };
 
-const DEFAULT_CHART_START = 17 * 60 + 30;
+const DEFAULT_CHART_START = 7 * 60;
 const DEFAULT_CHART_END = 22 * 60 + 30;
+const CHART_PIXELS_PER_HOUR = 48;
 
 function timeToMinutes(time: string | undefined) {
   if (!time) return null;
@@ -83,6 +85,44 @@ function buildChartTicks(range: { start: number; end: number }) {
   return Array.from(ticks).sort((left, right) => left - right);
 }
 
+function buildChartSegments({
+  fixedEvents,
+  tutoringSessions,
+  visibleSegments,
+  fixedEventLabels,
+  fatigueLabels,
+}: {
+  fixedEvents: FixedEvent[];
+  tutoringSessions: TutoringSession[];
+  visibleSegments: ScheduleSegment[];
+  fixedEventLabels: Record<FixedEventType, string>;
+  fatigueLabels: Record<FatigueLevel, string>;
+}) {
+  const fixedSegments: ScheduleSegment[] = fixedEvents.map((event) => ({
+    id: `fixed-${event.id}`,
+    kind: "fixed",
+    title: event.title,
+    detail: fixedEventLabels[event.type],
+    startTime: event.startTime,
+    endTime: event.endTime,
+    minutes: Math.max(0, (timeToMinutes(event.endTime) ?? 0) - (timeToMinutes(event.startTime) ?? 0)),
+  }));
+  const tutoringSegments: ScheduleSegment[] = tutoringSessions.map((sessionItem) => ({
+    id: `tutoring-${sessionItem.id}`,
+    kind: "tutoring",
+    title: `${sessionItem.subjectName}補習`,
+    detail: `疲勞 ${fatigueLabels[sessionItem.fatigueLevel]}`,
+    startTime: sessionItem.startTime,
+    endTime: sessionItem.endTime,
+    minutes: Math.max(0, (timeToMinutes(sessionItem.endTime) ?? 0) - (timeToMinutes(sessionItem.startTime) ?? 0)),
+  }));
+  const generatedStudySegments = visibleSegments.filter((segment) => segment.kind === "study" || segment.kind === "break");
+
+  return [...fixedSegments, ...tutoringSegments, ...generatedStudySegments]
+    .filter((segment) => segment.startTime && segment.endTime)
+    .sort((left, right) => (timeToMinutes(left.startTime) ?? 0) - (timeToMinutes(right.startTime) ?? 0));
+}
+
 export function DayDetailPanel({
   date,
   timeZone,
@@ -108,10 +148,12 @@ export function DayDetailPanel({
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const visibleSegments = schedule?.scheduled ?? [];
   const unplacedSegments = schedule?.unplaced ?? [];
-  const chartSegments = visibleSegments.filter((segment) => segment.startTime && segment.endTime);
+  const chartSegments = buildChartSegments({ fixedEvents, tutoringSessions, visibleSegments, fixedEventLabels, fatigueLabels });
   const chartRange = buildChartRange(chartSegments);
   const chartDuration = Math.max(1, chartRange.end - chartRange.start);
   const chartTicks = buildChartTicks(chartRange);
+  const chartHeight = Math.max(360, Math.round((chartDuration / 60) * CHART_PIXELS_PER_HOUR));
+  const chartStyle = { "--schedule-chart-height": `${chartHeight}px` } as CSSProperties;
   const hasMetrics = fixedEvents.length + tutoringSessions.length + calendarEvents.length + tasks.length > 0;
 
   return (
@@ -158,7 +200,7 @@ export function DayDetailPanel({
               <span>開始 {minutesToTime(chartRange.start)}</span>
               <span>結束 {minutesToTime(chartRange.end)}</span>
             </div>
-            <div className="schedule-chart-track">
+            <div className="schedule-chart-track" style={chartStyle}>
               <div className="schedule-chart-axis" aria-hidden="true">
                 {chartTicks.map((tick) => (
                   <span
