@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.3
+
+- Added full tutoring schedule lists to student and guardian pages.
+- Tutoring schedules can now be edited or deleted even when they are not active today.
+
 ## 2.3.2
 
 - Added a global form submit guard that disables submit buttons and shows a processing label after submission.

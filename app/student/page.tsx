@@ -269,6 +269,49 @@ function TutoringSessionEditor({ sessionItem, timeZone }: { sessionItem: Tutorin
   );
 }
 
+function TutoringScheduleList({ sessions, timeZone }: { sessions: TutoringSession[]; timeZone: string }) {
+  const sortedSessions = [...sessions].sort(
+    (first, second) =>
+      weekdayOptions.findIndex(([value]) => value === first.weekday) -
+        weekdayOptions.findIndex(([value]) => value === second.weekday) ||
+      first.startTime.localeCompare(second.startTime),
+  );
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <h2>補習排程清單</h2>
+        <span>{sortedSessions.length} 筆</span>
+      </div>
+      <p className="panel-copy">這裡列出所有補習排程，包含未來、已過期與不限期間的安排，可直接修改或刪除整筆排程。</p>
+      <div className="task-list compact-list">
+        {sortedSessions.map((sessionItem) => (
+          <div className="task" key={sessionItem.id}>
+            <span className="task-dot" aria-hidden="true" />
+            <div>
+              <strong>{sessionItem.subjectName}補習</strong>
+              <span>
+                {weekdayLabels[sessionItem.weekday]} {sessionItem.startTime}-{sessionItem.endTime}，
+                {tutoringSessionDateLabel(sessionItem, timeZone)}
+                {sessionItem.commuteMinutes > 0 ? `，通勤 ${sessionItem.commuteMinutes} 分鐘` : ""}
+                {sessionItem.hasHomework ? "，有補習作業" : ""}
+              </span>
+            </div>
+            <form className="inline-actions" action={deleteTutoringSession}>
+              <input name="tutoringSessionId" type="hidden" value={sessionItem.id} />
+              <button className="small-button danger-button" type="submit">
+                刪除排程
+              </button>
+            </form>
+            <TutoringSessionEditor sessionItem={sessionItem} timeZone={timeZone} />
+          </div>
+        ))}
+        {sortedSessions.length === 0 && <div className="empty-state">尚未建立補習排程。</div>}
+      </div>
+    </section>
+  );
+}
+
 type StudyTaskWithSubject = StudyTask & {
   subject: Subject | null;
 };
@@ -835,6 +878,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   {student.calendarEvents.length === 0 && <div className="empty-state">本週或本月尚未輸入考試與學校活動。</div>}
                 </div>
               </section>
+
+              <TutoringScheduleList sessions={student.tutoringSessions} timeZone={timeZone} />
 
               <div className="dashboard-grid">
                 <section className="panel">
