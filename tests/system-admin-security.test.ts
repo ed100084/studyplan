@@ -4,7 +4,9 @@ import { UserRole } from "@prisma/client";
 import { secretsEqual } from "../lib/secrets";
 import {
   canReplaceExistingAccount,
+  isValidAccountEmail,
   isResettableUserRole,
+  normalizeAccountEmail,
   replaceAccountConfirmation,
 } from "../lib/system-admin";
 
@@ -28,4 +30,13 @@ test("replacing an existing bootstrap account requires explicit confirmation", (
   assert.equal(canReplaceExistingAccount(true, ""), false);
   assert.equal(canReplaceExistingAccount(true, "刪除帳號"), false);
   assert.equal(canReplaceExistingAccount(true, replaceAccountConfirmation), true);
+});
+
+test("account email normalization and validation reject invalid login identifiers", () => {
+  assert.equal(normalizeAccountEmail(" Student@Example.COM "), "student@example.com");
+  assert.equal(isValidAccountEmail("student@example.com"), true);
+  assert.equal(isValidAccountEmail("student"), false);
+  assert.equal(isValidAccountEmail("student@example"), false);
+  assert.equal(isValidAccountEmail("student @example.com"), false);
+  assert.equal(isValidAccountEmail(`${"a".repeat(245)}@example.com`), false);
 });

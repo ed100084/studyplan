@@ -10,6 +10,8 @@ import {
   canReplaceExistingAccount,
   getCurrentSystemAdmin,
   isResettableUserRole,
+  isValidAccountEmail,
+  normalizeAccountEmail,
 } from "@/lib/system-admin";
 
 function formText(formData: FormData, key: string) {
@@ -33,7 +35,7 @@ export async function bootstrapSystemAdmin(formData: FormData) {
   if (existingAdmin) redirect("/system-admin/login");
 
   const displayName = formText(formData, "displayName") || "系統管理者";
-  const email = formText(formData, "email").toLowerCase();
+  const email = normalizeAccountEmail(formText(formData, "email"));
   const password = passwordValue(formData, "password");
   const confirmPassword = passwordValue(formData, "confirmPassword");
   const replaceExistingAccount = formData.get("replaceExistingAccount") === "yes";
@@ -106,4 +108,36 @@ export async function resetUserPassword(formData: FormData) {
   ]);
 
   redirect(`/system-admin/users?updated=${encodeURIComponent(targetUser.id)}`);
+}
+
+export async function updateUserEmail(formData: FormData) {
+  const admin = await getCurrentSystemAdmin();
+  if (!admin) redirect("/system-admin/login");
+
+  const targetUserId = formText(formData, "targetUserId");
+  const email = normalizeAccountEmail(formText(formData, "email"));
+
+  if (!isValidAccountEmail(email)) redirect("/system-admin/users?error=email-invalid");
+
+  const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!targetUser || !isResettableUserRole(targetUser.role)) {
+    redirect("/system-admin/users?error=user-not-found");
+  }
+
+  if (targetUser.email === email) redirect("/system-admin/users?error=email-unchanged");
+
+  const existingAccount = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existingAccount && existingAccount.id !== targetUser.id) {
+    redirect("/system-admin/users?error=email-exists");
+  }
+
+  await prisma.user.update({
+    where: { id: targetUser.id },
+    data: {
+      email,
+      authVersion: { increment: 1 },
+    },
+  });
+
+  redirect(`/system-admin/users?emailUpdated=${encodeURIComponent(targetUser.id)}`);
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.2
+
+- Added system-admin Email updates for student, guardian, and class-admin accounts.
+- Email changes validate format, block duplicate addresses, normalize casing, and revoke the target account's old sessions.
+
 ## 2.2.1
 
 - System-admin bootstrap can explicitly replace an existing account that uses the same Email.

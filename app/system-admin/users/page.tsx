@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSystemAdmin, resettableUserRoles } from "@/lib/system-admin";
 import { signOut } from "@/app/onboarding/actions";
-import { resetUserPassword } from "../actions";
+import { resetUserPassword, updateUserEmail } from "../actions";
 
 type UsersPageProps = {
   searchParams?: Promise<{
     created?: string;
+    emailUpdated?: string;
     error?: string;
     q?: string;
     updated?: string;
@@ -51,6 +52,7 @@ export default async function SystemAdminUsersPage({ searchParams }: UsersPagePr
     take: 20,
   });
   const updatedUser = params?.updated ? users.find((user) => user.id === params.updated) : null;
+  const emailUpdatedUser = params?.emailUpdated ? users.find((user) => user.id === params.emailUpdated) : null;
 
   return (
     <main className="page">
@@ -63,8 +65,12 @@ export default async function SystemAdminUsersPage({ searchParams }: UsersPagePr
 
           {params?.created === "1" && <div className="notice">系統管理者已建立。</div>}
           {updatedUser && <div className="notice">已重設 {updatedUser.displayName} 的密碼並撤銷舊 session。</div>}
+          {emailUpdatedUser && <div className="notice">已更新 {emailUpdatedUser.displayName} 的 Email 並撤銷舊 session。</div>}
           {params?.error === "password-invalid" && <div className="error-notice">密碼長度必須為 8 到 128 個字元。</div>}
           {params?.error === "password-mismatch" && <div className="error-notice">兩次輸入的密碼不一致。</div>}
+          {params?.error === "email-invalid" && <div className="error-notice">請輸入有效的 Email。</div>}
+          {params?.error === "email-exists" && <div className="error-notice">這個 Email 已被其他帳號使用。</div>}
+          {params?.error === "email-unchanged" && <div className="error-notice">新 Email 與目前 Email 相同。</div>}
           {params?.error === "user-not-found" && <div className="error-notice">找不到可重設的使用者。</div>}
 
           <div className="session-card">
@@ -101,6 +107,14 @@ export default async function SystemAdminUsersPage({ searchParams }: UsersPagePr
                     <strong>{user.displayName}</strong>
                     <span>{roleLabels[user.role as (typeof resettableUserRoles)[number]]} · {user.email ?? "未設定 Email"}</span>
                   </div>
+                  <form className="form-card compact-form" action={updateUserEmail}>
+                    <input name="targetUserId" type="hidden" value={user.id} />
+                    <label>
+                      更換 Email
+                      <input name="email" type="email" autoComplete="email" defaultValue={user.email ?? ""} required />
+                    </label>
+                    <button className="small-button" type="submit">更新 Email</button>
+                  </form>
                   <form className="form-card compact-form" action={resetUserPassword}>
                     <input name="targetUserId" type="hidden" value={user.id} />
                     <label>
