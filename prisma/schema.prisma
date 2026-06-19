@@ -348,6 +348,7 @@ model StudyTask {
   subjectId        String?
   chapterId        String?
   examReviewPlanId String?
+  importBatchId    String?
   title            String
   description      String?
   type             TaskType
@@ -365,6 +366,7 @@ model StudyTask {
   logs             TaskLog[]
 
   @@index([examReviewPlanId])
+  @@index([studentId, importBatchId])
 }
 
 model CalendarEvent {
