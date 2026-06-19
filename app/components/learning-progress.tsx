@@ -117,9 +117,9 @@ export function LearningProgress({ studentId, scores, weakPoints, weeklyTasks, t
       <div className="learning-grid learning-history">
         <div>
           <h3>近期成績</h3>
-          <div className="learning-list">
+          <div className="learning-list score-list">
             {scores.map((score) => (
-              <div className="learning-item" key={score.id}>
+              <div className="learning-item score-item" key={score.id}>
                 <div>
                   <strong>{score.subject.name}：{score.value} 分</strong>
                   <span>{formatDateInput(score.takenAt, timeZone)}，由{sourceLabels[score.source]}登錄</span>

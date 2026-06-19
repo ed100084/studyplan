@@ -720,6 +720,118 @@ h1 {
   font-size: 18px;
 }
 
+.schedule-chart {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.schedule-chart-scale {
+  color: var(--muted);
+  display: flex;
+  font-size: 12px;
+  justify-content: space-between;
+}
+
+.schedule-chart-track {
+  background: repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(20% - 1px),
+      rgba(148, 163, 184, 0.35) calc(20% - 1px),
+      rgba(148, 163, 184, 0.35) 20%
+    ),
+    #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 168px;
+  overflow: hidden;
+  position: relative;
+}
+
+.schedule-chart-bar {
+  align-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 2px;
+  min-height: 46px;
+  overflow: hidden;
+  padding: 8px;
+  position: absolute;
+  top: 14px;
+}
+
+.schedule-chart-bar:nth-child(2n) {
+  top: 68px;
+}
+
+.schedule-chart-bar:nth-child(3n) {
+  top: 112px;
+}
+
+.schedule-chart-bar strong,
+.schedule-chart-bar span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-chart-bar strong {
+  font-size: 13px;
+}
+
+.schedule-chart-bar span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.schedule-chart-empty {
+  color: var(--muted);
+  padding: 16px;
+}
+
+.schedule-chart-legend {
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.schedule-chart-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
+.schedule-chart-legend span::before {
+  border-radius: 999px;
+  content: "";
+  display: inline-block;
+  height: 9px;
+  width: 9px;
+}
+
+.legend-fixed::before {
+  background: #e2e8f0;
+}
+
+.legend-tutoring::before {
+  background: #ccfbf1;
+}
+
+.legend-study::before {
+  background: #dbeafe;
+}
+
+.legend-break::before {
+  background: #f8fafc;
+  border: 1px dashed #94a3b8;
+}
+
 .timeline-list {
   display: grid;
   gap: 10px;
@@ -1066,6 +1178,10 @@ button[aria-disabled="true"] {
   margin-top: 12px;
 }
 
+.score-list {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .learning-item {
   align-items: center;
   background: white;
@@ -1075,6 +1191,15 @@ button[aria-disabled="true"] {
   gap: 12px;
   justify-content: space-between;
   padding: 12px;
+}
+
+.score-item {
+  align-items: stretch;
+  display: grid;
+}
+
+.score-item form {
+  justify-self: start;
 }
 
 .learning-item span {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.1
+
+- Changed selected-day schedule details from a list-only timeline to a proportional chart-style time bar.
+- Made score history render as wrapping cards so multiple subject scores no longer stretch into one long row.
+
 ## 2.4.0
 
 - Added a selected-day detail panel for student and guardian calendars with schedule timeline, fixed events, tutoring, exams, and tasks.

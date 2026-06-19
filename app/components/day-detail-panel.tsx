@@ -40,6 +40,34 @@ type DayDetailPanelProps = {
   statusLabels: Record<TaskStatus, string>;
 };
 
+const DEFAULT_CHART_START = 17 * 60 + 30;
+const DEFAULT_CHART_END = 22 * 60 + 30;
+
+function timeToMinutes(time: string | undefined) {
+  if (!time) return null;
+  const [hours, minutes] = time.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(minutes: number) {
+  const hours = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, "0");
+  const mins = (minutes % 60).toString().padStart(2, "0");
+  return `${hours}:${mins}`;
+}
+
+function buildChartRange(segments: ScheduleSegment[]) {
+  const starts = segments.map((segment) => timeToMinutes(segment.startTime)).filter((value): value is number => value !== null);
+  const ends = segments.map((segment) => timeToMinutes(segment.endTime)).filter((value): value is number => value !== null);
+
+  return {
+    start: Math.min(DEFAULT_CHART_START, ...starts),
+    end: Math.max(DEFAULT_CHART_END, ...ends),
+  };
+}
+
 export function DayDetailPanel({
   date,
   timeZone,
@@ -61,6 +89,9 @@ export function DayDetailPanel({
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const visibleSegments = schedule?.scheduled ?? [];
   const unplacedSegments = schedule?.unplaced ?? [];
+  const chartSegments = visibleSegments.filter((segment) => segment.startTime && segment.endTime);
+  const chartRange = buildChartRange(chartSegments);
+  const chartDuration = Math.max(1, chartRange.end - chartRange.start);
 
   return (
     <section className="panel day-detail-panel">
@@ -99,6 +130,45 @@ export function DayDetailPanel({
           <p className="panel-copy">
             可排 {schedule?.availableMinutes ?? 0} 分鐘，已排讀書 {schedule?.scheduledStudyMinutes ?? 0} 分鐘
           </p>
+          <div className="schedule-chart" aria-label={`${date} 圖表式時間軸`}>
+            <div className="schedule-chart-scale">
+              <span>{minutesToTime(chartRange.start)}</span>
+              <span>{minutesToTime(Math.round((chartRange.start + chartRange.end) / 2))}</span>
+              <span>{minutesToTime(chartRange.end)}</span>
+            </div>
+            <div className="schedule-chart-track">
+              {chartSegments.map((segment) => {
+                const start = timeToMinutes(segment.startTime) ?? chartRange.start;
+                const end = timeToMinutes(segment.endTime) ?? start;
+                const left = ((start - chartRange.start) / chartDuration) * 100;
+                const width = (Math.max(8, end - start) / chartDuration) * 100;
+
+                return (
+                  <div
+                    className={`schedule-chart-bar schedule-${segment.kind}`}
+                    key={segment.id}
+                    style={{
+                      left: `${Math.max(0, left)}%`,
+                      width: `${Math.min(100 - Math.max(0, left), Math.max(4, width))}%`,
+                    }}
+                    title={`${segment.startTime}-${segment.endTime} ${segment.title}`}
+                  >
+                    <strong>{segment.title}</strong>
+                    <span>
+                      {segment.startTime}-{segment.endTime}
+                    </span>
+                  </div>
+                );
+              })}
+              {chartSegments.length === 0 && <div className="schedule-chart-empty">這天還沒有可畫成圖表的時間資料。</div>}
+            </div>
+            <div className="schedule-chart-legend">
+              <span className="legend-fixed">固定</span>
+              <span className="legend-tutoring">補習</span>
+              <span className="legend-study">讀書</span>
+              <span className="legend-break">休息</span>
+            </div>
+          </div>
           <div className="timeline-list">
             {visibleSegments.map((segment) => (
               <div className={`timeline-item schedule-${segment.kind}`} key={segment.id}>
