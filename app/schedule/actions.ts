@@ -988,6 +988,27 @@ export async function deleteStudyTask(formData: FormData) {
   redirect(addQuery(editable.redirectTo, "schedule=1"));
 }
 
+export async function deleteImportBatch(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const importBatchId = textValue(formData, "importBatchId");
+
+  if (!importBatchId) {
+    redirect(addQuery(editable.redirectTo, "error=task-import-batch-required"));
+  }
+
+  const result = await prisma.studyTask.deleteMany({
+    where: {
+      studentId: editable.student.id,
+      importBatchId,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, `schedule=1&deletedBatch=${result.count}`));
+}
+
 export async function deleteCalendarEvent(formData: FormData) {
   const calendarEventId = textValue(formData, "calendarEventId");
   const studentId = textValue(formData, "studentId") || undefined;
