@@ -718,6 +718,12 @@ h1 {
   white-space: nowrap;
 }
 
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .inline-actions {
   display: flex;
   flex-wrap: wrap;

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.2
+
+- Added a global form submit guard that disables submit buttons and shows a processing label after submission.
+- Existing completion and error notices continue to appear after the server action finishes.
+
 ## 2.3.1
 
 - Added previous/current/next navigation for student and guardian weekly calendars.

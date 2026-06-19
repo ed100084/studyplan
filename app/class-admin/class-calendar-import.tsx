@@ -30,7 +30,7 @@ export function ClassCalendarImport({ classroomId }: { classroomId: string }) {
 
   return (
     <div className="form-card">
-      <form action={previewAction}>
+      <form action={previewAction} data-submit-guard="off">
         <input name="classroomId" type="hidden" value={classroomId} />
         <label>
           匯入檔案

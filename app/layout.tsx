@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FormSubmitGuard } from "@/app/components/form-submit-guard";
 import { TimeZoneSync } from "./timezone-sync";
 import "./globals.css";
 
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body>
         <TimeZoneSync />
+        <FormSubmitGuard />
         {children}
       </body>
     </html>
