@@ -126,6 +126,23 @@ const readableWeekdayLabels: Record<Weekday, string> = {
 function gradeLabel(grade: number) {
   return `國${grade - 6}`;
 }
+
+function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday: Weekday }) {
+  return (
+    <fieldset className="weekday-checkbox-group">
+      <legend>星期</legend>
+      <div>
+        {weekdayOptions.map(([value, label]) => (
+          <label className="checkbox-label" key={value}>
+            <input name="weekday" type="checkbox" value={value} defaultChecked={value === defaultWeekday} />
+            {label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 function eventFallsOnDate(event: CalendarEvent, date: string, timeZone: string) {
   const startDate = formatDateInput(event.startDate, timeZone);
   const endDate = event.endDate ? formatDateInput(event.endDate, timeZone) : startDate;
@@ -1250,16 +1267,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                         科目
                         <input name="subjectName" placeholder="例如：數學" required />
                       </label>
-                      <label>
-                        星期
-                        <select name="weekday" defaultValue={today.weekday}>
-                          {weekdayOptions.map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <WeekdayCheckboxGroup defaultWeekday={today.weekday} />
                       <div className="field-row">
                         <label>
                           開始日期
@@ -1317,16 +1325,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           ))}
                         </select>
                       </label>
-                      <label>
-                        星期
-                        <select name="weekday" defaultValue={today.weekday}>
-                          {weekdayOptions.map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <WeekdayCheckboxGroup defaultWeekday={today.weekday} />
                       <div className="field-row">
                         <label>
                           開始日期

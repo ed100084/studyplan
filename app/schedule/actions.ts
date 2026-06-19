@@ -40,6 +40,16 @@ function enumValue<T extends Record<string, string>>(source: T, rawValue: string
   return Object.values(source).includes(rawValue) ? (rawValue as T[keyof T]) : fallback;
 }
 
+function weekdayValues(formData: FormData) {
+  const values = formData
+    .getAll("weekday")
+    .filter((value): value is string => typeof value === "string")
+    .filter((value) => Object.values(Weekday).includes(value as Weekday));
+
+  const uniqueValues = Array.from(new Set(values)) as Weekday[];
+  return uniqueValues.length > 0 ? uniqueValues : [Weekday.MONDAY];
+}
+
 async function userDateValue(rawValue: string) {
   const timeZone = await getRequestTimeZone();
   const value = rawValue || formatDateInput(new Date(), timeZone);
@@ -174,7 +184,7 @@ export async function createFixedEvent(formData: FormData) {
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
   const type = enumValue(FixedEventType, textValue(formData, "type"), FixedEventType.OTHER);
-  const weekday = enumValue(Weekday, textValue(formData, "weekday"), Weekday.MONDAY);
+  const weekdays = weekdayValues(formData);
   const timeZone = await getRequestTimeZone();
   const rawStartDate = textValue(formData, "startDate");
   const rawEndDate = textValue(formData, "endDate");
@@ -188,8 +198,8 @@ export async function createFixedEvent(formData: FormData) {
     redirect(addQuery(editable.redirectTo, "error=fixed-event-date-range"));
   }
 
-  await prisma.fixedEvent.create({
-    data: {
+  await prisma.fixedEvent.createMany({
+    data: weekdays.map((weekday) => ({
       studentId: editable.student.id,
       title,
       type,
@@ -200,7 +210,7 @@ export async function createFixedEvent(formData: FormData) {
       endTime,
       commuteMinutes,
       note,
-    },
+    })),
   });
 
   revalidatePath("/student");
@@ -213,7 +223,7 @@ export async function createTutoringSession(formData: FormData) {
   const editable = await getEditableStudent(studentId);
   const timeZone = await getRequestTimeZone();
   const subjectName = textValue(formData, "subjectName") || "補習";
-  const weekday = enumValue(Weekday, textValue(formData, "weekday"), Weekday.MONDAY);
+  const weekdays = weekdayValues(formData);
   const rawStartDate = textValue(formData, "startDate");
   const rawEndDate = textValue(formData, "endDate");
   const startTime = textValue(formData, "startTime") || "18:00";
@@ -225,8 +235,8 @@ export async function createTutoringSession(formData: FormData) {
     redirect(addQuery(editable.redirectTo, "error=tutoring-date-range"));
   }
 
-  await prisma.tutoringSession.create({
-    data: {
+  await prisma.tutoringSession.createMany({
+    data: weekdays.map((weekday) => ({
       studentId: editable.student.id,
       subjectName,
       weekday,
@@ -237,7 +247,7 @@ export async function createTutoringSession(formData: FormData) {
       commuteMinutes,
       fatigueLevel,
       hasHomework: boolValue(formData, "hasHomework"),
-    },
+    })),
   });
 
   revalidatePath("/student");

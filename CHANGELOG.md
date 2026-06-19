@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.2
+
+- Student and guardian creation forms for tutoring sessions now allow selecting multiple weekdays at once.
+- Student and guardian creation forms for fixed events now allow selecting multiple weekdays at once.
+- Server actions create one schedule record per selected weekday while preserving the existing single-record edit flow.
+
 ## 2.5.1
 
 - Changed score history into per-subject summary cards with expandable score details.
