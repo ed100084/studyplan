@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.0
+
+- Added a selected-day detail panel for student and guardian calendars with schedule timeline, fixed events, tutoring, exams, and tasks.
+- Weekly and monthly calendar days are now clickable and preserve the selected date in the URL.
+- Reordered student and guardian dashboards so daily details and calendars appear before management and input sections.
+
 ## 2.3.3
 
 - Added full tutoring schedule lists to student and guardian pages.

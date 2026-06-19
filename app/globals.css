@@ -440,13 +440,29 @@ h1 {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
+  color: inherit;
   min-width: 0;
   padding: 12px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .week-day.today {
   background: #eff6ff;
   border-color: #93c5fd;
+}
+
+.week-day:hover,
+.month-day:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+.week-day.selected,
+.month-day.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
 }
 
 .week-day-header {
@@ -602,9 +618,12 @@ h1 {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
+  color: inherit;
   min-height: 112px;
   min-width: 0;
   padding: 10px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .month-day.empty {
@@ -652,6 +671,53 @@ h1 {
 
 .month-items {
   margin-top: 8px;
+}
+
+.day-detail-panel {
+  margin: 20px 0;
+}
+
+.day-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.day-detail-metrics > div,
+.day-detail-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.day-detail-metrics strong,
+.day-detail-metrics span {
+  display: block;
+}
+
+.day-detail-metrics strong {
+  color: var(--accent);
+  font-size: 24px;
+}
+
+.day-detail-metrics span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.day-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.day-detail-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
 }
 
 .timeline-list {
@@ -1028,6 +1094,8 @@ button[aria-disabled="true"] {
   .month-weekdays,
   .form-grid,
   .guardian-tools,
+  .day-detail-grid,
+  .day-detail-metrics,
   .learning-grid,
   .learning-metrics {
     grid-template-columns: 1fr;

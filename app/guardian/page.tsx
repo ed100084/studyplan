@@ -20,6 +20,7 @@ import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tuto
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
+import { DayDetailPanel } from "@/app/components/day-detail-panel";
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -48,6 +49,7 @@ type GuardianPageProps = {
     examPlan?: string;
     learning?: string;
     studentId?: string;
+    date?: string;
     week?: string;
     month?: string;
   }>;
@@ -143,9 +145,10 @@ function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date
   );
 }
 
-function calendarHref(params: { studentId?: string; week?: string; month?: string }) {
+function calendarHref(params: { studentId?: string; date?: string; week?: string; month?: string }) {
   const query = new URLSearchParams();
   if (params.studentId) query.set("studentId", params.studentId);
+  if (params.date) query.set("date", params.date);
   if (params.week) query.set("week", params.week);
   if (params.month) query.set("month", params.month);
   const value = query.toString();
@@ -421,6 +424,7 @@ function WeekCalendar({
   tasks,
   week,
   selectedWeekDate,
+  selectedDate,
   todayDate,
   timeZone,
   studentId,
@@ -431,6 +435,7 @@ function WeekCalendar({
   tasks: StudyTaskWithSubject[];
   week: ReturnType<typeof getWeek>;
   selectedWeekDate: string;
+  selectedDate: string;
   todayDate: string;
   timeZone: string;
   studentId: string;
@@ -453,9 +458,9 @@ function WeekCalendar({
           </p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ studentId, week: addDateDays(selectedWeekDate, -7) })}>上一週</Link>
-          <Link className="small-button" href={calendarHref({ studentId, week: todayDate })}>本週</Link>
-          <Link className="small-button" href={calendarHref({ studentId, week: addDateDays(selectedWeekDate, 7) })}>下一週</Link>
+          <Link className="small-button" href={calendarHref({ studentId, date: addDateDays(selectedWeekDate, -7), week: addDateDays(selectedWeekDate, -7) })}>上一週</Link>
+          <Link className="small-button" href={calendarHref({ studentId, date: todayDate, week: todayDate })}>本週</Link>
+          <Link className="small-button" href={calendarHref({ studentId, date: addDateDays(selectedWeekDate, 7), week: addDateDays(selectedWeekDate, 7) })}>下一週</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -470,9 +475,12 @@ function WeekCalendar({
           const done = dayTasks.filter((task) => task.status === "DONE").length;
           const partial = dayTasks.filter((task) => task.status === "PARTIAL").length;
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+          const dayClassName = ["week-day", day.isToday ? "today" : "", day.date === selectedDate ? "selected" : ""]
+            .filter(Boolean)
+            .join(" ");
 
           return (
-            <div className={day.isToday ? "week-day today" : "week-day"} key={day.date}>
+            <Link className={dayClassName} href={calendarHref({ studentId, date: day.date, week: day.date, month: day.date })} key={day.date}>
               <div className="week-day-header">
                 <strong>{readableWeekdayLabels[day.weekday]}</strong>
                 <span>{day.dayNumber}</span>
@@ -500,7 +508,7 @@ function WeekCalendar({
                   </span>
                 ))}
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -515,6 +523,7 @@ function MonthCalendar({
   tasks,
   month,
   selectedMonthDate,
+  selectedDate,
   todayDate,
   timeZone,
   studentId,
@@ -525,6 +534,7 @@ function MonthCalendar({
   tasks: StudyTaskWithSubject[];
   month: ReturnType<typeof getMonth>;
   selectedMonthDate: string;
+  selectedDate: string;
   todayDate: string;
   timeZone: string;
   studentId: string;
@@ -545,9 +555,9 @@ function MonthCalendar({
           <p className="panel-copy">{month.monthLabel}</p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ studentId, month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
-          <Link className="small-button" href={calendarHref({ studentId, month: todayDate })}>本月</Link>
-          <Link className="small-button" href={calendarHref({ studentId, month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
+          <Link className="small-button" href={calendarHref({ studentId, date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
+          <Link className="small-button" href={calendarHref({ studentId, date: todayDate, month: todayDate })}>本月</Link>
+          <Link className="small-button" href={calendarHref({ studentId, date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -570,13 +580,14 @@ function MonthCalendar({
           const dayClassName = [
             "month-day",
             day.isToday ? "today" : "",
+            day.date === selectedDate ? "selected" : "",
             dayTasks.length >= 3 || minutes >= 120 ? "heavy" : "",
           ]
             .filter(Boolean)
             .join(" ");
 
           return (
-            <div className={dayClassName} key={day.date}>
+            <Link className={dayClassName} href={calendarHref({ studentId, date: day.date, week: day.date, month: day.date })} key={day.date}>
               <div className="month-day-header">
                 <strong>{day.dayNumber}</strong>
                 <span>{minutes} 分鐘</span>
@@ -595,7 +606,7 @@ function MonthCalendar({
                   <span key={task.id}>{task.subject?.name ?? "未指定"}：{task.title}</span>
                 ))}
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -614,12 +625,16 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const timeZone = await getRequestTimeZone();
   const today = getCurrentDay(timeZone);
   const todayRange = getDayRange(today.date, timeZone);
+  const selectedDate = normalizeDateInput(params?.date, today.date);
+  const selectedDateRange = getDayRange(selectedDate, timeZone);
+  const selectedDateWeek = getWeek(selectedDate, timeZone);
+  const selectedDay = selectedDateWeek.days.find((day) => day.date === selectedDate) ?? today;
   const selectedWeekDate = normalizeDateInput(params?.week, today.date);
   const selectedMonthDate = normalizeDateInput(params?.month, today.date);
   const week = getWeek(selectedWeekDate, timeZone);
   const month = getMonth(selectedMonthDate, timeZone);
-  const taskRangeStart = week.start.getTime() < month.start.getTime() ? week.start : month.start;
-  const taskRangeEnd = week.end.getTime() > month.end.getTime() ? week.end : month.end;
+  const taskRangeStart = new Date(Math.min(week.start.getTime(), month.start.getTime(), selectedDateRange.start.getTime()));
+  const taskRangeEnd = new Date(Math.max(week.end.getTime(), month.end.getTime(), selectedDateRange.end.getTime()));
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "GUARDIAN"
@@ -782,6 +797,31 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
         })),
       })
     : null;
+  const selectedTasks =
+    activeStudent?.studyTasks.filter((task) => {
+      const plannedDate = task.plannedDate.getTime();
+      return plannedDate >= selectedDateRange.start.getTime() && plannedDate < selectedDateRange.end.getTime();
+    }) ?? [];
+  const selectedFixedEvents = activeStudent?.fixedEvents.filter((event) => event.weekday === selectedDay.weekday) ?? [];
+  const selectedTutoringSessions = activeStudent
+    ? activeTutoringSessionsForDate(activeStudent.tutoringSessions, selectedDate, selectedDay.weekday, timeZone)
+    : [];
+  const selectedCalendarEvents = activeStudent?.calendarEvents.filter((event) => eventFallsOnDate(event, selectedDate, timeZone)) ?? [];
+  const selectedOpenTasks = selectedTasks.filter((task) => task.status === "PLANNED");
+  const selectedSchedule = activeStudent
+    ? buildTodaySchedule({
+        fixedEvents: selectedFixedEvents,
+        tutoringSessions: selectedTutoringSessions,
+        tasks: selectedOpenTasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          subjectName: task.subject?.name,
+          type: task.type,
+          estimatedMinutes: task.estimatedMinutes,
+          priority: task.priority,
+        })),
+      })
+    : null;
 
   return (
     <main className="page">
@@ -886,6 +926,49 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     </span>
                   </div>
 
+                  <DayDetailPanel
+                    date={selectedDate}
+                    timeZone={timeZone}
+                    weekdayLabel={weekdayLabels[selectedDay.weekday]}
+                    isToday={selectedDate === today.date}
+                    fixedEvents={selectedFixedEvents}
+                    tutoringSessions={selectedTutoringSessions}
+                    calendarEvents={selectedCalendarEvents}
+                    tasks={selectedTasks}
+                    schedule={selectedSchedule}
+                    fixedEventLabels={fixedEventLabels}
+                    taskTypeLabels={taskTypeLabels}
+                    calendarEventLabels={calendarEventLabels}
+                    fatigueLabels={fatigueLabels}
+                    statusLabels={statusLabels}
+                  />
+
+                  <WeekCalendar
+                    calendarEvents={activeStudent.calendarEvents}
+                    fixedEvents={activeStudent.fixedEvents}
+                    tutoringSessions={activeStudent.tutoringSessions}
+                    tasks={activeStudent.studyTasks}
+                    week={week}
+                    selectedWeekDate={selectedWeekDate}
+                    selectedDate={selectedDate}
+                    todayDate={today.date}
+                    timeZone={timeZone}
+                    studentId={activeStudent.id}
+                  />
+
+                  <MonthCalendar
+                    calendarEvents={activeStudent.calendarEvents}
+                    fixedEvents={activeStudent.fixedEvents}
+                    tutoringSessions={activeStudent.tutoringSessions}
+                    tasks={activeStudent.studyTasks}
+                    month={month}
+                    selectedMonthDate={selectedMonthDate}
+                    selectedDate={selectedDate}
+                    todayDate={today.date}
+                    timeZone={timeZone}
+                    studentId={activeStudent.id}
+                  />
+
                   <LearningProgress
                     studentId={activeStudent.id}
                     scores={activeStudent.scores}
@@ -903,30 +986,6 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     )}
                     today={today.date}
                     timeZone={timeZone}
-                  />
-
-                  <WeekCalendar
-                    calendarEvents={activeStudent.calendarEvents}
-                    fixedEvents={activeStudent.fixedEvents}
-                    tutoringSessions={activeStudent.tutoringSessions}
-                    tasks={activeStudent.studyTasks}
-                    week={week}
-                    selectedWeekDate={selectedWeekDate}
-                    todayDate={today.date}
-                    timeZone={timeZone}
-                    studentId={activeStudent.id}
-                  />
-
-                  <MonthCalendar
-                    calendarEvents={activeStudent.calendarEvents}
-                    fixedEvents={activeStudent.fixedEvents}
-                    tutoringSessions={activeStudent.tutoringSessions}
-                    tasks={activeStudent.studyTasks}
-                    month={month}
-                    selectedMonthDate={selectedMonthDate}
-                    todayDate={today.date}
-                    timeZone={timeZone}
-                    studentId={activeStudent.id}
                   />
 
                   <section className="panel event-panel">

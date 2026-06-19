@@ -20,6 +20,7 @@ import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tuto
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
+import { DayDetailPanel } from "@/app/components/day-detail-panel";
 import { createStudent, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
@@ -47,6 +48,7 @@ type StudentPageProps = {
     scheduleHistory?: string;
     examPlan?: string;
     learning?: string;
+    date?: string;
     week?: string;
     month?: string;
   }>;
@@ -142,8 +144,9 @@ function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date
   );
 }
 
-function calendarHref(params: { week?: string; month?: string }) {
+function calendarHref(params: { date?: string; week?: string; month?: string }) {
   const query = new URLSearchParams();
+  if (params.date) query.set("date", params.date);
   if (params.week) query.set("week", params.week);
   if (params.month) query.set("month", params.month);
   const value = query.toString();
@@ -402,6 +405,7 @@ function WeekCalendar({
   tasks,
   week,
   selectedWeekDate,
+  selectedDate,
   todayDate,
   timeZone,
 }: {
@@ -411,6 +415,7 @@ function WeekCalendar({
   tasks: StudyTaskWithSubject[];
   week: ReturnType<typeof getWeek>;
   selectedWeekDate: string;
+  selectedDate: string;
   todayDate: string;
   timeZone: string;
 }) {
@@ -432,9 +437,9 @@ function WeekCalendar({
           </p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ week: addDateDays(selectedWeekDate, -7) })}>上一週</Link>
-          <Link className="small-button" href={calendarHref({ week: todayDate })}>本週</Link>
-          <Link className="small-button" href={calendarHref({ week: addDateDays(selectedWeekDate, 7) })}>下一週</Link>
+          <Link className="small-button" href={calendarHref({ date: addDateDays(selectedWeekDate, -7), week: addDateDays(selectedWeekDate, -7) })}>上一週</Link>
+          <Link className="small-button" href={calendarHref({ date: todayDate, week: todayDate })}>本週</Link>
+          <Link className="small-button" href={calendarHref({ date: addDateDays(selectedWeekDate, 7), week: addDateDays(selectedWeekDate, 7) })}>下一週</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -449,9 +454,12 @@ function WeekCalendar({
           const done = dayTasks.filter((task) => task.status === "DONE").length;
           const partial = dayTasks.filter((task) => task.status === "PARTIAL").length;
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
+          const dayClassName = ["week-day", day.isToday ? "today" : "", day.date === selectedDate ? "selected" : ""]
+            .filter(Boolean)
+            .join(" ");
 
           return (
-            <div className={day.isToday ? "week-day today" : "week-day"} key={day.date}>
+            <Link className={dayClassName} href={calendarHref({ date: day.date, week: day.date, month: day.date })} key={day.date}>
               <div className="week-day-header">
                 <strong>{readableWeekdayLabels[day.weekday]}</strong>
                 <span>{day.dayNumber}</span>
@@ -477,7 +485,7 @@ function WeekCalendar({
                   <span key={task.id}>{task.subject?.name ?? "未指定"}：{task.title}</span>
                 ))}
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -492,6 +500,7 @@ function MonthCalendar({
   tasks,
   month,
   selectedMonthDate,
+  selectedDate,
   todayDate,
   timeZone,
 }: {
@@ -501,6 +510,7 @@ function MonthCalendar({
   tasks: StudyTaskWithSubject[];
   month: ReturnType<typeof getMonth>;
   selectedMonthDate: string;
+  selectedDate: string;
   todayDate: string;
   timeZone: string;
 }) {
@@ -520,9 +530,9 @@ function MonthCalendar({
           <p className="panel-copy">{month.monthLabel}</p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
-          <Link className="small-button" href={calendarHref({ month: todayDate })}>本月</Link>
-          <Link className="small-button" href={calendarHref({ month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
+          <Link className="small-button" href={calendarHref({ date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
+          <Link className="small-button" href={calendarHref({ date: todayDate, month: todayDate })}>本月</Link>
+          <Link className="small-button" href={calendarHref({ date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -545,13 +555,14 @@ function MonthCalendar({
           const dayClassName = [
             "month-day",
             day.isToday ? "today" : "",
+            day.date === selectedDate ? "selected" : "",
             dayTasks.length >= 3 || minutes >= 120 ? "heavy" : "",
           ]
             .filter(Boolean)
             .join(" ");
 
           return (
-            <div className={dayClassName} key={day.date}>
+            <Link className={dayClassName} href={calendarHref({ date: day.date, week: day.date, month: day.date })} key={day.date}>
               <div className="month-day-header">
                 <strong>{day.dayNumber}</strong>
                 <span>{minutes} 分鐘</span>
@@ -570,7 +581,7 @@ function MonthCalendar({
                   <span key={task.id}>{task.subject?.name ?? "未指定"}：{task.title}</span>
                 ))}
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -589,12 +600,16 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const timeZone = await getRequestTimeZone();
   const today = getCurrentDay(timeZone);
   const todayRange = getDayRange(today.date, timeZone);
+  const selectedDate = normalizeDateInput(params?.date, today.date);
+  const selectedDateRange = getDayRange(selectedDate, timeZone);
+  const selectedDateWeek = getWeek(selectedDate, timeZone);
+  const selectedDay = selectedDateWeek.days.find((day) => day.date === selectedDate) ?? today;
   const selectedWeekDate = normalizeDateInput(params?.week, today.date);
   const selectedMonthDate = normalizeDateInput(params?.month, today.date);
   const week = getWeek(selectedWeekDate, timeZone);
   const month = getMonth(selectedMonthDate, timeZone);
-  const taskRangeStart = week.start.getTime() < month.start.getTime() ? week.start : month.start;
-  const taskRangeEnd = week.end.getTime() > month.end.getTime() ? week.end : month.end;
+  const taskRangeStart = new Date(Math.min(week.start.getTime(), month.start.getTime(), selectedDateRange.start.getTime()));
+  const taskRangeEnd = new Date(Math.max(week.end.getTime(), month.end.getTime(), selectedDateRange.end.getTime()));
   const session = await getCurrentSession();
   const currentUser =
     session?.role === "STUDENT"
@@ -746,6 +761,31 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
         })),
       })
     : null;
+  const selectedTasks =
+    student?.studyTasks.filter((task) => {
+      const plannedDate = task.plannedDate.getTime();
+      return plannedDate >= selectedDateRange.start.getTime() && plannedDate < selectedDateRange.end.getTime();
+    }) ?? [];
+  const selectedFixedEvents = student?.fixedEvents.filter((event) => event.weekday === selectedDay.weekday) ?? [];
+  const selectedTutoringSessions = student
+    ? activeTutoringSessionsForDate(student.tutoringSessions, selectedDate, selectedDay.weekday, timeZone)
+    : [];
+  const selectedCalendarEvents = student?.calendarEvents.filter((event) => eventFallsOnDate(event, selectedDate, timeZone)) ?? [];
+  const selectedOpenTasks = selectedTasks.filter((task) => task.status === "PLANNED");
+  const selectedSchedule = student
+    ? buildTodaySchedule({
+        fixedEvents: selectedFixedEvents,
+        tutoringSessions: selectedTutoringSessions,
+        tasks: selectedOpenTasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          subjectName: task.subject?.name,
+          type: task.type,
+          estimatedMinutes: task.estimatedMinutes,
+          priority: task.priority,
+        })),
+      })
+    : null;
 
   return (
     <main className="page">
@@ -807,6 +847,47 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 <strong>{student.linkCode ?? "尚未產生"}</strong>
               </div>
 
+              <DayDetailPanel
+                date={selectedDate}
+                timeZone={timeZone}
+                weekdayLabel={weekdayLabels[selectedDay.weekday]}
+                isToday={selectedDate === today.date}
+                fixedEvents={selectedFixedEvents}
+                tutoringSessions={selectedTutoringSessions}
+                calendarEvents={selectedCalendarEvents}
+                tasks={selectedTasks}
+                schedule={selectedSchedule}
+                fixedEventLabels={fixedEventLabels}
+                taskTypeLabels={taskTypeLabels}
+                calendarEventLabels={calendarEventLabels}
+                fatigueLabels={fatigueLabels}
+                statusLabels={statusLabels}
+              />
+
+              <WeekCalendar
+                calendarEvents={student.calendarEvents}
+                fixedEvents={student.fixedEvents}
+                tutoringSessions={student.tutoringSessions}
+                tasks={student.studyTasks}
+                week={week}
+                selectedWeekDate={selectedWeekDate}
+                selectedDate={selectedDate}
+                todayDate={today.date}
+                timeZone={timeZone}
+              />
+
+              <MonthCalendar
+                calendarEvents={student.calendarEvents}
+                fixedEvents={student.fixedEvents}
+                tutoringSessions={student.tutoringSessions}
+                tasks={student.studyTasks}
+                month={month}
+                selectedMonthDate={selectedMonthDate}
+                selectedDate={selectedDate}
+                todayDate={today.date}
+                timeZone={timeZone}
+              />
+
               <LearningProgress
                 scores={student.scores}
                 weakPoints={student.weakPoints}
@@ -821,28 +902,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   ["SECTION_EXAM", "MOCK_EXAM", "ENTRANCE_EXAM"].includes(event.type),
                 )}
                 today={today.date}
-                timeZone={timeZone}
-              />
-
-              <WeekCalendar
-                calendarEvents={student.calendarEvents}
-                fixedEvents={student.fixedEvents}
-                tutoringSessions={student.tutoringSessions}
-                tasks={student.studyTasks}
-                week={week}
-                selectedWeekDate={selectedWeekDate}
-                todayDate={today.date}
-                timeZone={timeZone}
-              />
-
-              <MonthCalendar
-                calendarEvents={student.calendarEvents}
-                fixedEvents={student.fixedEvents}
-                tutoringSessions={student.tutoringSessions}
-                tasks={student.studyTasks}
-                month={month}
-                selectedMonthDate={selectedMonthDate}
-                todayDate={today.date}
                 timeZone={timeZone}
               />
 
