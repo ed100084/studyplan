@@ -107,6 +107,32 @@ function addCalendarDays(dateValue: string, days: number) {
   }).format(date);
 }
 
+export function addDateDays(dateValue: string, days: number) {
+  return addCalendarDays(dateValue, days);
+}
+
+export function isDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+export function normalizeDateInput(value: string | undefined, fallback: string) {
+  return value && isDateInput(value) ? value : fallback;
+}
+
+export function addMonths(dateValue: string, months: number) {
+  const [year, month] = dateValue.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1 + months, 1, 12, 0, 0));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
 function weekdayForDate(dateValue: string, timeZone: string) {
   const weekdayName = new Intl.DateTimeFormat("en-US", {
     timeZone: normalizeTimeZone(timeZone),

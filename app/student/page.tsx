@@ -4,7 +4,18 @@ import type { CalendarEvent, FixedEvent, StudyTask, Subject, TutoringSession } f
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
-import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZone, getWeek, orderedWeekdays } from "@/lib/timezone";
+import {
+  addDateDays,
+  addMonths,
+  formatDateInput,
+  getCurrentDay,
+  getDayRange,
+  getMonth,
+  getRequestTimeZone,
+  getWeek,
+  normalizeDateInput,
+  orderedWeekdays,
+} from "@/lib/timezone";
 import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
@@ -36,6 +47,8 @@ type StudentPageProps = {
     scheduleHistory?: string;
     examPlan?: string;
     learning?: string;
+    week?: string;
+    month?: string;
   }>;
 };
 
@@ -127,6 +140,14 @@ function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date
   return tutoringSessions.filter(
     (sessionItem) => sessionItem.weekday === weekday && tutoringSessionFallsOnDate(sessionItem, date, timeZone),
   );
+}
+
+function calendarHref(params: { week?: string; month?: string }) {
+  const query = new URLSearchParams();
+  if (params.week) query.set("week", params.week);
+  if (params.month) query.set("month", params.month);
+  const value = query.toString();
+  return value ? `/student?${value}` : "/student";
 }
 
 function FixedEventEditor({ event }: { event: FixedEvent }) {
@@ -337,6 +358,8 @@ function WeekCalendar({
   tutoringSessions,
   tasks,
   week,
+  selectedWeekDate,
+  todayDate,
   timeZone,
 }: {
   calendarEvents: CalendarEvent[];
@@ -344,6 +367,8 @@ function WeekCalendar({
   tutoringSessions: TutoringSession[];
   tasks: StudyTaskWithSubject[];
   week: ReturnType<typeof getWeek>;
+  selectedWeekDate: string;
+  todayDate: string;
   timeZone: string;
 }) {
   const weekTasks = tasks.filter((task) => {
@@ -363,10 +388,13 @@ function WeekCalendar({
             {week.days[0]?.date} - {week.days[6]?.date}
           </p>
         </div>
-        <span>
-          任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘
-        </span>
+        <div className="inline-actions">
+          <Link className="small-button" href={calendarHref({ week: addDateDays(selectedWeekDate, -7) })}>上一週</Link>
+          <Link className="small-button" href={calendarHref({ week: todayDate })}>本週</Link>
+          <Link className="small-button" href={calendarHref({ week: addDateDays(selectedWeekDate, 7) })}>下一週</Link>
+        </div>
       </div>
+      <p className="panel-copy">任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
 
       <div className="week-grid">
         {week.days.map((day) => {
@@ -420,6 +448,8 @@ function MonthCalendar({
   tutoringSessions,
   tasks,
   month,
+  selectedMonthDate,
+  todayDate,
   timeZone,
 }: {
   calendarEvents: CalendarEvent[];
@@ -427,6 +457,8 @@ function MonthCalendar({
   tutoringSessions: TutoringSession[];
   tasks: StudyTaskWithSubject[];
   month: ReturnType<typeof getMonth>;
+  selectedMonthDate: string;
+  todayDate: string;
   timeZone: string;
 }) {
   const monthTasks = tasks.filter((task) => {
@@ -444,10 +476,13 @@ function MonthCalendar({
           <h2>本月行事曆</h2>
           <p className="panel-copy">{month.monthLabel}</p>
         </div>
-        <span>
-          任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘
-        </span>
+        <div className="inline-actions">
+          <Link className="small-button" href={calendarHref({ month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
+          <Link className="small-button" href={calendarHref({ month: todayDate })}>本月</Link>
+          <Link className="small-button" href={calendarHref({ month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
+        </div>
       </div>
+      <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
 
       <div className="month-weekdays">
         {orderedWeekdays.map((weekday) => (
@@ -511,8 +546,10 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const timeZone = await getRequestTimeZone();
   const today = getCurrentDay(timeZone);
   const todayRange = getDayRange(today.date, timeZone);
-  const week = getWeek(today.date, timeZone);
-  const month = getMonth(today.date, timeZone);
+  const selectedWeekDate = normalizeDateInput(params?.week, today.date);
+  const selectedMonthDate = normalizeDateInput(params?.month, today.date);
+  const week = getWeek(selectedWeekDate, timeZone);
+  const month = getMonth(selectedMonthDate, timeZone);
   const taskRangeStart = week.start.getTime() < month.start.getTime() ? week.start : month.start;
   const taskRangeEnd = week.end.getTime() > month.end.getTime() ? week.end : month.end;
   const session = await getCurrentSession();
@@ -750,6 +787,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 tutoringSessions={student.tutoringSessions}
                 tasks={student.studyTasks}
                 week={week}
+                selectedWeekDate={selectedWeekDate}
+                todayDate={today.date}
                 timeZone={timeZone}
               />
 
@@ -759,6 +798,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 tutoringSessions={student.tutoringSessions}
                 tasks={student.studyTasks}
                 month={month}
+                selectedMonthDate={selectedMonthDate}
+                todayDate={today.date}
                 timeZone={timeZone}
               />
 

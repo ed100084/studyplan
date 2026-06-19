@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.1
+
+- Added previous/current/next navigation for student and guardian weekly calendars.
+- Added previous/current/next navigation for student and guardian monthly calendars.
+- Calendar views can now be opened directly with `week` and `month` URL parameters.
+
 ## 2.3.0
 
 - Added optional start and end dates to tutoring sessions for short-term classes.
