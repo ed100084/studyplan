@@ -2,19 +2,23 @@
 
 ## Current Status
 
-Version: 2.5.0
+Version: 2.5.1
 
 - Fixed events support optional start and end dates for term schedules, holidays, and temporary extended school hours.
 - Student and guardian calendars only count fixed events on dates where they are active.
+- Score history is grouped by subject so multiple scores no longer stretch into a long row.
+- Selected-day details now use a vertical chart-style timeline with proportional schedule blocks.
 
 ## 目前進度
 
-目前版本：2.4.0
+目前版本：2.5.1
 
 - 學生與家長頁已支援點選週曆或月曆任一天，直接查看該日詳細行程。
-- 當日詳細行程會用時間軸呈現固定行程、補習、讀書任務、考試與事件。
+- 當日詳細行程會用垂直圖表式時間軸呈現固定行程、補習、讀書任務、考試與事件。
+- 成績紀錄已改為依科目彙整，可展開查看每次成績，避免畫面拉成很長一排。
 - 首頁主要操作順序已調整為「當日/選取日詳細行程 → 週曆 → 月曆 → 進度與管理 → 輸入表單」。
 - 補習排程支援日期區間，並可從排程清單修改或刪除整個排程。
+- 固定作息支援日期區間，可處理學期期間、放假或第八節造成的臨時放學時間差異。
 
 阿蓮國中學生讀書規劃網站。
 

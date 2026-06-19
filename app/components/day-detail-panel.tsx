@@ -68,6 +68,17 @@ function buildChartRange(segments: ScheduleSegment[]) {
   };
 }
 
+function buildChartTicks(range: { start: number; end: number }) {
+  const ticks = new Set<number>([range.start, range.end]);
+  const firstHour = Math.ceil(range.start / 60) * 60;
+
+  for (let value = firstHour; value < range.end; value += 60) {
+    ticks.add(value);
+  }
+
+  return Array.from(ticks).sort((left, right) => left - right);
+}
+
 export function DayDetailPanel({
   date,
   timeZone,
@@ -92,6 +103,7 @@ export function DayDetailPanel({
   const chartSegments = visibleSegments.filter((segment) => segment.startTime && segment.endTime);
   const chartRange = buildChartRange(chartSegments);
   const chartDuration = Math.max(1, chartRange.end - chartRange.start);
+  const chartTicks = buildChartTicks(chartRange);
 
   return (
     <section className="panel day-detail-panel">
@@ -132,35 +144,57 @@ export function DayDetailPanel({
           </p>
           <div className="schedule-chart" aria-label={`${date} 圖表式時間軸`}>
             <div className="schedule-chart-scale">
-              <span>{minutesToTime(chartRange.start)}</span>
-              <span>{minutesToTime(Math.round((chartRange.start + chartRange.end) / 2))}</span>
-              <span>{minutesToTime(chartRange.end)}</span>
+              <span>開始 {minutesToTime(chartRange.start)}</span>
+              <span>結束 {minutesToTime(chartRange.end)}</span>
             </div>
             <div className="schedule-chart-track">
-              {chartSegments.map((segment) => {
-                const start = timeToMinutes(segment.startTime) ?? chartRange.start;
-                const end = timeToMinutes(segment.endTime) ?? start;
-                const left = ((start - chartRange.start) / chartDuration) * 100;
-                const width = (Math.max(8, end - start) / chartDuration) * 100;
-
-                return (
-                  <div
-                    className={`schedule-chart-bar schedule-${segment.kind}`}
-                    key={segment.id}
+              <div className="schedule-chart-axis" aria-hidden="true">
+                {chartTicks.map((tick) => (
+                  <span
+                    key={tick}
                     style={{
-                      left: `${Math.max(0, left)}%`,
-                      width: `${Math.min(100 - Math.max(0, left), Math.max(4, width))}%`,
+                      top: `${((tick - chartRange.start) / chartDuration) * 100}%`,
                     }}
-                    title={`${segment.startTime}-${segment.endTime} ${segment.title}`}
                   >
-                    <strong>{segment.title}</strong>
-                    <span>
-                      {segment.startTime}-{segment.endTime}
-                    </span>
-                  </div>
-                );
-              })}
-              {chartSegments.length === 0 && <div className="schedule-chart-empty">這天還沒有可畫成圖表的時間資料。</div>}
+                    {minutesToTime(tick)}
+                  </span>
+                ))}
+              </div>
+              <div className="schedule-chart-lanes">
+                {chartTicks.map((tick) => (
+                  <span
+                    className="schedule-chart-gridline"
+                    key={tick}
+                    style={{
+                      top: `${((tick - chartRange.start) / chartDuration) * 100}%`,
+                    }}
+                  />
+                ))}
+                {chartSegments.map((segment) => {
+                  const start = timeToMinutes(segment.startTime) ?? chartRange.start;
+                  const end = timeToMinutes(segment.endTime) ?? start;
+                  const top = ((start - chartRange.start) / chartDuration) * 100;
+                  const height = (Math.max(15, end - start) / chartDuration) * 100;
+
+                  return (
+                    <div
+                      className={`schedule-chart-bar schedule-${segment.kind}`}
+                      key={segment.id}
+                      style={{
+                        top: `${Math.max(0, top)}%`,
+                        height: `${Math.min(100 - Math.max(0, top), Math.max(5, height))}%`,
+                      }}
+                      title={`${segment.startTime}-${segment.endTime} ${segment.title}`}
+                    >
+                      <strong>{segment.title}</strong>
+                      <span>
+                        {segment.startTime}-{segment.endTime}
+                      </span>
+                    </div>
+                  );
+                })}
+                {chartSegments.length === 0 && <div className="schedule-chart-empty">這天還沒有可畫成圖表的時間資料。</div>}
+              </div>
             </div>
             <div className="schedule-chart-legend">
               <span className="legend-fixed">固定</span>

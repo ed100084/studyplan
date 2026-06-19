@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.1
+
+- Changed score history into per-subject summary cards with expandable score details.
+- Rebuilt the selected-day schedule chart as a vertical time grid with proportional event blocks.
+- Added clearer visual colors for fixed events, tutoring, study blocks, and breaks in the daily chart.
+
 ## 2.5.0
 
 - Added optional start and end dates to fixed events.

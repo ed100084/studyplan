@@ -734,41 +734,58 @@ h1 {
 }
 
 .schedule-chart-track {
-  background: repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(20% - 1px),
-      rgba(148, 163, 184, 0.35) calc(20% - 1px),
-      rgba(148, 163, 184, 0.35) 20%
-    ),
-    #f8fafc;
+  background: #f8fafc;
   border: 1px solid var(--line);
   border-radius: 8px;
-  min-height: 168px;
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  min-height: 360px;
   overflow: hidden;
+}
+
+.schedule-chart-axis,
+.schedule-chart-lanes {
+  min-height: 360px;
   position: relative;
+}
+
+.schedule-chart-axis {
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.schedule-chart-axis span {
+  left: 8px;
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+.schedule-chart-lanes {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.05), rgba(15, 118, 110, 0.05));
+}
+
+.schedule-chart-gridline {
+  border-top: 1px dashed rgba(148, 163, 184, 0.55);
+  left: 0;
+  position: absolute;
+  right: 0;
 }
 
 .schedule-chart-bar {
   align-content: center;
   border: 1px solid var(--line);
+  border-left-width: 5px;
   border-radius: 8px;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
   display: grid;
   gap: 2px;
-  min-height: 46px;
+  left: 12px;
+  min-height: 42px;
   overflow: hidden;
-  padding: 8px;
+  padding: 8px 10px;
   position: absolute;
-  top: 14px;
-}
-
-.schedule-chart-bar:nth-child(2n) {
-  top: 68px;
-}
-
-.schedule-chart-bar:nth-child(3n) {
-  top: 112px;
+  right: 12px;
 }
 
 .schedule-chart-bar strong,
@@ -790,7 +807,11 @@ h1 {
 
 .schedule-chart-empty {
   color: var(--muted);
+  left: 12px;
   padding: 16px;
+  position: absolute;
+  right: 12px;
+  top: 12px;
 }
 
 .schedule-chart-legend {
@@ -1082,16 +1103,24 @@ button[aria-disabled="true"] {
 
 .schedule-study {
   border-color: #bfdbfe;
+  border-left-color: #2563eb;
   background: #eff6ff;
 }
 
 .schedule-break {
+  border-left-color: #94a3b8;
   border-style: dashed;
   background: #f8fafc;
 }
 
-.schedule-fixed,
+.schedule-fixed {
+  border-left-color: #64748b;
+  background: #fff;
+}
+
 .schedule-tutoring {
+  border-color: #99f6e4;
+  border-left-color: #0f766e;
   background: #fff;
 }
 
@@ -1178,10 +1207,6 @@ button[aria-disabled="true"] {
   margin-top: 12px;
 }
 
-.score-list {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
 .learning-item {
   align-items: center;
   background: white;
@@ -1193,21 +1218,70 @@ button[aria-disabled="true"] {
   padding: 12px;
 }
 
-.score-item {
-  align-items: stretch;
-  display: grid;
-}
-
-.score-item form {
-  justify-self: start;
-}
-
 .learning-item span {
   color: var(--muted);
   display: block;
   font-size: 13px;
   line-height: 1.5;
   margin-top: 4px;
+}
+
+.score-summary-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.score-summary-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.score-summary-card summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 12px;
+}
+
+.score-summary-card summary strong,
+.score-summary-card summary small {
+  display: block;
+}
+
+.score-summary-card summary small,
+.score-summary-metric {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.score-summary-metric {
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.score-detail-list {
+  border-top: 1px solid var(--line);
+  display: grid;
+}
+
+.score-detail-item {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.score-detail-item + .score-detail-item {
+  border-top: 1px solid var(--line);
 }
 
 @media (max-width: 820px) {
@@ -1260,9 +1334,18 @@ button[aria-disabled="true"] {
   .active-student-heading,
   .child-pill,
   .exam-plan-heading,
-  .learning-item {
+  .learning-item,
+  .score-detail-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .score-summary-card summary {
+    grid-template-columns: 1fr;
+  }
+
+  .score-summary-metric {
+    white-space: normal;
   }
 
   .link-code-card > strong {

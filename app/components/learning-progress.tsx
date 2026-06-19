@@ -22,9 +22,27 @@ const sourceLabels = {
   SYSTEM: "系統",
 };
 
+function groupScoresBySubject(scores: ScoreWithSubject[]) {
+  const groups = new Map<string, ScoreWithSubject[]>();
+
+  for (const score of scores) {
+    const subjectScores = groups.get(score.subject.name) ?? [];
+    subjectScores.push(score);
+    groups.set(score.subject.name, subjectScores);
+  }
+
+  return Array.from(groups.entries()).map(([subjectName, subjectScores]) => ({
+    subjectName,
+    scores: subjectScores,
+    latest: subjectScores[0],
+    average: averageScore(subjectScores),
+  }));
+}
+
 export function LearningProgress({ studentId, scores, weakPoints, weeklyTasks, today, timeZone }: LearningProgressProps) {
   const progress = buildWeeklyProgress(weeklyTasks);
   const recentAverage = averageScore(scores.slice(0, 5));
+  const scoreGroups = groupScoresBySubject(scores);
 
   return (
     <section className="panel learning-panel">
@@ -117,19 +135,35 @@ export function LearningProgress({ studentId, scores, weakPoints, weeklyTasks, t
       <div className="learning-grid learning-history">
         <div>
           <h3>近期成績</h3>
-          <div className="learning-list score-list">
-            {scores.map((score) => (
-              <div className="learning-item score-item" key={score.id}>
-                <div>
-                  <strong>{score.subject.name}：{score.value} 分</strong>
-                  <span>{formatDateInput(score.takenAt, timeZone)}，由{sourceLabels[score.source]}登錄</span>
+          <div className="score-summary-list">
+            {scoreGroups.map((group) => (
+              <details className="score-summary-card" key={group.subjectName}>
+                <summary>
+                  <span>
+                    <strong>{group.subjectName}</strong>
+                    <small>{group.scores.length} 筆紀錄</small>
+                  </span>
+                  <span className="score-summary-metric">
+                    最新 {group.latest.value} 分
+                    {group.average !== null ? ` / 平均 ${group.average}` : ""}
+                  </span>
+                </summary>
+                <div className="score-detail-list">
+                  {group.scores.map((score) => (
+                    <div className="score-detail-item" key={score.id}>
+                      <div>
+                        <strong>{score.value} 分</strong>
+                        <span>{formatDateInput(score.takenAt, timeZone)}，由{sourceLabels[score.source]}登錄</span>
+                      </div>
+                      <form action={deleteScore}>
+                        {studentId && <input name="studentId" type="hidden" value={studentId} />}
+                        <input name="scoreId" type="hidden" value={score.id} />
+                        <button className="small-button danger-button" type="submit">刪除</button>
+                      </form>
+                    </div>
+                  ))}
                 </div>
-                <form action={deleteScore}>
-                  {studentId && <input name="studentId" type="hidden" value={studentId} />}
-                  <input name="scoreId" type="hidden" value={score.id} />
-                  <button className="small-button danger-button" type="submit">刪除</button>
-                </form>
-              </div>
+              </details>
             ))}
             {scores.length === 0 && <div className="empty-state">還沒有成績紀錄。</div>}
           </div>
