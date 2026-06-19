@@ -395,7 +395,8 @@ h1 {
 }
 
 .form-card input,
-.form-card select {
+.form-card select,
+.form-card textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -407,6 +408,17 @@ h1 {
 
 .form-card input::placeholder {
   color: #98a2b3;
+}
+
+.form-card textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.form-status {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
 }
 
 .dashboard-grid {
@@ -1129,6 +1141,39 @@ button[aria-disabled="true"] {
   text-align: right;
 }
 
+.study-task-import-panel {
+  margin-bottom: 20px;
+}
+
+.import-history-panel {
+  margin: 20px 0;
+}
+
+.import-batch-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.import-batch-card {
+  align-items: center;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.import-batch-card span {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1545,6 +1590,7 @@ button[aria-disabled="true"] {
   .link-code-card,
   .active-student-heading,
   .child-pill,
+  .import-batch-card,
   .exam-plan-heading,
   .learning-item,
   .score-detail-item {

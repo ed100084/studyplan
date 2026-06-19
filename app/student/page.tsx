@@ -23,11 +23,12 @@ import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
 import { DayDetailPanel } from "@/app/components/day-detail-panel";
 import { CalendarDayDetailBrowser } from "@/app/components/calendar-day-detail-browser";
+import { StudyTaskContinuousForm, StudyTaskImportHistory, StudyTaskImportPanel } from "@/app/components/study-task-tools";
+import { buildStudyTaskImportBatches } from "@/lib/study-task-import-history";
 import { createStudent, signOut } from "../onboarding/actions";
 import {
   createFixedEvent,
   createCalendarEvent,
-  createStudyTask,
   createTutoringSession,
   deleteCalendarEvent,
   deleteFixedEvent,
@@ -54,6 +55,9 @@ type StudentPageProps = {
     date?: string;
     week?: string;
     month?: string;
+    imported?: string;
+    deletedBatch?: string;
+    importErrors?: string;
   }>;
 };
 
@@ -883,6 +887,25 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
   const student = currentUser?.studentProfile;
   const className = student?.classMemberships[0]?.classroom.name;
+  const importBatchTasks = student
+    ? await prisma.studyTask.findMany({
+        where: {
+          studentId: student.id,
+          importBatchId: {
+            not: null,
+          },
+        },
+        select: {
+          importBatchId: true,
+          plannedDate: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      })
+    : [];
+  const importBatches = buildStudyTaskImportBatches(importBatchTasks, timeZone);
   const todayTasks =
     student?.studyTasks.filter((task) => {
       const plannedDate = task.plannedDate.getTime();
@@ -998,6 +1021,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {scheduleHistoryUpdated && <div className="notice">今天的排程版本已儲存。</div>}
           {examPlanUpdated && <div className="notice">考前複習計畫已更新，剩餘進度已重新分配。</div>}
           {params?.learning === "1" && <div className="notice">學習成果資料已更新。</div>}
+          {params?.imported && <div className="notice">已匯入 {params.imported} 筆任務。</div>}
+          {params?.deletedBatch && <div className="notice">已刪除 {params.deletedBatch} 筆匯入任務。</div>}
           {error === "email-required" && <div className="error-notice">請填寫 Email，之後才能從登入頁回到帳號。</div>}
           {error === "password-invalid" && <div className="error-notice">密碼長度必須為 8 到 128 個字元。</div>}
           {error === "account-exists" && (
@@ -1010,6 +1035,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {error === "teacher-event-readonly" && <div className="error-notice">老師套用的班級事件只能由老師管理。</div>}
           {error === "fixed-event-date-range" && <div className="error-notice">固定作息結束日期不能早於開始日期。</div>}
           {error === "tutoring-date-range" && <div className="error-notice">補習結束日期不能早於開始日期。</div>}
+          {error === "task-import" && <div className="error-notice">CSV 匯入失敗：{params?.importErrors ?? "請檢查格式。"}</div>}
+          {error === "task-import-batch-required" && <div className="error-notice">缺少匯入批次代碼，無法刪除整批任務。</div>}
           {error === "invalid-score" && <div className="error-notice">成績必須是 0 到 100 分，並填寫科目。</div>}
           {error === "invalid-weak-point" && <div className="error-notice">請填寫弱點科目與內容。</div>}
 
@@ -1105,6 +1132,13 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   timeZone={timeZone}
                 />
               </CalendarDayDetailBrowser>
+              )}
+
+              {activeTab === "calendar" && (
+              <>
+                <StudyTaskImportPanel />
+                <StudyTaskImportHistory batches={importBatches} />
+              </>
               )}
 
               {activeTab === "learning" && (
@@ -1502,48 +1536,11 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   </button>
                 </form>
 
-                <form className="form-card" id="new-study-task-form" action={createStudyTask}>
-                  <h2>新增今天任務</h2>
-                  <label>
-                    科目
-                    <input name="subjectName" placeholder="例如：英文" />
-                  </label>
-                  <label>
-                    任務
-                    <input name="title" placeholder="例如：完成習作第 12 頁" required />
-                  </label>
-                  <label>
-                    類型
-                    <select name="type" defaultValue="SCHOOL_HOMEWORK">
-                      {Object.entries(taskTypeLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    日期
-                    <input name="plannedDate" type="date" defaultValue={today.date} required />
-                  </label>
-                  <div className="field-row">
-                    <label>
-                      預估分鐘
-                      <input name="estimatedMinutes" type="number" min="10" step="5" defaultValue="30" />
-                    </label>
-                    <label>
-                      優先度
-                      <input name="priority" type="number" min="1" max="5" defaultValue="3" />
-                    </label>
-                  </div>
-                  <label>
-                    備註
-                    <input name="description" placeholder="例如：明天要交" />
-                  </label>
-                  <button className="button primary" type="submit">
-                    加入任務
-                  </button>
-                </form>
+                <StudyTaskContinuousForm
+                  defaultDate={today.date}
+                  taskTypeOptions={taskTypeOptions.map(([value, label]) => ({ value, label }))}
+                  title="新增今天任務"
+                />
 
                 <form className="form-card" id="new-calendar-event-form" action={createCalendarEvent}>
                   <h2>新增考試 / 學校活動</h2>

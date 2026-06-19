@@ -1,8 +1,17 @@
-import { TaskType } from "@prisma/client";
+import type { TaskType } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 
 const MAX_IMPORT_ROWS = 500;
 const EXPECTED_HEADERS = ["date", "subject", "title", "type", "minutes", "priority", "note"];
+const TASK_TYPES = [
+  "SCHOOL_HOMEWORK",
+  "TUTORING_HOMEWORK",
+  "REVIEW",
+  "PRACTICE",
+  "WEAK_POINT",
+  "PREVIEW",
+  "EXAM_SPRINT",
+] as const satisfies readonly TaskType[];
 
 export type StudyTaskImportRow = {
   date: string;
@@ -20,17 +29,17 @@ export type StudyTaskImportResult = {
 };
 
 const taskTypeAliases: Record<string, TaskType> = {
-  學校作業: TaskType.SCHOOL_HOMEWORK,
-  學校功課: TaskType.SCHOOL_HOMEWORK,
-  補習作業: TaskType.TUTORING_HOMEWORK,
-  補習功課: TaskType.TUTORING_HOMEWORK,
-  複習: TaskType.REVIEW,
-  復習: TaskType.REVIEW,
-  練習: TaskType.PRACTICE,
-  弱點: TaskType.WEAK_POINT,
-  弱點補強: TaskType.WEAK_POINT,
-  預習: TaskType.PREVIEW,
-  考前衝刺: TaskType.EXAM_SPRINT,
+  學校作業: "SCHOOL_HOMEWORK",
+  學校功課: "SCHOOL_HOMEWORK",
+  補習作業: "TUTORING_HOMEWORK",
+  補習功課: "TUTORING_HOMEWORK",
+  複習: "REVIEW",
+  復習: "REVIEW",
+  練習: "PRACTICE",
+  弱點: "WEAK_POINT",
+  弱點補強: "WEAK_POINT",
+  預習: "PREVIEW",
+  考前衝刺: "EXAM_SPRINT",
 };
 
 function textValue(value: unknown) {
@@ -58,7 +67,7 @@ function parseTaskType(value: string) {
   }
 
   const enumValue = value.toUpperCase().replace(/[\s-]+/g, "_");
-  return Object.values(TaskType).includes(enumValue as TaskType) ? (enumValue as TaskType) : TaskType.REVIEW;
+  return TASK_TYPES.includes(enumValue as TaskType) ? (enumValue as TaskType) : "REVIEW";
 }
 
 function parseInteger(value: string, fallback: number) {

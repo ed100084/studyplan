@@ -7,6 +7,8 @@ function pendingLabelFor(button: HTMLButtonElement, form: HTMLFormElement) {
 }
 
 function markFormPending(event: SubmitEvent) {
+  if (event.defaultPrevented) return;
+
   const form = event.target instanceof HTMLFormElement ? event.target : null;
   if (!form || form.dataset.submitGuard === "off") return;
 

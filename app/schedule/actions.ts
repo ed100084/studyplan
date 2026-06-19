@@ -189,6 +189,33 @@ async function getEditableStudent(studentId?: string) {
   redirect("/guardian?error=student-required");
 }
 
+type EditableStudent = Awaited<ReturnType<typeof getEditableStudent>>;
+
+async function createStudyTaskRecord(formData: FormData, editable: EditableStudent) {
+  const subjectName = textValue(formData, "subjectName");
+  const title = textValue(formData, "title") || "讀書任務";
+  const description = textValue(formData, "description") || undefined;
+  const type = enumValue(TaskType, textValue(formData, "type"), TaskType.SCHOOL_HOMEWORK);
+  const plannedDate = await userDateValue(textValue(formData, "plannedDate"));
+  const estimatedMinutes = Math.max(10, intValue(formData, "estimatedMinutes", 30));
+  const priority = Math.min(5, Math.max(1, intValue(formData, "priority", 3)));
+  const subjectId = await getSubjectId(subjectName);
+
+  return prisma.studyTask.create({
+    data: {
+      studentId: editable.student.id,
+      subjectId,
+      title,
+      description,
+      type,
+      plannedDate,
+      estimatedMinutes,
+      priority,
+      source: editable.source,
+    },
+  });
+}
+
 export async function createFixedEvent(formData: FormData) {
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
@@ -267,33 +294,21 @@ export async function createTutoringSession(formData: FormData) {
 export async function createStudyTask(formData: FormData) {
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
-  const subjectName = textValue(formData, "subjectName");
-  const title = textValue(formData, "title") || "讀書任務";
-  const description = textValue(formData, "description") || undefined;
-  const type = enumValue(TaskType, textValue(formData, "type"), TaskType.SCHOOL_HOMEWORK);
-  const plannedDate = await userDateValue(textValue(formData, "plannedDate"));
-  const estimatedMinutes = Math.max(10, intValue(formData, "estimatedMinutes", 30));
-  const priority = Math.min(5, Math.max(1, intValue(formData, "priority", 3)));
-
-  const subjectId = await getSubjectId(subjectName);
-
-  await prisma.studyTask.create({
-    data: {
-      studentId: editable.student.id,
-      subjectId,
-      title,
-      description,
-      type,
-      plannedDate,
-      estimatedMinutes,
-      priority,
-      source: editable.source,
-    },
-  });
+  await createStudyTaskRecord(formData, editable);
 
   revalidatePath("/student");
   revalidatePath("/guardian");
   redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function createStudyTaskInline(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  await createStudyTaskRecord(formData, editable);
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  return { ok: true };
 }
 
 export async function importStudyTasks(formData: FormData) {
