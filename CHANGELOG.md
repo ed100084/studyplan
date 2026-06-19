@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.6.0
+
+- Changed student and guardian dashboards into Today, Calendar, Learning, and Settings tabs to reduce the single long scroll.
+- Compact weekly and monthly calendars now keep navigation in the calendar tab while opening selected-day details from date cells.
+- Empty states link directly to the relevant creation forms, including across dashboard tabs.
+- Server-rendered timezone defaults to Asia/Taipei before client sync.
+- Set the document language to `zh-TW` and hide empty day-detail metric cards when there is no data.
+
 ## 2.5.2
 
 - Student and guardian creation forms for tutoring sessions now allow selecting multiple weekdays at once.

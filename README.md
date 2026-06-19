@@ -2,17 +2,17 @@
 
 ## Current Status
 
-Version: 2.5.2
+Version: 2.6.0
 
-- Fixed events support optional start and end dates for term schedules, holidays, and temporary extended school hours.
-- Student and guardian calendars only count fixed events on dates where they are active.
-- Tutoring and fixed-event creation forms support selecting multiple weekdays at once.
-- Score history is grouped by subject so multiple scores no longer stretch into a long row.
-- Selected-day details now use a vertical chart-style timeline with proportional schedule blocks.
+- Student and guardian dashboards are split into Today, Calendar, Learning, and Settings tabs.
+- Weekly and monthly calendars use compact grids, and selecting a date opens that day's detail panel.
+- Empty states now include direct CTAs that jump to the right creation form.
+- Server-rendered dates default to Asia/Taipei, so today's tasks do not shift to UTC.
+- The app now declares `zh-TW` as the document language.
 
 ## 目前進度
 
-目前版本：2.5.2
+目前版本：2.6.0
 
 - 學生與家長頁已支援點選週曆或月曆任一天，直接查看該日詳細行程。
 - 當日詳細行程會用垂直圖表式時間軸呈現固定行程、補習、讀書任務、考試與事件。
