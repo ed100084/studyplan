@@ -325,32 +325,27 @@ export async function importStudyTasks(formData: FormData) {
 
   await prisma.$transaction(async (transaction) => {
     const subjectIds = new Map<string, string>();
+    const subjectNames = Array.from(
+      new Set(result.rows.map((row) => row.subjectName).filter((subjectName): subjectName is string => Boolean(subjectName))),
+    );
 
-    for (const row of result.rows) {
-      let subjectId: string | null = null;
-      if (row.subjectName) {
-        const existingSubjectId = subjectIds.get(row.subjectName);
-        if (existingSubjectId) {
-          subjectId = existingSubjectId;
-        } else {
-          const subject = await transaction.subject.upsert({
-            where: {
-              name: row.subjectName,
-            },
-            update: {},
-            create: {
-              name: row.subjectName,
-            },
-          });
-          subjectId = subject.id;
-          subjectIds.set(row.subjectName, subject.id);
-        }
-      }
+    for (const subjectName of subjectNames) {
+      const subject = await transaction.subject.upsert({
+        where: {
+          name: subjectName,
+        },
+        update: {},
+        create: {
+          name: subjectName,
+        },
+      });
+      subjectIds.set(subjectName, subject.id);
+    }
 
-      await transaction.studyTask.create({
-        data: {
+    await transaction.studyTask.createMany({
+      data: result.rows.map((row) => ({
           studentId: editable.student.id,
-          subjectId,
+          subjectId: row.subjectName ? subjectIds.get(row.subjectName) ?? null : null,
           importBatchId,
           title: row.title,
           description: row.description,
@@ -359,10 +354,9 @@ export async function importStudyTasks(formData: FormData) {
           estimatedMinutes: row.estimatedMinutes,
           priority: row.priority,
           source: editable.source,
-        },
-      });
-    }
-  });
+      })),
+    });
+  }, { timeout: 20_000 });
 
   revalidatePath("/student");
   revalidatePath("/guardian");
