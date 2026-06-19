@@ -112,6 +112,7 @@ export function DayDetailPanel({
   const chartRange = buildChartRange(chartSegments);
   const chartDuration = Math.max(1, chartRange.end - chartRange.start);
   const chartTicks = buildChartTicks(chartRange);
+  const hasMetrics = fixedEvents.length + tutoringSessions.length + calendarEvents.length + tasks.length > 0;
 
   return (
     <section className="panel day-detail-panel">
@@ -125,6 +126,7 @@ export function DayDetailPanel({
         <span>{plannedMinutes} 分鐘待完成</span>
       </div>
 
+      {hasMetrics && (
       <div className="day-detail-metrics">
         <div>
           <strong>{fixedEvents.length}</strong>
@@ -143,6 +145,7 @@ export function DayDetailPanel({
           <span>任務</span>
         </div>
       </div>
+      )}
 
       <div className="day-detail-grid">
         <div className="day-detail-card">

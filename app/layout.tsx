@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-Hant">
+    <html lang="zh-TW">
       <body>
         <TimeZoneSync />
         <FormSubmitGuard />
