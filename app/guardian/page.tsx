@@ -486,8 +486,8 @@ type StudyTaskWithSubject = StudyTask & {
 
 function StudyTaskEditor({ task, studentId, timeZone }: { task: StudyTaskWithSubject; studentId: string; timeZone: string }) {
   return (
-    <details className="item-editor">
-      <summary>編輯</summary>
+    <div className="item-editor task-editor-panel">
+      <strong>編輯任務</strong>
       <form action={updateStudyTask}>
         <StudentIdInput studentId={studentId} />
         <input name="taskId" type="hidden" value={task.id} />
@@ -531,7 +531,7 @@ function StudyTaskEditor({ task, studentId, timeZone }: { task: StudyTaskWithSub
           儲存
         </button>
       </form>
-    </details>
+    </div>
   );
 }
 
@@ -931,7 +931,6 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const activeTodayTutoringSessions =
     activeStudent ? activeTutoringSessionsForDate(activeStudent.tutoringSessions, today.date, today.weekday, timeZone) : [];
   const openTasks = activeTodayTasks.filter((task) => task.status === "PLANNED");
-  const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const activeClass = activeStudent?.classMemberships[0]?.classroom.name;
   const todaySchedule = activeStudent
     ? buildTodaySchedule({
@@ -960,6 +959,8 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
     : [];
   const selectedCalendarEvents = activeStudent?.calendarEvents.filter((event) => eventFallsOnDate(event, selectedDate, timeZone)) ?? [];
   const selectedOpenTasks = selectedTasks.filter((task) => task.status === "PLANNED");
+  const selectedDoneTasks = selectedTasks.filter((task) => task.status !== "PLANNED");
+  const selectedPlannedMinutes = selectedOpenTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const selectedSchedule = activeStudent
     ? buildTodaySchedule({
         fixedEvents: selectedFixedEvents,
@@ -1341,12 +1342,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
                     <section className="panel">
                       <div className="panel-header">
-                        <h2>今天任務</h2>
-                        <span>待完成約 {plannedMinutes} 分鐘</span>
+                        <h2>{selectedDate === today.date ? "今天任務" : "選取日期任務"}</h2>
+                        <span>
+                          {selectedDate}，{selectedOpenTasks.length} 項待完成，預估 {selectedPlannedMinutes} 分鐘
+                        </span>
                       </div>
 
                       <div className="task-list compact-list">
-                        {activeTodayTasks.map((task) => (
+                        {selectedOpenTasks.map((task) => (
                           <div className={task.status === "PLANNED" ? "task" : "task muted-task"} key={task.id}>
                             <span className="task-dot" aria-hidden="true" />
                             <div>
@@ -1383,7 +1386,6 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                                     略過
                                   </button>
                                 </form>
-                                {!task.examReviewPlanId && (
                                   <form action={deleteStudyTask}>
                                     <input name="studentId" type="hidden" value={activeStudent.id} />
                                     <input name="taskId" type="hidden" value={task.id} />
@@ -1391,12 +1393,13 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                                       刪除
                                     </button>
                                   </form>
+                                {task.examReviewPlanId && (
+                                  <span className="task-source-note">此任務來自考前複習計畫，刪除後不影響其他任務。</span>
                                 )}
                               </div>
                             ) : (
                               <div className="inline-actions">
                                 <span className="time">{statusLabels[task.status]}</span>
-                                {!task.examReviewPlanId && (
                                   <form action={deleteStudyTask}>
                                     <input name="studentId" type="hidden" value={activeStudent.id} />
                                     <input name="taskId" type="hidden" value={task.id} />
@@ -1404,24 +1407,47 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                                       刪除
                                     </button>
                                   </form>
+                                {task.examReviewPlanId && (
+                                  <span className="task-source-note">此任務來自考前複習計畫，刪除後不影響其他任務。</span>
                                 )}
                               </div>
                             )}
                             {task.status === "PLANNED" ? <PartialProgressForm taskId={task.id} studentId={activeStudent.id} /> : null}
-                            {!task.examReviewPlanId && (
                               <StudyTaskEditor task={task} studentId={activeStudent.id} timeZone={timeZone} />
-                            )}
                           </div>
                         ))}
 
-                        {activeTodayTasks.length === 0 && (
+                        {selectedTasks.length === 0 && (
                           <div className="empty-state">
-                            <p>今天尚未輸入任務。</p>
+                            <p>{selectedDate === today.date ? "今天" : "這天"}尚未輸入任務。</p>
                             <div className="empty-state-actions">
                               <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增第一筆任務</a>
                             </div>
                           </div>
                         )}
+                        {selectedDoneTasks.map((task) => (
+                          <div className="task muted-task" key={task.id}>
+                            <span className="task-dot" aria-hidden="true" />
+                            <div>
+                              <strong>
+                                {task.subject?.name ?? "未分類"}：{task.title}
+                              </strong>
+                              <span>{statusLabels[task.status]}</span>
+                            </div>
+                            <span className="time">{task.estimatedMinutes} 分</span>
+                            <form className="inline-actions" action={deleteStudyTask}>
+                              <input name="studentId" type="hidden" value={activeStudent.id} />
+                              <input name="taskId" type="hidden" value={task.id} />
+                              <button className="small-button danger-button" type="submit">
+                                刪除
+                              </button>
+                              {task.examReviewPlanId && (
+                                <span className="task-source-note">此任務來自考前複習計畫，刪除後不影響其他任務。</span>
+                              )}
+                            </form>
+                            <StudyTaskEditor task={task} studentId={activeStudent.id} timeZone={timeZone} />
+                          </div>
+                        ))}
                       </div>
                     </section>
                   </div>
