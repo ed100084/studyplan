@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -16,11 +17,19 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
-import { formatDateInput, getCurrentDay, getDayRange, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
+import {
+  DEFAULT_TIME_ZONE,
+  formatDateInput,
+  getCurrentDay,
+  getDayRange,
+  getRequestTimeZone,
+  zonedDateStart,
+} from "@/lib/timezone";
 import { buildExamReviewTaskDrafts } from "@/lib/exam-review-planner";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
 import { tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
+import { parseStudyTaskCsv } from "@/lib/study-task-import";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -285,6 +294,64 @@ export async function createStudyTask(formData: FormData) {
   revalidatePath("/student");
   revalidatePath("/guardian");
   redirect(addQuery(editable.redirectTo, "schedule=1"));
+}
+
+export async function importStudyTasks(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const result = parseStudyTaskCsv(textValue(formData, "csv"));
+
+  if (result.errors.length > 0) {
+    const message = encodeURIComponent(result.errors.slice(0, 5).join("；"));
+    redirect(addQuery(editable.redirectTo, `error=task-import&importErrors=${message}`));
+  }
+
+  const importBatchId = randomUUID();
+
+  await prisma.$transaction(async (transaction) => {
+    const subjectIds = new Map<string, string>();
+
+    for (const row of result.rows) {
+      let subjectId: string | null = null;
+      if (row.subjectName) {
+        const existingSubjectId = subjectIds.get(row.subjectName);
+        if (existingSubjectId) {
+          subjectId = existingSubjectId;
+        } else {
+          const subject = await transaction.subject.upsert({
+            where: {
+              name: row.subjectName,
+            },
+            update: {},
+            create: {
+              name: row.subjectName,
+            },
+          });
+          subjectId = subject.id;
+          subjectIds.set(row.subjectName, subject.id);
+        }
+      }
+
+      await transaction.studyTask.create({
+        data: {
+          studentId: editable.student.id,
+          subjectId,
+          importBatchId,
+          title: row.title,
+          description: row.description,
+          type: row.type,
+          plannedDate: zonedDateStart(row.date, DEFAULT_TIME_ZONE),
+          estimatedMinutes: row.estimatedMinutes,
+          priority: row.priority,
+          source: editable.source,
+        },
+      });
+    }
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirect(addQuery(editable.redirectTo, `schedule=1&imported=${result.rows.length}&batchId=${importBatchId}`));
 }
 
 export async function createCalendarEvent(formData: FormData) {
