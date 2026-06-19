@@ -341,7 +341,14 @@ function TutoringScheduleList({ sessions, timeZone }: { sessions: TutoringSessio
             <TutoringSessionEditor sessionItem={sessionItem} timeZone={timeZone} />
           </div>
         ))}
-        {sortedSessions.length === 0 && <div className="empty-state">尚未建立補習排程。</div>}
+        {sortedSessions.length === 0 && (
+          <div className="empty-state">
+            <p>尚未建立補習排程。</p>
+            <div className="empty-state-actions">
+              <a className="small-button" href="#new-tutoring-form">＋ 新增第一筆補習</a>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -944,7 +951,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                     </div>
                   ))}
 
-                  {student.calendarEvents.length === 0 && <div className="empty-state">本週或本月尚未輸入考試與學校活動。</div>}
+                  {student.calendarEvents.length === 0 && (
+                    <div className="empty-state">
+                      <p>本週或本月尚未輸入考試與學校活動。</p>
+                      <div className="empty-state-actions">
+                        <a className="small-button" href="#new-calendar-event-form">＋ 新增第一筆事件</a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -1007,7 +1021,13 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                     ))}
 
                     {todayFixedEvents.length === 0 && todayTutoringSessions.length === 0 && (
-                      <div className="empty-state">今天還沒有固定行程。先輸入晚餐、洗澡、睡覺或補習時段。</div>
+                      <div className="empty-state">
+                        <p>今天還沒有固定行程。先輸入晚餐、洗澡、睡覺或補習時段。</p>
+                        <div className="empty-state-actions">
+                          <a className="small-button" href="#new-fixed-event-form">＋ 新增作息</a>
+                          <a className="small-button" href="#new-tutoring-form">＋ 新增補習</a>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </section>
@@ -1066,7 +1086,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       </div>
                     ))}
 
-                    {openTasks.length === 0 && <div className="empty-state">今天沒有待完成任務。</div>}
+                    {openTasks.length === 0 && (
+                      <div className="empty-state">
+                        <p>今天沒有待完成任務。</p>
+                        <div className="empty-state-actions">
+                          <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                        </div>
+                      </div>
+                    )}
 
                     {doneTasks.map((task) => (
                       <div className="task muted-task" key={task.id}>
@@ -1126,7 +1153,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       </div>
                     ))}
 
-                    {todaySchedule.scheduled.length === 0 && <div className="empty-state">今天還沒有可排程資料。</div>}
+                    {todaySchedule.scheduled.length === 0 && (
+                      <div className="empty-state">
+                        <p>今天還沒有可排程資料。</p>
+                        <div className="empty-state-actions">
+                          <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {todaySchedule.unplaced.length > 0 && (
@@ -1151,7 +1185,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               <ScheduleHistory runs={student.scheduleRuns} timeZone={timeZone} />
 
               <div className="form-grid">
-                <form className="form-card" action={createTutoringSession}>
+                <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
                   <h2>新增補習</h2>
                   <label>
                     科目
@@ -1198,7 +1232,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   </button>
                 </form>
 
-                <form className="form-card" action={createFixedEvent}>
+                <form className="form-card" id="new-fixed-event-form" action={createFixedEvent}>
                   <h2>新增固定作息</h2>
                   <label>
                     名稱
@@ -1244,7 +1278,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   </button>
                 </form>
 
-                <form className="form-card" action={createStudyTask}>
+                <form className="form-card" id="new-study-task-form" action={createStudyTask}>
                   <h2>新增今天任務</h2>
                   <label>
                     科目
@@ -1287,7 +1321,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   </button>
                 </form>
 
-                <form className="form-card" action={createCalendarEvent}>
+                <form className="form-card" id="new-calendar-event-form" action={createCalendarEvent}>
                   <h2>新增考試 / 學校活動</h2>
                   <label>
                     類型

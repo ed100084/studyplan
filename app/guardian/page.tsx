@@ -358,7 +358,14 @@ function TutoringScheduleList({
             <TutoringSessionEditor sessionItem={sessionItem} studentId={studentId} timeZone={timeZone} />
           </div>
         ))}
-        {sortedSessions.length === 0 && <div className="empty-state">尚未建立補習排程。</div>}
+        {sortedSessions.length === 0 && (
+          <div className="empty-state">
+            <p>尚未建立補習排程。</p>
+            <div className="empty-state-actions">
+              <a className="small-button" href="#new-tutoring-form">＋ 新增第一筆補習</a>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -887,7 +894,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
               </div>
 
               <div className="guardian-tools">
-                <form className="form-card compact-form" action={linkStudentToGuardian}>
+                <form className="form-card compact-form" id="link-student-form" action={linkStudentToGuardian}>
                   <h2>新增孩子</h2>
                   <label>
                     學生連結碼
@@ -918,7 +925,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       </Link>
                     ))}
 
-                    {linkedStudents.length === 0 && <div className="empty-state">尚未連結學生。請先向孩子取得學生連結碼。</div>}
+                    {linkedStudents.length === 0 && (
+                      <div className="empty-state">
+                        <p>尚未連結學生。請先向孩子取得學生連結碼。</p>
+                        <div className="empty-state-actions">
+                          <a className="small-button" href="#link-student-form">＋ 連結第一位孩子</a>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </section>
               </div>
@@ -1030,7 +1044,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                         </div>
                       ))}
 
-                      {activeStudent.calendarEvents.length === 0 && <div className="empty-state">本週或本月尚未輸入考試與學校活動。</div>}
+                      {activeStudent.calendarEvents.length === 0 && (
+                        <div className="empty-state">
+                          <p>本週或本月尚未輸入考試與學校活動。</p>
+                          <div className="empty-state-actions">
+                            <a className="small-button" href="#new-calendar-event-form">＋ 新增第一筆事件</a>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </section>
 
@@ -1089,7 +1110,13 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                         ))}
 
                         {activeTodayFixedEvents.length === 0 && activeTodayTutoringSessions.length === 0 && (
-                          <div className="empty-state">今天尚未輸入固定行程。</div>
+                          <div className="empty-state">
+                            <p>今天尚未輸入固定行程。</p>
+                            <div className="empty-state-actions">
+                              <a className="small-button" href="#new-fixed-event-form">＋ 新增作息</a>
+                              <a className="small-button" href="#new-tutoring-form">＋ 新增補習</a>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </section>
@@ -1169,7 +1196,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           </div>
                         ))}
 
-                        {activeTodayTasks.length === 0 && <div className="empty-state">今天尚未輸入任務。</div>}
+                        {activeTodayTasks.length === 0 && (
+                          <div className="empty-state">
+                            <p>今天尚未輸入任務。</p>
+                            <div className="empty-state-actions">
+                              <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </section>
                   </div>
@@ -1209,7 +1243,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           </div>
                         ))}
 
-                        {todaySchedule.scheduled.length === 0 && <div className="empty-state">今天還沒有可排程資料。</div>}
+                        {todaySchedule.scheduled.length === 0 && (
+                          <div className="empty-state">
+                            <p>今天還沒有可排程資料。</p>
+                            <div className="empty-state-actions">
+                              <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {todaySchedule.unplaced.length > 0 && (
@@ -1235,7 +1276,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   <ScheduleHistory runs={activeStudent.scheduleRuns} timeZone={timeZone} />
 
                   <div className="form-grid">
-                    <form className="form-card" action={createTutoringSession}>
+                    <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
                       <h2>替 {activeStudent.user.displayName} 代填補習</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
@@ -1283,7 +1324,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       </button>
                     </form>
 
-                    <form className="form-card" action={createFixedEvent}>
+                    <form className="form-card" id="new-fixed-event-form" action={createFixedEvent}>
                       <h2>替 {activeStudent.user.displayName} 代填作息</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
@@ -1326,7 +1367,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       </button>
                     </form>
 
-                    <form className="form-card" action={createStudyTask}>
+                    <form className="form-card" id="new-study-task-form" action={createStudyTask}>
                       <h2>替 {activeStudent.user.displayName} 代填作業 / 自習</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
@@ -1365,7 +1406,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                         加入任務
                       </button>
                     </form>
-                    <form className="form-card" action={createCalendarEvent}>
+                    <form className="form-card" id="new-calendar-event-form" action={createCalendarEvent}>
                       <h2>替 {activeStudent.user.displayName} 新增考試 / 學校活動</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>

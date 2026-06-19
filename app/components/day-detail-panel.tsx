@@ -215,7 +215,14 @@ export function DayDetailPanel({
                 </div>
               </div>
             ))}
-            {visibleSegments.length === 0 && <div className="empty-state">這天還沒有可排程資料。</div>}
+            {visibleSegments.length === 0 && (
+              <div className="empty-state">
+                <p>這天還沒有可排程資料。</p>
+                <div className="empty-state-actions">
+                  <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                </div>
+              </div>
+            )}
           </div>
           {unplacedSegments.length > 0 && (
             <div className="unplaced-list">
@@ -256,7 +263,14 @@ export function DayDetailPanel({
                 </div>
               </div>
             ))}
-            {tasks.length === 0 && <div className="empty-state">這天尚未輸入任務。</div>}
+            {tasks.length === 0 && (
+              <div className="empty-state">
+                <p>這天尚未輸入任務。</p>
+                <div className="empty-state-actions">
+                  <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -292,7 +306,15 @@ export function DayDetailPanel({
                 </div>
               </div>
             ))}
-            {fixedEvents.length === 0 && tutoringSessions.length === 0 && <div className="empty-state">這天尚未輸入固定行程或補習。</div>}
+            {fixedEvents.length === 0 && tutoringSessions.length === 0 && (
+              <div className="empty-state">
+                <p>這天尚未輸入固定行程或補習。</p>
+                <div className="empty-state-actions">
+                  <a className="small-button" href="#new-fixed-event-form">＋ 新增作息</a>
+                  <a className="small-button" href="#new-tutoring-form">＋ 新增補習</a>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -310,7 +332,14 @@ export function DayDetailPanel({
                 </div>
               </div>
             ))}
-            {calendarEvents.length === 0 && <div className="empty-state">這天尚未輸入考試或事件。</div>}
+            {calendarEvents.length === 0 && (
+              <div className="empty-state">
+                <p>這天尚未輸入考試或事件。</p>
+                <div className="empty-state-actions">
+                  <a className="small-button" href="#new-calendar-event-form">＋ 新增第一筆事件</a>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

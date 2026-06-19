@@ -74,7 +74,7 @@ export function LearningProgress({ studentId, scores, weakPoints, weeklyTasks, t
       </div>
 
       <div className="learning-grid">
-        <form className="form-card learning-form" action={createScore}>
+        <form className="form-card learning-form" id="new-score-form" action={createScore}>
           <h3>新增成績</h3>
           {studentId && <input name="studentId" type="hidden" value={studentId} />}
           <label>
@@ -94,7 +94,7 @@ export function LearningProgress({ studentId, scores, weakPoints, weeklyTasks, t
           <button className="button primary" type="submit">儲存成績</button>
         </form>
 
-        <form className="form-card learning-form" action={createWeakPoint}>
+        <form className="form-card learning-form" id="new-weak-point-form" action={createWeakPoint}>
           <h3>記錄弱點</h3>
           {studentId && <input name="studentId" type="hidden" value={studentId} />}
           <label>
@@ -165,7 +165,14 @@ export function LearningProgress({ studentId, scores, weakPoints, weeklyTasks, t
                 </div>
               </details>
             ))}
-            {scores.length === 0 && <div className="empty-state">還沒有成績紀錄。</div>}
+            {scores.length === 0 && (
+              <div className="empty-state">
+                <p>還沒有成績紀錄。</p>
+                <div className="empty-state-actions">
+                  <a className="small-button" href="#new-score-form">＋ 新增第一筆成績</a>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -185,7 +192,14 @@ export function LearningProgress({ studentId, scores, weakPoints, weeklyTasks, t
                 </form>
               </div>
             ))}
-            {weakPoints.length === 0 && <div className="empty-state">目前沒有待補強弱點。</div>}
+            {weakPoints.length === 0 && (
+              <div className="empty-state">
+                <p>目前沒有待補強弱點。</p>
+                <div className="empty-state-actions">
+                  <a className="small-button" href="#new-weak-point-form">＋ 新增第一筆弱點</a>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
