@@ -621,7 +621,7 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: inherit;
-  min-height: 74px;
+  min-height: 104px;
   min-width: 0;
   padding: 8px;
   text-decoration: none;
@@ -653,6 +653,53 @@ h1 {
 .month-day-header span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.month-day-items {
+  display: grid;
+  gap: 4px;
+}
+
+.month-day-item,
+.month-day-more {
+  border-radius: 6px;
+  display: block;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow: hidden;
+  padding: 3px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-day-item.fixed {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.month-day-item.tutoring {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.month-day-item.event {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.month-day-item.task {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.month-day-more {
+  background: #f1f5f9;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.month-day .calendar-day-summary {
+  display: none;
 }
 
 .month-metrics,
@@ -1465,8 +1512,15 @@ button[aria-disabled="true"] {
   .week-day,
   .month-day {
     border-radius: 6px;
-    min-height: 58px;
     padding: 6px 4px;
+  }
+
+  .week-day {
+    min-height: 58px;
+  }
+
+  .month-day {
+    min-height: 96px;
   }
 
   .week-day-header,
@@ -1488,6 +1542,12 @@ button[aria-disabled="true"] {
   .summary-chip {
     font-size: 10px;
     padding: 3px 4px;
+  }
+
+  .month-day-item,
+  .month-day-more {
+    font-size: 10px;
+    padding: 2px 3px;
   }
 
   .link-code-card > strong {

@@ -186,6 +186,58 @@ function uniqueDates(dates: string[]) {
   return Array.from(new Set(dates));
 }
 
+type MonthDayItem = {
+  label: string;
+  sortMinutes: number;
+  tone: "fixed" | "tutoring" | "event" | "task";
+};
+
+function minutesFromTime(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function shortLabel(value: string, maxLength = 8) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
+}
+
+function buildMonthDayItems({
+  fixedEvents,
+  tutoringSessions,
+  calendarEvents,
+  tasks,
+}: {
+  fixedEvents: FixedEvent[];
+  tutoringSessions: TutoringSession[];
+  calendarEvents: CalendarEvent[];
+  tasks: StudyTaskWithSubject[];
+}) {
+  const fixedItems: MonthDayItem[] = fixedEvents.map((event) => ({
+    label: `${event.startTime} ${shortLabel(event.title, 5)}`,
+    sortMinutes: minutesFromTime(event.startTime),
+    tone: "fixed",
+  }));
+  const tutoringItems: MonthDayItem[] = tutoringSessions.map((sessionItem) => ({
+    label: `${sessionItem.startTime} ${shortLabel(sessionItem.subjectName, 5)}`,
+    sortMinutes: minutesFromTime(sessionItem.startTime),
+    tone: "tutoring",
+  }));
+  const eventItems: MonthDayItem[] = calendarEvents.map((event) => ({
+    label: shortLabel(event.title, 7),
+    sortMinutes: 23 * 60,
+    tone: "event",
+  }));
+  const taskItems: MonthDayItem[] = tasks.map((task) => ({
+    label: shortLabel(task.subject?.name ?? task.title, 7),
+    sortMinutes: 24 * 60,
+    tone: "task",
+  }));
+
+  return [...fixedItems, ...tutoringItems, ...eventItems, ...taskItems].sort(
+    (left, right) => left.sortMinutes - right.sortMinutes || left.label.localeCompare(right.label),
+  );
+}
+
 function calendarHref(params: { tab?: DashboardTab; date?: string; week?: string; month?: string }) {
   const query = new URLSearchParams();
   if (params.tab) query.set("tab", params.tab);
@@ -554,7 +606,6 @@ function WeekCalendar({
             .filter(Boolean)
             .join(" ");
           const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
-
           return (
             <Link
               className={dayClassName}
@@ -649,6 +700,14 @@ function MonthCalendar({
             .filter(Boolean)
             .join(" ");
           const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
+          const dayItems = buildMonthDayItems({
+            fixedEvents: dayFixedEvents,
+            tutoringSessions: dayTutoringSessions,
+            calendarEvents: dayCalendarEvents,
+            tasks: dayTasks,
+          });
+          const visibleDayItems = dayItems.slice(0, 3);
+          const hiddenDayItemCount = Math.max(0, dayItems.length - visibleDayItems.length);
 
           return (
             <Link
@@ -660,6 +719,14 @@ function MonthCalendar({
               <div className="month-day-header">
                 <strong>{day.dayNumber}</strong>
                 {minutes > 0 && <span>{minutes} 分</span>}
+              </div>
+              <div className="month-day-items" aria-label={`${day.date} ${itemCount} 個項目`}>
+                {visibleDayItems.map((item, index) => (
+                  <span className={`month-day-item ${item.tone}`} title={item.label} key={`${item.tone}-${index}`}>
+                    {item.label}
+                  </span>
+                ))}
+                {hiddenDayItemCount > 0 && <span className="month-day-more">+{hiddenDayItemCount}</span>}
               </div>
               <div className="calendar-day-summary" aria-label={`${day.date} ${itemCount} 個項目`}>
                 {dayTutoringSessions.length > 0 && <span className="summary-dot tutoring" title={`${dayTutoringSessions.length} 補習`} />}

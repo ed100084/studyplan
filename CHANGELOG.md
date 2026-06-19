@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.3
+
+- Monthly calendar cells now show up to three short item labels sorted by time.
+- Fixed events, tutoring sessions, calendar events, and tasks use distinct compact colors in month cells, with a `+N` overflow marker.
+
 ## 2.6.2
 
 - Calendar date clicks now update the day-detail panel client-side for already loaded week/month dates instead of triggering a full server navigation.
