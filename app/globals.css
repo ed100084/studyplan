@@ -1085,6 +1085,12 @@ button[aria-disabled="true"] {
   font-weight: 700;
 }
 
+.task-editor-panel > strong {
+  color: var(--primary);
+  display: block;
+  font-size: 14px;
+}
+
 .item-editor form {
   display: grid;
   gap: 12px;
@@ -1113,6 +1119,14 @@ button[aria-disabled="true"] {
   background: #f8fafc;
   border-radius: 8px;
   padding: 8px;
+}
+
+.task-source-note {
+  color: #92400e;
+  flex-basis: 100%;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: right;
 }
 
 .form-grid {

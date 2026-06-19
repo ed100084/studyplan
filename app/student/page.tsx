@@ -472,8 +472,8 @@ type StudyTaskWithSubject = StudyTask & {
 
 function StudyTaskEditor({ task, timeZone }: { task: StudyTaskWithSubject; timeZone: string }) {
   return (
-    <details className="item-editor">
-      <summary>編輯</summary>
+    <div className="item-editor task-editor-panel">
+      <strong>編輯任務</strong>
       <form action={updateStudyTask}>
         <input name="taskId" type="hidden" value={task.id} />
         <label>
@@ -516,7 +516,7 @@ function StudyTaskEditor({ task, timeZone }: { task: StudyTaskWithSubject; timeZ
           儲存
         </button>
       </form>
-    </details>
+    </div>
   );
 }
 
@@ -898,7 +898,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
     ? activeTutoringSessionsForDate(student.tutoringSessions, today.date, today.weekday, timeZone)
     : [];
   const openTasks = todayTasks.filter((task) => task.status === "PLANNED");
-  const doneTasks = todayTasks.filter((task) => task.status !== "PLANNED");
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const todaySchedule = student
     ? buildTodaySchedule({
@@ -925,6 +924,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
     : [];
   const selectedCalendarEvents = student?.calendarEvents.filter((event) => eventFallsOnDate(event, selectedDate, timeZone)) ?? [];
   const selectedOpenTasks = selectedTasks.filter((task) => task.status === "PLANNED");
+  const selectedDoneTasks = selectedTasks.filter((task) => task.status !== "PLANNED");
   const selectedSchedule = student
     ? buildTodaySchedule({
         fixedEvents: selectedFixedEvents,
@@ -1250,12 +1250,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
                 <section className="panel">
                   <div className="panel-header">
-                    <h2>今天任務</h2>
-                    <span>{openTasks.length} 項待完成</span>
+                    <h2>{selectedDate === today.date ? "今天任務" : "選取日期任務"}</h2>
+                    <span>
+                      {selectedDate}，{selectedOpenTasks.length} 項待完成
+                    </span>
                   </div>
 
                   <div className="task-list compact-list">
-                    {openTasks.map((task) => (
+                    {selectedOpenTasks.map((task) => (
                       <div className="task" key={task.id}>
                         <span className="task-dot" aria-hidden="true" />
                         <div>
@@ -1288,30 +1290,31 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                               略過
                             </button>
                           </form>
-                          {!task.examReviewPlanId && (
-                            <form action={deleteStudyTask}>
-                              <input name="taskId" type="hidden" value={task.id} />
-                              <button className="small-button danger-button" type="submit">
-                                刪除
-                              </button>
-                            </form>
+                          <form action={deleteStudyTask}>
+                            <input name="taskId" type="hidden" value={task.id} />
+                            <button className="small-button danger-button" type="submit">
+                              刪除
+                            </button>
+                          </form>
+                          {task.examReviewPlanId && (
+                            <span className="task-source-note">此任務來自考前複習計畫，刪除後不影響其他任務。</span>
                           )}
                         </div>
                         <PartialProgressForm taskId={task.id} />
-                        {!task.examReviewPlanId && <StudyTaskEditor task={task} timeZone={timeZone} />}
+                        <StudyTaskEditor task={task} timeZone={timeZone} />
                       </div>
                     ))}
 
-                    {openTasks.length === 0 && (
+                    {selectedOpenTasks.length === 0 && (
                       <div className="empty-state">
-                        <p>今天沒有待完成任務。</p>
+                        <p>這一天沒有待完成任務。</p>
                         <div className="empty-state-actions">
                           <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增第一筆任務</a>
                         </div>
                       </div>
                     )}
 
-                    {doneTasks.map((task) => (
+                    {selectedDoneTasks.map((task) => (
                       <div className="task muted-task" key={task.id}>
                         <span className="task-dot" aria-hidden="true" />
                         <div>
@@ -1321,17 +1324,19 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                           <span>{statusLabels[task.status]}</span>
                         </div>
                         <span className="time">{task.estimatedMinutes} 分</span>
-                        {!task.examReviewPlanId && (
-                          <form className="inline-actions" action={deleteStudyTask}>
-                            <input name="taskId" type="hidden" value={task.id} />
-                            <button className="small-button danger-button" type="submit">
-                              刪除
-                            </button>
-                          </form>
-                        )}
-                        {!task.examReviewPlanId && <StudyTaskEditor task={task} timeZone={timeZone} />}
+                        <form className="inline-actions" action={deleteStudyTask}>
+                          <input name="taskId" type="hidden" value={task.id} />
+                          <button className="small-button danger-button" type="submit">
+                            刪除
+                          </button>
+                          {task.examReviewPlanId && (
+                            <span className="task-source-note">此任務來自考前複習計畫，刪除後不影響其他任務。</span>
+                          )}
+                        </form>
+                        <StudyTaskEditor task={task} timeZone={timeZone} />
                       </div>
                     ))}
+
                   </div>
                 </section>
               </div>
