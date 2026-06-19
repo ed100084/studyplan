@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.0
+
+- Added optional start and end dates to fixed events.
+- Student and guardian fixed-event forms now support date ranges for term schedules, holidays, and temporary extended school hours.
+- Today schedules, weekly/monthly calendars, selected-day details, saved schedule runs, and exam-review planning now count fixed events only when active on that date.
+
 ## 2.4.1
 
 - Changed selected-day schedule details from a list-only timeline to a proportional chart-style time bar.

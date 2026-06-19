@@ -1,5 +1,12 @@
 # StudyPlan
 
+## Current Status
+
+Version: 2.5.0
+
+- Fixed events support optional start and end dates for term schedules, holidays, and temporary extended school hours.
+- Student and guardian calendars only count fixed events on dates where they are active.
+
 ## 目前進度
 
 目前版本：2.4.0

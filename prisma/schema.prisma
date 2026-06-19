@@ -312,12 +312,16 @@ model FixedEvent {
   title          String
   type           FixedEventType
   weekday        Weekday
+  startDate      DateTime?
+  endDate        DateTime?
   startTime      String
   endTime        String
   commuteMinutes Int            @default(0)
   note           String?
   createdAt      DateTime       @default(now())
   student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, weekday, startDate, endDate])
 }
 
 model TutoringSession {

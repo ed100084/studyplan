@@ -17,6 +17,7 @@ import {
   orderedWeekdays,
 } from "@/lib/timezone";
 import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
+import { fixedEventFallsOnDate } from "@/lib/fixed-events";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
@@ -145,6 +146,10 @@ function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date
   );
 }
 
+function activeFixedEventsForDate(fixedEvents: FixedEvent[], date: string, weekday: Weekday, timeZone: string) {
+  return fixedEvents.filter((event) => event.weekday === weekday && fixedEventFallsOnDate(event, date, timeZone));
+}
+
 function calendarHref(params: { studentId?: string; date?: string; week?: string; month?: string }) {
   const query = new URLSearchParams();
   if (params.studentId) query.set("studentId", params.studentId);
@@ -159,7 +164,7 @@ function StudentIdInput({ studentId }: { studentId: string }) {
   return <input name="studentId" type="hidden" value={studentId} />;
 }
 
-function FixedEventEditor({ event, studentId }: { event: FixedEvent; studentId: string }) {
+function FixedEventEditor({ event, studentId, timeZone }: { event: FixedEvent; studentId: string; timeZone: string }) {
   return (
     <details className="item-editor">
       <summary>編輯</summary>
@@ -190,6 +195,16 @@ function FixedEventEditor({ event, studentId }: { event: FixedEvent; studentId: 
             ))}
           </select>
         </label>
+        <div className="field-row">
+          <label>
+            開始日期
+            <input name="startDate" type="date" defaultValue={event.startDate ? formatDateInput(event.startDate, timeZone) : ""} />
+          </label>
+          <label>
+            結束日期
+            <input name="endDate" type="date" defaultValue={event.endDate ? formatDateInput(event.endDate, timeZone) : ""} />
+          </label>
+        </div>
         <div className="field-row">
           <label>
             開始
@@ -469,7 +484,7 @@ function WeekCalendar({
         {week.days.map((day) => {
           const dayTasks = weekTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
           const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
-          const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
+          const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
           const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
           const planned = dayTasks.filter((task) => task.status === "PLANNED").length;
           const done = dayTasks.filter((task) => task.status === "DONE").length;
@@ -574,7 +589,7 @@ function MonthCalendar({
         {month.days.map((day) => {
           const dayTasks = monthTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
           const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
-          const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
+          const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
           const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
           const dayClassName = [
@@ -777,7 +792,9 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
       const plannedDate = task.plannedDate.getTime();
       return plannedDate >= week.start.getTime() && plannedDate < week.end.getTime();
     }) ?? [];
-  const activeTodayFixedEvents = activeStudent?.fixedEvents.filter((event) => event.weekday === today.weekday) ?? [];
+  const activeTodayFixedEvents = activeStudent
+    ? activeFixedEventsForDate(activeStudent.fixedEvents, today.date, today.weekday, timeZone)
+    : [];
   const activeTodayTutoringSessions =
     activeStudent ? activeTutoringSessionsForDate(activeStudent.tutoringSessions, today.date, today.weekday, timeZone) : [];
   const openTasks = activeTodayTasks.filter((task) => task.status === "PLANNED");
@@ -802,7 +819,9 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
       const plannedDate = task.plannedDate.getTime();
       return plannedDate >= selectedDateRange.start.getTime() && plannedDate < selectedDateRange.end.getTime();
     }) ?? [];
-  const selectedFixedEvents = activeStudent?.fixedEvents.filter((event) => event.weekday === selectedDay.weekday) ?? [];
+  const selectedFixedEvents = activeStudent
+    ? activeFixedEventsForDate(activeStudent.fixedEvents, selectedDate, selectedDay.weekday, timeZone)
+    : [];
   const selectedTutoringSessions = activeStudent
     ? activeTutoringSessionsForDate(activeStudent.tutoringSessions, selectedDate, selectedDay.weekday, timeZone)
     : [];
@@ -855,6 +874,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           {error === "exam-plan-exists" && <div className="error-notice">這個考試與科目已經有複習計畫。</div>}
           {error === "exam-plan-not-found" && <div className="error-notice">找不到這個考前複習計畫。</div>}
           {error === "teacher-event-readonly" && <div className="error-notice">老師套用的班級事件只能由老師管理。</div>}
+          {error === "fixed-event-date-range" && <div className="error-notice">固定作息結束日期不能早於開始日期。</div>}
           {error === "tutoring-date-range" && <div className="error-notice">補習結束日期不能早於開始日期。</div>}
           {error === "invalid-score" && <div className="error-notice">成績必須是 0 到 100 分，並填寫科目。</div>}
           {error === "invalid-weak-point" && <div className="error-notice">請填寫弱點科目與內容。</div>}
@@ -1048,7 +1068,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                                 刪除
                               </button>
                             </form>
-                            <FixedEventEditor event={event} studentId={activeStudent.id} />
+                            <FixedEventEditor event={event} studentId={activeStudent.id} timeZone={timeZone} />
                           </div>
                         ))}
 
@@ -1307,6 +1327,16 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           ))}
                         </select>
                       </label>
+                      <div className="field-row">
+                        <label>
+                          開始日期
+                          <input name="startDate" type="date" />
+                        </label>
+                        <label>
+                          結束日期
+                          <input name="endDate" type="date" />
+                        </label>
+                      </div>
                       <div className="field-row">
                         <label>
                           開始

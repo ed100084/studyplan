@@ -107,6 +107,56 @@ test("counts tutoring sessions only inside their active date range", () => {
   assert.equal(activeResult.unscheduledMinutes, 60);
 });
 
+test("counts fixed events only inside their active date range", () => {
+  const inactiveResult = buildExamReviewTaskDrafts({
+    startDate: "2026-06-12",
+    examDate: "2026-06-13",
+    remainingMinutes: 60,
+    sessionMinutes: 30,
+    fixedEvents: [
+      {
+        id: "summer-school",
+        title: "summer school",
+        type: FixedEventType.SCHOOL,
+        weekday: Weekday.FRIDAY,
+        startDate: "2026-07-01",
+        endDate: "2026-08-31",
+        startTime: "17:30",
+        endTime: "22:30",
+        commuteMinutes: 0,
+      },
+    ],
+    tutoringSessions: [],
+    calendarEvents: [],
+  });
+  const activeResult = buildExamReviewTaskDrafts({
+    startDate: "2026-06-12",
+    examDate: "2026-06-13",
+    remainingMinutes: 60,
+    sessionMinutes: 30,
+    fixedEvents: [
+      {
+        id: "june-school",
+        title: "june school",
+        type: FixedEventType.SCHOOL,
+        weekday: Weekday.FRIDAY,
+        startDate: "2026-06-01",
+        endDate: "2026-06-30",
+        startTime: "17:30",
+        endTime: "22:30",
+        commuteMinutes: 0,
+      },
+    ],
+    tutoringSessions: [],
+    calendarEvents: [],
+  });
+
+  assert.equal(inactiveResult.scheduledMinutes, 60);
+  assert.equal(inactiveResult.unscheduledMinutes, 0);
+  assert.equal(activeResult.scheduledMinutes, 0);
+  assert.equal(activeResult.unscheduledMinutes, 60);
+});
+
 test("validates serialized class calendar rows before confirmation", () => {
   const result = validateClassCalendarImportRows([
     {

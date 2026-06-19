@@ -19,6 +19,7 @@ import { getCurrentSession } from "@/lib/session";
 import { formatDateInput, getCurrentDay, getDayRange, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
 import { buildExamReviewTaskDrafts } from "@/lib/exam-review-planner";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
+import { fixedEventFallsOnDate } from "@/lib/fixed-events";
 import { tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 
 function textValue(formData: FormData, key: string) {
@@ -50,6 +51,19 @@ function optionalDateValue(rawValue: string, timeZone: string) {
 }
 
 function activeTutoringDateWhere(date: Date) {
+  return {
+    AND: [
+      {
+        OR: [{ startDate: null }, { startDate: { lte: date } }],
+      },
+      {
+        OR: [{ endDate: null }, { endDate: { gte: date } }],
+      },
+    ],
+  };
+}
+
+function activeFixedEventDateWhere(date: Date) {
   return {
     AND: [
       {
@@ -161,11 +175,18 @@ export async function createFixedEvent(formData: FormData) {
   const editable = await getEditableStudent(studentId);
   const type = enumValue(FixedEventType, textValue(formData, "type"), FixedEventType.OTHER);
   const weekday = enumValue(Weekday, textValue(formData, "weekday"), Weekday.MONDAY);
+  const timeZone = await getRequestTimeZone();
+  const rawStartDate = textValue(formData, "startDate");
+  const rawEndDate = textValue(formData, "endDate");
   const title = textValue(formData, "title") || "固定行程";
   const startTime = textValue(formData, "startTime") || "18:00";
   const endTime = textValue(formData, "endTime") || "18:30";
   const commuteMinutes = Math.max(0, intValue(formData, "commuteMinutes", 0));
   const note = textValue(formData, "note") || undefined;
+
+  if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
+    redirect(addQuery(editable.redirectTo, "error=fixed-event-date-range"));
+  }
 
   await prisma.fixedEvent.create({
     data: {
@@ -173,6 +194,8 @@ export async function createFixedEvent(formData: FormData) {
       title,
       type,
       weekday,
+      startDate: optionalDateValue(rawStartDate, timeZone),
+      endDate: optionalDateValue(rawEndDate, timeZone),
       startTime,
       endTime,
       commuteMinutes,
@@ -322,7 +345,17 @@ async function redistributeExamReviewPlan(
     examDate,
     remainingMinutes,
     sessionMinutes: plan.sessionMinutes,
-    fixedEvents: plan.student.fixedEvents,
+    fixedEvents: plan.student.fixedEvents.map((event) => ({
+      id: event.id,
+      title: event.title,
+      type: event.type,
+      weekday: event.weekday,
+      startDate: event.startDate ? formatDateInput(event.startDate, timeZone) : null,
+      endDate: event.endDate ? formatDateInput(event.endDate, timeZone) : null,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      commuteMinutes: event.commuteMinutes,
+    })),
     tutoringSessions: plan.student.tutoringSessions.map((session) => ({
       id: session.id,
       subjectName: session.subjectName,
@@ -506,6 +539,13 @@ export async function updateFixedEvent(formData: FormData) {
     redirect(addQuery(editable.redirectTo, "error=fixed-event-not-found"));
   }
 
+  const timeZone = await getRequestTimeZone();
+  const rawStartDate = textValue(formData, "startDate");
+  const rawEndDate = textValue(formData, "endDate");
+  if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
+    redirect(addQuery(editable.redirectTo, "error=fixed-event-date-range"));
+  }
+
   await prisma.fixedEvent.update({
     where: {
       id: event.id,
@@ -514,6 +554,8 @@ export async function updateFixedEvent(formData: FormData) {
       title: textValue(formData, "title") || event.title,
       type: enumValue(FixedEventType, textValue(formData, "type"), event.type),
       weekday: enumValue(Weekday, textValue(formData, "weekday"), event.weekday),
+      startDate: optionalDateValue(rawStartDate, timeZone),
+      endDate: optionalDateValue(rawEndDate, timeZone),
       startTime: textValue(formData, "startTime") || event.startTime,
       endTime: textValue(formData, "endTime") || event.endTime,
       commuteMinutes: Math.max(0, intValue(formData, "commuteMinutes", event.commuteMinutes)),
@@ -685,7 +727,7 @@ export async function saveTodaySchedule(formData: FormData) {
   const student = await prisma.studentProfile.findUnique({
     where: { id: editable.student.id },
     include: {
-      fixedEvents: { where: { weekday: today.weekday } },
+      fixedEvents: { where: { weekday: today.weekday, ...activeFixedEventDateWhere(range.start) } },
       tutoringSessions: { where: { weekday: today.weekday, ...activeTutoringDateWhere(range.start) } },
       studyTasks: {
         where: {
@@ -700,7 +742,7 @@ export async function saveTodaySchedule(formData: FormData) {
   if (!student) redirect(addQuery(editable.redirectTo, "error=student-required"));
 
   const schedule = buildTodaySchedule({
-    fixedEvents: student.fixedEvents,
+    fixedEvents: student.fixedEvents.filter((event) => fixedEventFallsOnDate(event, today.date, timeZone)),
     tutoringSessions: student.tutoringSessions.filter((session) =>
       tutoringSessionFallsOnDate(session, today.date, timeZone),
     ),
