@@ -696,6 +696,7 @@ function MonthCalendar({
           <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
           <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: todayDate, month: todayDate })}>本月</Link>
           <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
+          <Link className="small-button" href={`/calendar/print?month=${selectedMonthDate}&studentId=${studentId}`}>列印 PDF</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
