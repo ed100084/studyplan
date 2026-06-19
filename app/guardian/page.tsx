@@ -1019,7 +1019,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
   return (
     <main className="page">
-      <section className="section">
+      <section className={currentUser?.guardianProfile ? "section compact-dashboard-section" : "section"}>
         <div className="shell">
           <Link className="back-link" href="/">
             回首頁
@@ -1056,7 +1056,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
           {currentUser?.guardianProfile ? (
             <>
-              <div className="session-card">
+              <div className="session-card compact-session-card">
                 <div>
                   <strong>{currentUser.displayName}</strong>
                   <p>已連結 {linkedStudents.length} 位學生。可以繼續新增孩子，也可以切換目前管理的孩子。</p>

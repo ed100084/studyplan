@@ -244,6 +244,17 @@ h1 {
   padding: 24px 0 56px;
 }
 
+.compact-dashboard-section {
+  padding-top: 12px;
+}
+
+.compact-dashboard-section .back-link,
+.compact-dashboard-section > .shell > .eyebrow,
+.compact-dashboard-section > .shell > .page-title,
+.compact-dashboard-section > .shell > .lead {
+  display: none;
+}
+
 .section h2 {
   margin: 0 0 18px;
   font-size: 28px;
@@ -350,6 +361,15 @@ h1 {
   margin: 6px 0 0;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.compact-session-card {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+}
+
+.compact-session-card p {
+  margin-top: 2px;
 }
 
 .form-card {
@@ -1176,11 +1196,29 @@ button[aria-disabled="true"] {
   line-height: 1.6;
 }
 
+.compact-link-code {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+}
+
+.compact-link-code h2,
+.compact-link-code p {
+  display: none;
+}
+
+.compact-link-code .card-meta {
+  font-size: 12px;
+}
+
 .dashboard-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 20px 0;
+}
+
+.compact-dashboard-section .dashboard-tabs {
+  margin: 12px 0;
 }
 
 .dashboard-tab {
@@ -1208,6 +1246,11 @@ button[aria-disabled="true"] {
   letter-spacing: 1px;
   padding: 12px 14px;
   white-space: nowrap;
+}
+
+.compact-link-code > strong {
+  font-size: 18px;
+  padding: 8px 10px;
 }
 
 .guardian-tools {

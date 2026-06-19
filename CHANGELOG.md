@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.4
+
+- Signed-in student and guardian dashboards now hide the large marketing header so daily content starts higher on the page.
+- Student account and guardian link-code cards use compact spacing above the dashboard tabs.
+
 ## 2.6.3
 
 - Monthly calendar cells now show up to three short item labels sorted by time.

@@ -982,7 +982,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
   return (
     <main className="page">
-      <section className="section">
+      <section className={student ? "section compact-dashboard-section" : "section"}>
         <div className="shell">
           <Link className="back-link" href="/">
             回首頁
@@ -1015,7 +1015,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
           {student ? (
             <>
-              <div className="session-card">
+              <div className="session-card compact-session-card">
                 <div>
                   <strong>{currentUser.displayName}</strong>
                   <p>
@@ -1032,7 +1032,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 </div>
               </div>
 
-              <div className="link-code-card">
+              <div className="link-code-card compact-link-code">
                 <div>
                   <span className="card-meta">給家長使用</span>
                   <h2>學生連結碼</h2>

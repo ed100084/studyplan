@@ -2,8 +2,9 @@
 
 ## Current Status
 
-Version: 2.6.3
+Version: 2.6.4
 
+- Signed-in dashboards now use a compact header so useful daily information appears higher on the page.
 - Monthly calendar cells now show short, time-sorted item labels so each day is easier to scan.
 - Calendar date selection now updates the visible day detail immediately on the current page for already loaded week/month dates.
 - The selected-day chart timeline now includes morning fixed events and tutoring sessions instead of starting at after-school hours.
@@ -14,7 +15,7 @@ Version: 2.6.3
 
 ## 目前進度
 
-目前版本：2.6.3
+目前版本：2.6.4
 
 - 學生與家長頁已支援點選週曆或月曆任一天，直接查看該日詳細行程。
 - 當日詳細行程會用垂直圖表式時間軸呈現固定行程、補習、讀書任務、考試與事件。
