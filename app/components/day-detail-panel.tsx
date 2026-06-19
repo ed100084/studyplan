@@ -38,6 +38,10 @@ type DayDetailPanelProps = {
   calendarEventLabels: Record<CalendarEventType, string>;
   fatigueLabels: Record<FatigueLevel, string>;
   statusLabels: Record<TaskStatus, string>;
+  newStudyTaskHref?: string;
+  newFixedEventHref?: string;
+  newTutoringHref?: string;
+  newCalendarEventHref?: string;
 };
 
 const DEFAULT_CHART_START = 17 * 60 + 30;
@@ -94,6 +98,10 @@ export function DayDetailPanel({
   calendarEventLabels,
   fatigueLabels,
   statusLabels,
+  newStudyTaskHref = "#new-study-task-form",
+  newFixedEventHref = "#new-fixed-event-form",
+  newTutoringHref = "#new-tutoring-form",
+  newCalendarEventHref = "#new-calendar-event-form",
 }: DayDetailPanelProps) {
   const openTasks = tasks.filter((task) => task.status === "PLANNED");
   const completedTasks = tasks.filter((task) => task.status !== "PLANNED");
@@ -219,7 +227,7 @@ export function DayDetailPanel({
               <div className="empty-state">
                 <p>這天還沒有可排程資料。</p>
                 <div className="empty-state-actions">
-                  <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                  <a className="small-button" href={newStudyTaskHref}>＋ 新增第一筆任務</a>
                 </div>
               </div>
             )}
@@ -267,7 +275,7 @@ export function DayDetailPanel({
               <div className="empty-state">
                 <p>這天尚未輸入任務。</p>
                 <div className="empty-state-actions">
-                  <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                  <a className="small-button" href={newStudyTaskHref}>＋ 新增第一筆任務</a>
                 </div>
               </div>
             )}
@@ -310,8 +318,8 @@ export function DayDetailPanel({
               <div className="empty-state">
                 <p>這天尚未輸入固定行程或補習。</p>
                 <div className="empty-state-actions">
-                  <a className="small-button" href="#new-fixed-event-form">＋ 新增作息</a>
-                  <a className="small-button" href="#new-tutoring-form">＋ 新增補習</a>
+                  <a className="small-button" href={newFixedEventHref}>＋ 新增作息</a>
+                  <a className="small-button" href={newTutoringHref}>＋ 新增補習</a>
                 </div>
               </div>
             )}
@@ -336,7 +344,7 @@ export function DayDetailPanel({
               <div className="empty-state">
                 <p>這天尚未輸入考試或事件。</p>
                 <div className="empty-state-actions">
-                  <a className="small-button" href="#new-calendar-event-form">＋ 新增第一筆事件</a>
+                  <a className="small-button" href={newCalendarEventHref}>＋ 新增第一筆事件</a>
                 </div>
               </div>
             )}

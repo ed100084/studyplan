@@ -49,6 +49,7 @@ type StudentPageProps = {
     scheduleHistory?: string;
     examPlan?: string;
     learning?: string;
+    tab?: string;
     date?: string;
     week?: string;
     month?: string;
@@ -122,6 +123,20 @@ const readableWeekdayLabels: Record<Weekday, string> = {
   SATURDAY: "週六",
   SUNDAY: "週日",
 };
+
+type DashboardTab = "today" | "calendar" | "learning" | "settings";
+
+const dashboardTabs: Array<{ value: DashboardTab; label: string }> = [
+  { value: "today", label: "今日" },
+  { value: "calendar", label: "行事曆" },
+  { value: "learning", label: "成績與弱點" },
+  { value: "settings", label: "設定" },
+];
+
+function normalizeDashboardTab(value?: string): DashboardTab {
+  return value === "calendar" || value === "learning" || value === "settings" ? value : "today";
+}
+
 function gradeLabel(grade: number) {
   return `國${grade - 6}`;
 }
@@ -166,13 +181,45 @@ function activeFixedEventsForDate(fixedEvents: FixedEvent[], date: string, weekd
   return fixedEvents.filter((event) => event.weekday === weekday && fixedEventFallsOnDate(event, date, timeZone));
 }
 
-function calendarHref(params: { date?: string; week?: string; month?: string }) {
+function calendarHref(params: { tab?: DashboardTab; date?: string; week?: string; month?: string }) {
   const query = new URLSearchParams();
+  if (params.tab) query.set("tab", params.tab);
   if (params.date) query.set("date", params.date);
   if (params.week) query.set("week", params.week);
   if (params.month) query.set("month", params.month);
   const value = query.toString();
   return value ? `/student?${value}` : "/student";
+}
+
+function dashboardTabHref(tab: DashboardTab, params: { date: string; week: string; month: string }) {
+  return calendarHref({ tab, date: params.date, week: params.week, month: params.month });
+}
+
+function settingsSectionHref(anchor: string, params: { date: string; week: string; month: string }) {
+  return `${dashboardTabHref("settings", params)}${anchor}`;
+}
+
+function DashboardTabs({
+  activeTab,
+  hrefForTab,
+}: {
+  activeTab: DashboardTab;
+  hrefForTab: (tab: DashboardTab) => string;
+}) {
+  return (
+    <nav className="dashboard-tabs" aria-label="頁面區段">
+      {dashboardTabs.map((tab) => (
+        <Link
+          className={tab.value === activeTab ? "dashboard-tab active" : "dashboard-tab"}
+          href={hrefForTab(tab.value)}
+          aria-current={tab.value === activeTab ? "page" : undefined}
+          key={tab.value}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
+  );
 }
 
 function FixedEventEditor({ event, timeZone }: { event: FixedEvent; timeZone: string }) {
@@ -304,7 +351,15 @@ function TutoringSessionEditor({ sessionItem, timeZone }: { sessionItem: Tutorin
   );
 }
 
-function TutoringScheduleList({ sessions, timeZone }: { sessions: TutoringSession[]; timeZone: string }) {
+function TutoringScheduleList({
+  sessions,
+  timeZone,
+  newTutoringHref = "#new-tutoring-form",
+}: {
+  sessions: TutoringSession[];
+  timeZone: string;
+  newTutoringHref?: string;
+}) {
   const sortedSessions = [...sessions].sort(
     (first, second) =>
       weekdayOptions.findIndex(([value]) => value === first.weekday) -
@@ -345,7 +400,7 @@ function TutoringScheduleList({ sessions, timeZone }: { sessions: TutoringSessio
           <div className="empty-state">
             <p>尚未建立補習排程。</p>
             <div className="empty-state-actions">
-              <a className="small-button" href="#new-tutoring-form">＋ 新增第一筆補習</a>
+                        <a className="small-button" href={newTutoringHref}>＋ 新增第一筆補習</a>
             </div>
           </div>
         )}
@@ -476,9 +531,9 @@ function WeekCalendar({
           </p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ date: addDateDays(selectedWeekDate, -7), week: addDateDays(selectedWeekDate, -7) })}>上一週</Link>
-          <Link className="small-button" href={calendarHref({ date: todayDate, week: todayDate })}>本週</Link>
-          <Link className="small-button" href={calendarHref({ date: addDateDays(selectedWeekDate, 7), week: addDateDays(selectedWeekDate, 7) })}>下一週</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addDateDays(selectedWeekDate, -7), week: addDateDays(selectedWeekDate, -7) })}>上一週</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: todayDate, week: todayDate })}>本週</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addDateDays(selectedWeekDate, 7), week: addDateDays(selectedWeekDate, 7) })}>下一週</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -496,7 +551,7 @@ function WeekCalendar({
           const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
 
           return (
-            <Link className={dayClassName} href={calendarHref({ date: day.date, week: day.date, month: day.date })} key={day.date}>
+            <Link className={dayClassName} href={calendarHref({ tab: "today", date: day.date, week: day.date, month: day.date })} key={day.date}>
               <div className="week-day-header">
                 <strong>{readableWeekdayLabels[day.weekday]}</strong>
                 <span>{day.dayNumber}</span>
@@ -553,9 +608,9 @@ function MonthCalendar({
           <p className="panel-copy">{month.monthLabel}</p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
-          <Link className="small-button" href={calendarHref({ date: todayDate, month: todayDate })}>本月</Link>
-          <Link className="small-button" href={calendarHref({ date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: todayDate, month: todayDate })}>本月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -586,7 +641,7 @@ function MonthCalendar({
           const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
 
           return (
-            <Link className={dayClassName} href={calendarHref({ date: day.date, week: day.date, month: day.date })} key={day.date}>
+            <Link className={dayClassName} href={calendarHref({ tab: "today", date: day.date, week: day.date, month: day.date })} key={day.date}>
               <div className="month-day-header">
                 <strong>{day.dayNumber}</strong>
                 {minutes > 0 && <span>{minutes} 分</span>}
@@ -802,6 +857,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
         })),
       })
     : null;
+  const activeTab = normalizeDashboardTab(params?.tab);
+  const tabParams = { date: selectedDate, week: selectedWeekDate, month: selectedMonthDate };
+  const formHref = (anchor: string) => settingsSectionHref(anchor, tabParams);
 
   return (
     <main className="page">
@@ -864,6 +922,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 <strong>{student.linkCode ?? "尚未產生"}</strong>
               </div>
 
+              <DashboardTabs activeTab={activeTab} hrefForTab={(tab) => dashboardTabHref(tab, tabParams)} />
+
+              {activeTab === "today" && (
               <DayDetailPanel
                 date={selectedDate}
                 timeZone={timeZone}
@@ -879,8 +940,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 calendarEventLabels={calendarEventLabels}
                 fatigueLabels={fatigueLabels}
                 statusLabels={statusLabels}
+                newStudyTaskHref={formHref("#new-study-task-form")}
+                newFixedEventHref={formHref("#new-fixed-event-form")}
+                newTutoringHref={formHref("#new-tutoring-form")}
+                newCalendarEventHref={formHref("#new-calendar-event-form")}
               />
+              )}
 
+              {activeTab === "calendar" && (
               <WeekCalendar
                 calendarEvents={student.calendarEvents}
                 fixedEvents={student.fixedEvents}
@@ -892,7 +959,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 todayDate={today.date}
                 timeZone={timeZone}
               />
+              )}
 
+              {activeTab === "calendar" && (
               <MonthCalendar
                 calendarEvents={student.calendarEvents}
                 fixedEvents={student.fixedEvents}
@@ -904,7 +973,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 todayDate={today.date}
                 timeZone={timeZone}
               />
+              )}
 
+              {activeTab === "learning" && (
               <LearningProgress
                 scores={student.scores}
                 weakPoints={student.weakPoints}
@@ -912,7 +983,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 today={today.date}
                 timeZone={timeZone}
               />
+              )}
 
+              {activeTab === "learning" && (
               <ExamReviewPlans
                 plans={student.examReviewPlans}
                 examEvents={student.calendarEvents.filter((event) =>
@@ -921,7 +994,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 today={today.date}
                 timeZone={timeZone}
               />
+              )}
 
+              {activeTab === "calendar" && (
               <section className="panel event-panel">
                 <div className="panel-header">
                   <h2>近期考試 / 活動</h2>
@@ -955,15 +1030,24 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                     <div className="empty-state">
                       <p>本週或本月尚未輸入考試與學校活動。</p>
                       <div className="empty-state-actions">
-                        <a className="small-button" href="#new-calendar-event-form">＋ 新增第一筆事件</a>
+                        <a className="small-button" href={formHref("#new-calendar-event-form")}>＋ 新增第一筆事件</a>
                       </div>
                     </div>
                   )}
                 </div>
               </section>
+              )}
 
-              <TutoringScheduleList sessions={student.tutoringSessions} timeZone={timeZone} />
+              {activeTab === "calendar" && (
+              <TutoringScheduleList
+                sessions={student.tutoringSessions}
+                timeZone={timeZone}
+                newTutoringHref={formHref("#new-tutoring-form")}
+              />
+              )}
 
+              {activeTab === "today" && (
+              <>
               <div className="dashboard-grid">
                 <section className="panel">
                   <div className="panel-header">
@@ -1024,8 +1108,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       <div className="empty-state">
                         <p>今天還沒有固定行程。先輸入晚餐、洗澡、睡覺或補習時段。</p>
                         <div className="empty-state-actions">
-                          <a className="small-button" href="#new-fixed-event-form">＋ 新增作息</a>
-                          <a className="small-button" href="#new-tutoring-form">＋ 新增補習</a>
+                          <a className="small-button" href={formHref("#new-fixed-event-form")}>＋ 新增作息</a>
+                          <a className="small-button" href={formHref("#new-tutoring-form")}>＋ 新增補習</a>
                         </div>
                       </div>
                     )}
@@ -1090,7 +1174,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       <div className="empty-state">
                         <p>今天沒有待完成任務。</p>
                         <div className="empty-state-actions">
-                          <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                          <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增第一筆任務</a>
                         </div>
                       </div>
                     )}
@@ -1157,7 +1241,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       <div className="empty-state">
                         <p>今天還沒有可排程資料。</p>
                         <div className="empty-state-actions">
-                          <a className="small-button" href="#new-study-task-form">＋ 新增第一筆任務</a>
+                          <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增第一筆任務</a>
                         </div>
                       </div>
                     )}
@@ -1183,7 +1267,10 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               )}
 
               <ScheduleHistory runs={student.scheduleRuns} timeZone={timeZone} />
+              </>
+              )}
 
+              {activeTab === "settings" && (
               <div className="form-grid">
                 <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
                   <h2>新增補習</h2>
@@ -1360,6 +1447,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   </button>
                 </form>
               </div>
+              )}
             </>
           ) : (
             <form className="form-card narrow-form" action={createStudent}>
