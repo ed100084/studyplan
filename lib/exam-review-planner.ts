@@ -1,5 +1,6 @@
 import { CalendarEventType, FatigueLevel, FixedEventType, Weekday } from "@prisma/client";
 import { buildTodaySchedule } from "./scheduler/today";
+import { stringTutoringSessionFallsOnDate } from "./tutoring-sessions";
 
 type FixedEventInput = {
   id: string;
@@ -15,6 +16,8 @@ type TutoringSessionInput = {
   id: string;
   subjectName: string;
   weekday: Weekday;
+  startDate?: string | null;
+  endDate?: string | null;
   startTime: string;
   endTime: string;
   commuteMinutes: number;
@@ -101,7 +104,9 @@ export function buildExamReviewTaskDrafts(input: {
     const weekday = weekdayForDate(date);
     const schedule = buildTodaySchedule({
       fixedEvents: input.fixedEvents.filter((event) => event.weekday === weekday),
-      tutoringSessions: input.tutoringSessions.filter((session) => session.weekday === weekday),
+      tutoringSessions: input.tutoringSessions.filter(
+        (session) => session.weekday === weekday && stringTutoringSessionFallsOnDate(session, date),
+      ),
       tasks: [],
     });
     const dailyLimit = Math.min(schedule.availableMinutes, Math.max(120, input.sessionMinutes));

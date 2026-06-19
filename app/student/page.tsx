@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { formatDateInput, getCurrentDay, getDayRange, getMonth, getRequestTimeZone, getWeek, orderedWeekdays } from "@/lib/timezone";
+import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
@@ -122,6 +123,12 @@ function eventDateLabel(event: CalendarEvent, timeZone: string) {
   return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
 }
 
+function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date: string, weekday: Weekday, timeZone: string) {
+  return tutoringSessions.filter(
+    (sessionItem) => sessionItem.weekday === weekday && tutoringSessionFallsOnDate(sessionItem, date, timeZone),
+  );
+}
+
 function FixedEventEditor({ event }: { event: FixedEvent }) {
   return (
     <details className="item-editor">
@@ -178,7 +185,7 @@ function FixedEventEditor({ event }: { event: FixedEvent }) {
   );
 }
 
-function TutoringSessionEditor({ sessionItem }: { sessionItem: TutoringSession }) {
+function TutoringSessionEditor({ sessionItem, timeZone }: { sessionItem: TutoringSession; timeZone: string }) {
   return (
     <details className="item-editor">
       <summary>編輯</summary>
@@ -198,6 +205,16 @@ function TutoringSessionEditor({ sessionItem }: { sessionItem: TutoringSession }
             ))}
           </select>
         </label>
+        <div className="field-row">
+          <label>
+            開始日期
+            <input name="startDate" type="date" defaultValue={sessionItem.startDate ? formatDateInput(sessionItem.startDate, timeZone) : ""} />
+          </label>
+          <label>
+            結束日期
+            <input name="endDate" type="date" defaultValue={sessionItem.endDate ? formatDateInput(sessionItem.endDate, timeZone) : ""} />
+          </label>
+        </div>
         <div className="field-row">
           <label>
             開始
@@ -356,7 +373,7 @@ function WeekCalendar({
           const dayTasks = weekTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
           const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
           const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
-          const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
+          const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
           const planned = dayTasks.filter((task) => task.status === "PLANNED").length;
           const done = dayTasks.filter((task) => task.status === "DONE").length;
           const partial = dayTasks.filter((task) => task.status === "PARTIAL").length;
@@ -445,7 +462,7 @@ function MonthCalendar({
           const dayTasks = monthTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
           const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
           const dayFixedEvents = fixedEvents.filter((event) => event.weekday === day.weekday);
-          const dayTutoringSessions = tutoringSessions.filter((sessionItem) => sessionItem.weekday === day.weekday);
+          const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
           const dayClassName = [
             "month-day",
@@ -629,7 +646,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
       return plannedDate >= week.start.getTime() && plannedDate < week.end.getTime();
     }) ?? [];
   const todayFixedEvents = student?.fixedEvents.filter((event) => event.weekday === today.weekday) ?? [];
-  const todayTutoringSessions = student?.tutoringSessions.filter((sessionItem) => sessionItem.weekday === today.weekday) ?? [];
+  const todayTutoringSessions = student
+    ? activeTutoringSessionsForDate(student.tutoringSessions, today.date, today.weekday, timeZone)
+    : [];
   const openTasks = todayTasks.filter((task) => task.status === "PLANNED");
   const doneTasks = todayTasks.filter((task) => task.status !== "PLANNED");
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
@@ -676,6 +695,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {error === "exam-plan-exists" && <div className="error-notice">這個考試與科目已經有複習計畫。</div>}
           {error === "exam-plan-not-found" && <div className="error-notice">找不到這個考前複習計畫。</div>}
           {error === "teacher-event-readonly" && <div className="error-notice">老師套用的班級事件只能由老師管理。</div>}
+          {error === "tutoring-date-range" && <div className="error-notice">補習結束日期不能早於開始日期。</div>}
           {error === "invalid-score" && <div className="error-notice">成績必須是 0 到 100 分，並填寫科目。</div>}
           {error === "invalid-weak-point" && <div className="error-notice">請填寫弱點科目與內容。</div>}
 
@@ -818,6 +838,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             疲勞 {fatigueLabels[sessionItem.fatigueLevel]}
                             {sessionItem.hasHomework ? "，有補習作業" : ""}
                             {sessionItem.commuteMinutes > 0 ? `，通勤 ${sessionItem.commuteMinutes} 分鐘` : ""}
+                            ，{tutoringSessionDateLabel(sessionItem, timeZone)}
                           </p>
                         </div>
                         <form className="inline-actions" action={deleteTutoringSession}>
@@ -826,7 +847,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                             刪除
                           </button>
                         </form>
-                        <TutoringSessionEditor sessionItem={sessionItem} />
+                        <TutoringSessionEditor sessionItem={sessionItem} timeZone={timeZone} />
                       </div>
                     ))}
 
@@ -991,6 +1012,16 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       ))}
                     </select>
                   </label>
+                  <div className="field-row">
+                    <label>
+                      開始日期
+                      <input name="startDate" type="date" />
+                    </label>
+                    <label>
+                      結束日期
+                      <input name="endDate" type="date" />
+                    </label>
+                  </div>
                   <div className="field-row">
                     <label>
                       開始

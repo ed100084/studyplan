@@ -325,6 +325,8 @@ model TutoringSession {
   studentId      String
   subjectName    String
   weekday        Weekday
+  startDate      DateTime?
+  endDate        DateTime?
   startTime      String
   endTime        String
   commuteMinutes Int            @default(0)
@@ -332,6 +334,8 @@ model TutoringSession {
   hasHomework    Boolean        @default(false)
   createdAt      DateTime       @default(now())
   student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, weekday, startDate, endDate])
 }
 
 model StudyTask {

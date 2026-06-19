@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CalendarEventType, FixedEventType, Weekday } from "@prisma/client";
+import { CalendarEventType, FatigueLevel, FixedEventType, Weekday } from "@prisma/client";
 import { buildExamReviewTaskDrafts } from "../lib/exam-review-planner";
 import { classCalendarImportRowKey, validateClassCalendarImportRows } from "../lib/class-calendar-import";
 
@@ -53,6 +53,58 @@ test("reports unallocated minutes when recurring events consume the whole day", 
   assert.deepEqual(result.tasks, []);
   assert.equal(result.scheduledMinutes, 0);
   assert.equal(result.unscheduledMinutes, 60);
+});
+
+test("counts tutoring sessions only inside their active date range", () => {
+  const inactiveResult = buildExamReviewTaskDrafts({
+    startDate: "2026-06-12",
+    examDate: "2026-06-13",
+    remainingMinutes: 60,
+    sessionMinutes: 30,
+    fixedEvents: [],
+    tutoringSessions: [
+      {
+        id: "summer-math",
+        subjectName: "數學",
+        weekday: Weekday.FRIDAY,
+        startDate: "2026-07-01",
+        endDate: "2026-08-31",
+        startTime: "17:30",
+        endTime: "22:30",
+        commuteMinutes: 0,
+        fatigueLevel: FatigueLevel.NORMAL,
+        hasHomework: false,
+      },
+    ],
+    calendarEvents: [],
+  });
+  const activeResult = buildExamReviewTaskDrafts({
+    startDate: "2026-06-12",
+    examDate: "2026-06-13",
+    remainingMinutes: 60,
+    sessionMinutes: 30,
+    fixedEvents: [],
+    tutoringSessions: [
+      {
+        id: "june-math",
+        subjectName: "數學",
+        weekday: Weekday.FRIDAY,
+        startDate: "2026-06-01",
+        endDate: "2026-06-30",
+        startTime: "17:30",
+        endTime: "22:30",
+        commuteMinutes: 0,
+        fatigueLevel: FatigueLevel.NORMAL,
+        hasHomework: false,
+      },
+    ],
+    calendarEvents: [],
+  });
+
+  assert.equal(inactiveResult.scheduledMinutes, 60);
+  assert.equal(inactiveResult.unscheduledMinutes, 0);
+  assert.equal(activeResult.scheduledMinutes, 0);
+  assert.equal(activeResult.unscheduledMinutes, 60);
 });
 
 test("validates serialized class calendar rows before confirmation", () => {

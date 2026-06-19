@@ -19,6 +19,7 @@ import { getCurrentSession } from "@/lib/session";
 import { formatDateInput, getCurrentDay, getDayRange, getRequestTimeZone, zonedDateStart } from "@/lib/timezone";
 import { buildExamReviewTaskDrafts } from "@/lib/exam-review-planner";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
+import { tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -42,6 +43,23 @@ async function userDateValue(rawValue: string) {
   const timeZone = await getRequestTimeZone();
   const value = rawValue || formatDateInput(new Date(), timeZone);
   return zonedDateStart(value, timeZone);
+}
+
+function optionalDateValue(rawValue: string, timeZone: string) {
+  return rawValue ? zonedDateStart(rawValue, timeZone) : null;
+}
+
+function activeTutoringDateWhere(date: Date) {
+  return {
+    AND: [
+      {
+        OR: [{ startDate: null }, { startDate: { lte: date } }],
+      },
+      {
+        OR: [{ endDate: null }, { endDate: { gte: date } }],
+      },
+    ],
+  };
 }
 
 async function getSubjectId(subjectName: string) {
@@ -170,18 +188,27 @@ export async function createFixedEvent(formData: FormData) {
 export async function createTutoringSession(formData: FormData) {
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
+  const timeZone = await getRequestTimeZone();
   const subjectName = textValue(formData, "subjectName") || "補習";
   const weekday = enumValue(Weekday, textValue(formData, "weekday"), Weekday.MONDAY);
+  const rawStartDate = textValue(formData, "startDate");
+  const rawEndDate = textValue(formData, "endDate");
   const startTime = textValue(formData, "startTime") || "18:00";
   const endTime = textValue(formData, "endTime") || "20:00";
   const commuteMinutes = Math.max(0, intValue(formData, "commuteMinutes", 0));
   const fatigueLevel = enumValue(FatigueLevel, textValue(formData, "fatigueLevel"), FatigueLevel.NORMAL);
+
+  if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
+    redirect(addQuery(editable.redirectTo, "error=tutoring-date-range"));
+  }
 
   await prisma.tutoringSession.create({
     data: {
       studentId: editable.student.id,
       subjectName,
       weekday,
+      startDate: optionalDateValue(rawStartDate, timeZone),
+      endDate: optionalDateValue(rawEndDate, timeZone),
       startTime,
       endTime,
       commuteMinutes,
@@ -296,7 +323,18 @@ async function redistributeExamReviewPlan(
     remainingMinutes,
     sessionMinutes: plan.sessionMinutes,
     fixedEvents: plan.student.fixedEvents,
-    tutoringSessions: plan.student.tutoringSessions,
+    tutoringSessions: plan.student.tutoringSessions.map((session) => ({
+      id: session.id,
+      subjectName: session.subjectName,
+      weekday: session.weekday,
+      startDate: session.startDate ? formatDateInput(session.startDate, timeZone) : null,
+      endDate: session.endDate ? formatDateInput(session.endDate, timeZone) : null,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      commuteMinutes: session.commuteMinutes,
+      fatigueLevel: session.fatigueLevel,
+      hasHomework: session.hasHomework,
+    })),
     calendarEvents: plan.student.calendarEvents.map((event) => ({
       id: event.id,
       type: event.type,
@@ -492,6 +530,7 @@ export async function updateTutoringSession(formData: FormData) {
   const tutoringSessionId = textValue(formData, "tutoringSessionId");
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
+  const timeZone = await getRequestTimeZone();
   const session = await prisma.tutoringSession.findFirst({
     where: {
       id: tutoringSessionId,
@@ -503,6 +542,12 @@ export async function updateTutoringSession(formData: FormData) {
     redirect(addQuery(editable.redirectTo, "error=tutoring-session-not-found"));
   }
 
+  const rawStartDate = textValue(formData, "startDate");
+  const rawEndDate = textValue(formData, "endDate");
+  if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
+    redirect(addQuery(editable.redirectTo, "error=tutoring-date-range"));
+  }
+
   await prisma.tutoringSession.update({
     where: {
       id: session.id,
@@ -510,6 +555,8 @@ export async function updateTutoringSession(formData: FormData) {
     data: {
       subjectName: textValue(formData, "subjectName") || session.subjectName,
       weekday: enumValue(Weekday, textValue(formData, "weekday"), session.weekday),
+      startDate: optionalDateValue(rawStartDate, timeZone),
+      endDate: optionalDateValue(rawEndDate, timeZone),
       startTime: textValue(formData, "startTime") || session.startTime,
       endTime: textValue(formData, "endTime") || session.endTime,
       commuteMinutes: Math.max(0, intValue(formData, "commuteMinutes", session.commuteMinutes)),
@@ -639,7 +686,7 @@ export async function saveTodaySchedule(formData: FormData) {
     where: { id: editable.student.id },
     include: {
       fixedEvents: { where: { weekday: today.weekday } },
-      tutoringSessions: { where: { weekday: today.weekday } },
+      tutoringSessions: { where: { weekday: today.weekday, ...activeTutoringDateWhere(range.start) } },
       studyTasks: {
         where: {
           plannedDate: { gte: range.start, lt: range.end },
@@ -654,7 +701,9 @@ export async function saveTodaySchedule(formData: FormData) {
 
   const schedule = buildTodaySchedule({
     fixedEvents: student.fixedEvents,
-    tutoringSessions: student.tutoringSessions,
+    tutoringSessions: student.tutoringSessions.filter((session) =>
+      tutoringSessionFallsOnDate(session, today.date, timeZone),
+    ),
     tasks: student.studyTasks.map((task) => ({
       id: task.id,
       title: task.title,

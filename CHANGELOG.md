@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0
+
+- Added optional start and end dates to tutoring sessions for short-term classes.
+- Student and guardian tutoring forms now support date ranges when creating or editing tutoring sessions.
+- Today schedules, weekly/monthly calendars, saved schedule runs, and exam-review planning now count tutoring sessions only on dates where they are active.
+- Added a Prisma migration and regression coverage for date-bounded tutoring sessions.
+
 ## 2.2.2
 
 - Added system-admin Email updates for student, guardian, and class-admin accounts.
