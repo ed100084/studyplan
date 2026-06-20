@@ -51,3 +51,35 @@ test("schedules tasks inside configured daytime study windows", () => {
   assert.equal(studySegment?.startTime, "10:00");
   assert.equal(studySegment?.endTime, "11:00");
 });
+
+test("does not place fixed-time study tasks over fixed routine blocks", () => {
+  const schedule = buildTodaySchedule({
+    fixedEvents: [
+      {
+        id: "shower",
+        title: "洗澡",
+        type: FixedEventType.HYGIENE,
+        startTime: "21:00",
+        endTime: "21:30",
+        commuteMinutes: 0,
+      },
+    ],
+    tutoringSessions: [],
+    tasks: [
+      {
+        id: "english",
+        title: "英文閱讀",
+        subjectName: "英文",
+        type: TaskType.REVIEW,
+        plannedStartTime: "21:00",
+        plannedEndTime: "21:30",
+        estimatedMinutes: 30,
+        priority: 4,
+      },
+    ],
+  });
+
+  assert.ok(schedule.scheduled.some((segment) => segment.kind === "fixed" && segment.title === "洗澡"));
+  assert.ok(schedule.unplaced.some((segment) => segment.taskId === "english"));
+  assert.ok(!schedule.scheduled.some((segment) => segment.kind === "study" && segment.taskId === "english"));
+});

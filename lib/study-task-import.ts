@@ -30,6 +30,8 @@ const TASK_TYPES = [
 
 export type StudyTaskImportRow = {
   date: string;
+  plannedStartTime: string | null;
+  plannedEndTime: string | null;
   subjectName: string | null;
   title: string;
   type: TaskType;
@@ -73,6 +75,28 @@ function parseDate(value: string) {
   }
 
   return value;
+}
+
+function parseTime(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  if (!/^\d{2}:\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const [hours, minutes] = value.split(":").map(Number);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  return value;
+}
+
+function timeToMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
 }
 
 function parseTaskType(value: string) {
@@ -134,6 +158,8 @@ function buildColumnMap(header: string[]) {
     subject: indexOfHeader(header, ["subject", "subjectName", "科目"]),
     title: indexOfHeader(header, ["title", "task", "taskTitle", "任務", "任務名稱", "標題", "名稱"]),
     type: indexOfHeader(header, typeAliases),
+    startTime: indexOfHeader(header, ["startTime", "start_time", "開始時間", "開始"]),
+    endTime: indexOfHeader(header, ["endTime", "end_time", "結束時間", "結束"]),
     minutes: indexOfHeader(header, ["minutes", "estimatedMinutes", "estimated_minutes", "預估分鐘", "分鐘", "時間"]),
     priority: indexOfHeader(header, ["priority", "優先度", "優先"]),
     note: indexOfHeader(header, ["note", "detail", "description", "備註", "說明", "細節"]),
@@ -197,6 +223,8 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
       subject: readColumn(row, columns.subject),
       title: readColumn(row, columns.title),
       type: readColumn(row, columns.type),
+      startTime: readColumn(row, columns.startTime),
+      endTime: readColumn(row, columns.endTime),
       minutes: readColumn(row, columns.minutes),
       priority: readColumn(row, columns.priority),
       note: readColumn(row, columns.note),
@@ -207,10 +235,15 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
     }
 
     const date = parseDate(values.date);
+    const plannedStartTime = parseTime(values.startTime);
+    const plannedEndTime = parseTime(values.endTime);
+    const hasStartTime = Boolean(values.startTime);
+    const hasEndTime = Boolean(values.endTime);
+    const fixedTimeMinutes = plannedStartTime && plannedEndTime ? timeToMinutes(plannedEndTime) - timeToMinutes(plannedStartTime) : null;
     const subjectName = values.subject || null;
     const title = values.title;
     const type = strictType ?? "REVIEW";
-    const minutes = parseInteger(values.minutes, 30);
+    const minutes = parseInteger(values.minutes, fixedTimeMinutes && fixedTimeMinutes > 0 ? fixedTimeMinutes : 30);
     const estimatedMinutes = Math.max(10, minutes.value);
     const parsedPriority = parseInteger(values.priority, 3);
     const priority = parsedPriority.value;
@@ -218,6 +251,10 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
     const rowErrors: string[] = [];
 
     if (!date) rowErrors.push("date 必須是 YYYY-MM-DD");
+    if (hasStartTime && !plannedStartTime) rowErrors.push("startTime 必須是 HH:mm");
+    if (hasEndTime && !plannedEndTime) rowErrors.push("endTime 必須是 HH:mm");
+    if (hasStartTime !== hasEndTime) rowErrors.push("startTime 和 endTime 必須一起填寫");
+    if (fixedTimeMinutes !== null && fixedTimeMinutes < 10) rowErrors.push("startTime 到 endTime 至少要 10 分鐘，且結束時間必須晚於開始時間");
     if (!title) rowErrors.push("title 必填");
     if (title.length > 120) rowErrors.push("title 最多 120 字");
     if (subjectName && subjectName.length > 80) rowErrors.push("subject 最多 80 字");
@@ -232,6 +269,8 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
 
     rows.push({
       date,
+      plannedStartTime,
+      plannedEndTime,
       subjectName,
       title,
       type,

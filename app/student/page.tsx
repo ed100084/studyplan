@@ -483,6 +483,16 @@ function StudyTaskEditor({ task, timeZone }: { task: StudyTaskWithSubject; timeZ
         </label>
         <div className="field-row">
           <label>
+            指定開始
+            <input name="plannedStartTime" type="time" defaultValue={task.plannedStartTime ?? ""} />
+          </label>
+          <label>
+            指定結束
+            <input name="plannedEndTime" type="time" defaultValue={task.plannedEndTime ?? ""} />
+          </label>
+        </div>
+        <div className="field-row">
+          <label>
             預估分鐘
             <input name="estimatedMinutes" type="number" min="10" step="5" defaultValue={task.estimatedMinutes} />
           </label>
@@ -916,6 +926,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           title: task.title,
           subjectName: task.subject?.name,
           type: task.type,
+          plannedStartTime: task.plannedStartTime,
+          plannedEndTime: task.plannedEndTime,
           estimatedMinutes: task.estimatedMinutes,
           priority: task.priority,
         })),
@@ -957,6 +969,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               title: task.title,
               subjectName: task.subject?.name,
               type: task.type,
+              plannedStartTime: task.plannedStartTime,
+              plannedEndTime: task.plannedEndTime,
               estimatedMinutes: task.estimatedMinutes,
               priority: task.priority,
             })),
@@ -1001,6 +1015,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           {error === "study-window-not-found" && <div className="error-notice">找不到這筆可讀書時段設定。</div>}
           {error === "tutoring-date-range" && <div className="error-notice">補習結束日期不能早於開始日期。</div>}
           {error === "task-import" && <div className="error-notice">CSV 匯入失敗：{params?.importErrors ?? "請檢查格式。"}</div>}
+          {error === "task-time-range" && <div className="error-notice">任務指定時間必須同時填開始與結束，且至少 10 分鐘、結束晚於開始。</div>}
           {error === "task-import-batch-required" && <div className="error-notice">缺少匯入批次代碼，無法刪除整批任務。</div>}
           {error === "invalid-score" && <div className="error-notice">成績必須是 0 到 100 分，並填寫科目。</div>}
           {error === "invalid-weak-point" && <div className="error-notice">請填寫弱點科目與內容。</div>}

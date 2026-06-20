@@ -87,6 +87,16 @@ export function StudyTaskContinuousForm({
       </label>
       <div className="field-row">
         <label>
+          指定開始
+          <input name="plannedStartTime" type="time" />
+        </label>
+        <label>
+          指定結束
+          <input name="plannedEndTime" type="time" />
+        </label>
+      </div>
+      <div className="field-row">
+        <label>
           預估分鐘
           <input name="estimatedMinutes" type="number" min="10" step="5" defaultValue="30" />
         </label>

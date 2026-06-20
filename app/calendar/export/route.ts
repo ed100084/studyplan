@@ -371,6 +371,8 @@ export async function GET(request: NextRequest) {
           title: task.title,
           subjectName: task.subject?.name,
           type: task.type,
+          plannedStartTime: task.plannedStartTime,
+          plannedEndTime: task.plannedEndTime,
           estimatedMinutes: task.estimatedMinutes,
           priority: task.priority,
         })),

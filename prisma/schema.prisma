@@ -371,6 +371,8 @@ model StudyTask {
   type             TaskType
   status           TaskStatus      @default(PLANNED)
   plannedDate      DateTime
+  plannedStartTime String?
+  plannedEndTime   String?
   estimatedMinutes Int
   priority         Int             @default(1)
   source           RecordSource    @default(SYSTEM)

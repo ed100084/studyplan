@@ -72,3 +72,15 @@ test("accepts reordered task CSV columns and Chinese headers", () => {
   assert.equal(result.rows[0].estimatedMinutes, 25);
   assert.equal(result.rows[0].priority, 2);
 });
+
+test("parses optional task start and end times from CSV", () => {
+  const result = parseStudyTaskCsv(`date,startTime,endTime,subject,title,type,priority,note
+2026-07-04,20:30,21:15,自然,整理錯題,複習,4,第三章
+`);
+
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].plannedStartTime, "20:30");
+  assert.equal(result.rows[0].plannedEndTime, "21:15");
+  assert.equal(result.rows[0].estimatedMinutes, 45);
+});

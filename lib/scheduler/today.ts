@@ -24,6 +24,8 @@ export type SchedulerStudyTask = {
   title: string;
   subjectName?: string;
   type: TaskType;
+  plannedStartTime?: string | null;
+  plannedEndTime?: string | null;
   estimatedMinutes: number;
   priority: number;
 };
@@ -248,6 +250,56 @@ function explainUnplacedTask(task: SchedulerStudyTask, slots: FreeSlot[], availa
   return "剩餘時間太零碎或已被高優先任務使用，建議降低預估時間或移到明天。";
 }
 
+function explainFixedTimeConflict(task: SchedulerStudyTask) {
+  if (task.plannedStartTime && task.plannedEndTime) {
+    return `指定時間 ${task.plannedStartTime}-${task.plannedEndTime} 不在可用自習空檔內，可能撞到固定作息、補習或超出可讀書時段。`;
+  }
+
+  return "指定時間不完整，請同時填寫開始與結束時間。";
+}
+
+function splitSlotAround(slot: FreeSlot, used: FreeSlot) {
+  const nextSlots: FreeSlot[] = [];
+  if (slot.start < used.start) {
+    nextSlots.push({ start: slot.start, end: used.start });
+  }
+  if (used.end < slot.end) {
+    nextSlots.push({ start: used.end, end: slot.end });
+  }
+
+  return nextSlots.filter((item) => item.end - item.start >= MIN_TASK_MINUTES);
+}
+
+function reserveFixedTaskSlot(task: SchedulerStudyTask, freeSlots: FreeSlot[]) {
+  if (!task.plannedStartTime || !task.plannedEndTime) {
+    return null;
+  }
+
+  const fixedSlot = {
+    start: toMinutes(task.plannedStartTime),
+    end: toMinutes(task.plannedEndTime),
+  };
+  if (fixedSlot.end - fixedSlot.start < MIN_TASK_MINUTES) {
+    return null;
+  }
+
+  const slotIndex = freeSlots.findIndex((slot) => slot.start <= fixedSlot.start && fixedSlot.end <= slot.end);
+  if (slotIndex === -1) {
+    return null;
+  }
+
+  const nextFreeSlots = [
+    ...freeSlots.slice(0, slotIndex),
+    ...splitSlotAround(freeSlots[slotIndex], fixedSlot),
+    ...freeSlots.slice(slotIndex + 1),
+  ].sort((a, b) => a.start - b.start || a.end - b.end);
+
+  return {
+    fixedSlot,
+    nextFreeSlots,
+  };
+}
+
 function planTaskChunks(task: SchedulerStudyTask, freeSlots: FreeSlot[], slotIndex: number, cursor: number, dayEnd: number): TaskPlacement | null {
   const chunks: FreeSlot[] = [];
   let remaining = task.estimatedMinutes;
@@ -318,6 +370,19 @@ function addStudySegments(task: SchedulerStudyTask, placement: TaskPlacement, se
   });
 }
 
+function addFixedTimeStudySegment(task: SchedulerStudyTask, slot: FreeSlot, segments: ScheduleSegment[]) {
+  segments.push({
+    id: `study-${task.id}`,
+    kind: "study",
+    title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
+    detail: `${taskTypeLabels[task.type]}，優先度 ${task.priority}，指定時間`,
+    startTime: toTime(slot.start),
+    endTime: toTime(slot.end),
+    minutes: slot.end - slot.start,
+    taskId: task.id,
+  });
+}
+
 function addBreakAfterTask(taskId: string, slot: FreeSlot | undefined, start: number, cursor: number, segments: ScheduleSegment[]) {
   if (!slot || cursor > slot.end || slot.end - cursor < MIN_TASK_MINUTES) {
     return;
@@ -376,13 +441,43 @@ export function buildTodaySchedule(input: {
   });
 
   const busyBlocks = mergeBusyBlocks([...fixedBlocks, ...tutoringBlocks]);
-  const freeSlots = reduceLateCapacityForFatigue(buildFreeSlotsWithinStudyWindows(busyBlocks, studyWindows), input.tutoringSessions).filter(
+  let freeSlots = reduceLateCapacityForFatigue(buildFreeSlotsWithinStudyWindows(busyBlocks, studyWindows), input.tutoringSessions).filter(
     (slot) => slot.end - slot.start >= MIN_TASK_MINUTES,
   );
-  const tasks = [...input.tasks].sort((a, b) => b.priority - a.priority || b.estimatedMinutes - a.estimatedMinutes);
+  const fixedTimeTasks = input.tasks
+    .filter((task) => task.plannedStartTime || task.plannedEndTime)
+    .sort(
+      (a, b) =>
+        toMinutes(a.plannedStartTime ?? "00:00") - toMinutes(b.plannedStartTime ?? "00:00") ||
+        b.priority - a.priority ||
+        b.estimatedMinutes - a.estimatedMinutes,
+    );
+  const tasks = input.tasks
+    .filter((task) => !task.plannedStartTime && !task.plannedEndTime)
+    .sort((a, b) => b.priority - a.priority || b.estimatedMinutes - a.estimatedMinutes);
   const studySegments: ScheduleSegment[] = [];
   const unplaced: ScheduleSegment[] = [];
   const availableMinutes = freeSlots.reduce((total, slot) => total + (slot.end - slot.start), 0);
+
+  for (const task of fixedTimeTasks) {
+    const reservation = reserveFixedTaskSlot(task, freeSlots);
+
+    if (!reservation) {
+      unplaced.push({
+        id: `unplaced-${task.id}`,
+        kind: "unplaced",
+        title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
+        detail: explainFixedTimeConflict(task),
+        minutes: task.estimatedMinutes,
+        taskId: task.id,
+      });
+      continue;
+    }
+
+    addFixedTimeStudySegment(task, reservation.fixedSlot, studySegments);
+    freeSlots = reservation.nextFreeSlots;
+  }
+
   let slotIndex = 0;
   let cursor = freeSlots[0]?.start ?? scheduleStart;
 

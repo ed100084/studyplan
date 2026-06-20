@@ -42,6 +42,26 @@ function intValue(formData: FormData, key: string, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function timeMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function timeRangeValues(formData: FormData) {
+  const startTime = textValue(formData, "plannedStartTime");
+  const endTime = textValue(formData, "plannedEndTime");
+  return {
+    plannedStartTime: startTime || null,
+    plannedEndTime: endTime || null,
+  };
+}
+
+function invalidTimeRange(startTime: string | null, endTime: string | null) {
+  if (!startTime && !endTime) return false;
+  if (!startTime || !endTime) return true;
+  return endTime <= startTime || timeMinutes(endTime) - timeMinutes(startTime) < 10;
+}
+
 function boolValue(formData: FormData, key: string) {
   return formData.get(key) === "on";
 }
@@ -229,6 +249,11 @@ async function createStudyTaskRecord(formData: FormData, editable: EditableStude
   const estimatedMinutes = Math.max(10, intValue(formData, "estimatedMinutes", 30));
   const priority = Math.min(5, Math.max(1, intValue(formData, "priority", 3)));
   const subjectId = await getSubjectId(subjectName);
+  const { plannedStartTime, plannedEndTime } = timeRangeValues(formData);
+
+  if (invalidTimeRange(plannedStartTime, plannedEndTime)) {
+    redirectBack(formData, editable.redirectTo, "error=task-time-range");
+  }
 
   return prisma.studyTask.create({
     data: {
@@ -238,6 +263,8 @@ async function createStudyTaskRecord(formData: FormData, editable: EditableStude
       description,
       type,
       plannedDate,
+      plannedStartTime,
+      plannedEndTime,
       estimatedMinutes,
       priority,
       source: editable.source,
@@ -418,6 +445,8 @@ export async function importStudyTasks(formData: FormData) {
           description: row.description,
           type: row.type,
           plannedDate: zonedDateStart(row.date, DEFAULT_TIME_ZONE),
+          plannedStartTime: row.plannedStartTime,
+          plannedEndTime: row.plannedEndTime,
           estimatedMinutes: row.estimatedMinutes,
           priority: row.priority,
           source: editable.source,
@@ -839,6 +868,11 @@ export async function updateStudyTask(formData: FormData) {
   }
 
   const subjectId = await getSubjectId(textValue(formData, "subjectName"));
+  const { plannedStartTime, plannedEndTime } = timeRangeValues(formData);
+
+  if (invalidTimeRange(plannedStartTime, plannedEndTime)) {
+    redirectBack(formData, editable.redirectTo, "error=task-time-range");
+  }
 
   await prisma.studyTask.update({
     where: {
@@ -850,6 +884,8 @@ export async function updateStudyTask(formData: FormData) {
       description: textValue(formData, "description") || null,
       type: enumValue(TaskType, textValue(formData, "type"), task.type),
       plannedDate: await userDateValue(textValue(formData, "plannedDate")),
+      plannedStartTime,
+      plannedEndTime,
       estimatedMinutes: Math.max(10, intValue(formData, "estimatedMinutes", task.estimatedMinutes)),
       priority: Math.min(5, Math.max(1, intValue(formData, "priority", task.priority))),
       source: editable.source,
@@ -971,6 +1007,8 @@ export async function saveTodaySchedule(formData: FormData) {
       title: task.title,
       subjectName: task.subject?.name,
       type: task.type,
+      plannedStartTime: task.plannedStartTime,
+      plannedEndTime: task.plannedEndTime,
       estimatedMinutes: task.estimatedMinutes,
       priority: task.priority,
     })),
