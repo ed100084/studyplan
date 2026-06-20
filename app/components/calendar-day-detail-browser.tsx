@@ -97,6 +97,19 @@ export function CalendarDayDetailBrowser({
     return () => window.removeEventListener("popstate", handlePopState);
   }, [detailsByDate]);
 
+  useEffect(() => {
+    if (!isDetailOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsDetailOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDetailOpen]);
+
   function handleCalendarClick(event: React.MouseEvent<HTMLDivElement>) {
     const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[data-calendar-date]");
     if (!link) return;
@@ -118,8 +131,14 @@ export function CalendarDayDetailBrowser({
     <div className="calendar-detail-browser" ref={containerRef} onClick={handleCalendarClick}>
       {children}
       {isDetailOpen && selectedDay && (
-        <div className="calendar-detail-overlay" role="dialog" aria-modal="true" aria-label={`${selectedDay.date} 圖表式時間軸`}>
-          <div className="calendar-detail-dialog">
+        <div
+          className="calendar-detail-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${selectedDay.date} 圖表式時間軸`}
+          onClick={() => setIsDetailOpen(false)}
+        >
+          <div className="calendar-detail-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="calendar-detail-dialog-actions">
               <button className="small-button" type="button" onClick={() => setIsDetailOpen(false)}>
                 關閉

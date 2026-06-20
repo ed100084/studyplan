@@ -1335,20 +1335,6 @@ button[aria-disabled="true"] {
   line-height: 1.6;
 }
 
-.compact-link-code {
-  margin: 0 0 10px;
-  padding: 10px 12px;
-}
-
-.compact-link-code h2,
-.compact-link-code p {
-  display: none;
-}
-
-.compact-link-code .card-meta {
-  font-size: 12px;
-}
-
 .dashboard-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1408,11 +1394,6 @@ button[aria-disabled="true"] {
   letter-spacing: 1px;
   padding: 12px 14px;
   white-space: nowrap;
-}
-
-.compact-link-code > strong {
-  font-size: 18px;
-  padding: 8px 10px;
 }
 
 .settings-link-code {
