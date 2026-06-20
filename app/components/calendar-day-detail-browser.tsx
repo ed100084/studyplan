@@ -71,6 +71,7 @@ export function CalendarDayDetailBrowser({
 }: CalendarDayDetailBrowserProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const detailsByDate = useMemo(() => new Map(days.map((day) => [day.date, day])), [days]);
   const selectedDay = detailsByDate.get(selectedDate) ?? detailsByDate.get(initialDate) ?? days[0];
 
@@ -88,6 +89,7 @@ export function CalendarDayDetailBrowser({
       const date = new URLSearchParams(window.location.search).get("date");
       if (date && detailsByDate.has(date)) {
         setSelectedDate(date);
+        setIsDetailOpen(true);
       }
     }
 
@@ -104,6 +106,7 @@ export function CalendarDayDetailBrowser({
 
     event.preventDefault();
     setSelectedDate(date);
+    setIsDetailOpen(true);
     window.history.pushState(null, "", link.href);
   }
 
@@ -113,27 +116,38 @@ export function CalendarDayDetailBrowser({
 
   return (
     <div className="calendar-detail-browser" ref={containerRef} onClick={handleCalendarClick}>
-      <DayDetailPanel
-        date={selectedDay.date}
-        timeZone={timeZone}
-        weekdayLabel={selectedDay.weekdayLabel}
-        isToday={selectedDay.isToday}
-        fixedEvents={selectedDay.fixedEvents}
-        tutoringSessions={selectedDay.tutoringSessions}
-        calendarEvents={selectedDay.calendarEvents}
-        tasks={selectedDay.tasks}
-        schedule={selectedDay.schedule}
-        fixedEventLabels={fixedEventLabels}
-        taskTypeLabels={taskTypeLabels}
-        calendarEventLabels={calendarEventLabels}
-        fatigueLabels={fatigueLabels}
-        statusLabels={statusLabels}
-        newStudyTaskHref={newStudyTaskHref}
-        newFixedEventHref={newFixedEventHref}
-        newTutoringHref={newTutoringHref}
-        newCalendarEventHref={newCalendarEventHref}
-      />
       {children}
+      {isDetailOpen && selectedDay && (
+        <div className="calendar-detail-overlay" role="dialog" aria-modal="true" aria-label={`${selectedDay.date} 圖表式時間軸`}>
+          <div className="calendar-detail-dialog">
+            <div className="calendar-detail-dialog-actions">
+              <button className="small-button" type="button" onClick={() => setIsDetailOpen(false)}>
+                關閉
+              </button>
+            </div>
+            <DayDetailPanel
+              date={selectedDay.date}
+              timeZone={timeZone}
+              weekdayLabel={selectedDay.weekdayLabel}
+              isToday={selectedDay.isToday}
+              fixedEvents={selectedDay.fixedEvents}
+              tutoringSessions={selectedDay.tutoringSessions}
+              calendarEvents={selectedDay.calendarEvents}
+              tasks={selectedDay.tasks}
+              schedule={selectedDay.schedule}
+              fixedEventLabels={fixedEventLabels}
+              taskTypeLabels={taskTypeLabels}
+              calendarEventLabels={calendarEventLabels}
+              fatigueLabels={fatigueLabels}
+              statusLabels={statusLabels}
+              newStudyTaskHref={newStudyTaskHref}
+              newFixedEventHref={newFixedEventHref}
+              newTutoringHref={newTutoringHref}
+              newCalendarEventHref={newCalendarEventHref}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

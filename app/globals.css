@@ -372,6 +372,26 @@ h1 {
   margin-top: 2px;
 }
 
+.dashboard-topbar {
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+}
+
+.dashboard-identity {
+  min-width: 180px;
+}
+
+.dashboard-topbar .dashboard-tabs {
+  flex: 1;
+  justify-content: center;
+  margin: 0;
+}
+
+.dashboard-account-actions {
+  flex-shrink: 0;
+}
+
 .form-card {
   display: grid;
   gap: 16px;
@@ -808,6 +828,45 @@ h1 {
 
 .day-detail-panel {
   margin: 20px 0;
+}
+
+.calendar-detail-overlay {
+  align-items: flex-start;
+  background: rgba(15, 23, 42, 0.42);
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  overflow: auto;
+  padding: 28px 16px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 50;
+}
+
+.calendar-detail-dialog {
+  width: min(900px, 100%);
+}
+
+.calendar-detail-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.calendar-detail-dialog .day-detail-panel {
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  margin: 0;
+}
+
+.calendar-detail-dialog .day-detail-metrics,
+.calendar-detail-dialog .day-detail-card:not(:first-child) {
+  display: none;
+}
+
+.calendar-detail-dialog .day-detail-grid {
+  grid-template-columns: 1fr;
 }
 
 .day-detail-metrics {
@@ -1301,6 +1360,29 @@ button[aria-disabled="true"] {
   margin: 12px 0;
 }
 
+.calendar-view-switcher {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.calendar-view-button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 12px;
+  text-decoration: none;
+}
+
+.calendar-view-button.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 .dashboard-tab {
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1331,6 +1413,10 @@ button[aria-disabled="true"] {
 .compact-link-code > strong {
   font-size: 18px;
   padding: 8px 10px;
+}
+
+.settings-link-code {
+  margin: 0;
 }
 
 .guardian-tools {
@@ -1856,6 +1942,14 @@ button[aria-disabled="true"] {
 
   .inline-actions {
     justify-content: flex-start;
+  }
+
+  .dashboard-topbar .dashboard-tabs {
+    justify-content: flex-start;
+  }
+
+  .calendar-detail-overlay {
+    padding: 12px;
   }
 
   .link-code-card,
