@@ -48,6 +48,7 @@ export type ScheduleSegment = {
   endTime?: string;
   minutes: number;
   taskId?: string;
+  conflict?: boolean;
 };
 
 type BusyBlock = {
@@ -300,6 +301,19 @@ function reserveFixedTaskSlot(task: SchedulerStudyTask, freeSlots: FreeSlot[]) {
   };
 }
 
+function fixedTaskSlot(task: SchedulerStudyTask) {
+  if (!task.plannedStartTime || !task.plannedEndTime) {
+    return null;
+  }
+
+  const slot = {
+    start: toMinutes(task.plannedStartTime),
+    end: toMinutes(task.plannedEndTime),
+  };
+
+  return slot.end - slot.start >= MIN_TASK_MINUTES ? slot : null;
+}
+
 function planTaskChunks(task: SchedulerStudyTask, freeSlots: FreeSlot[], slotIndex: number, cursor: number, dayEnd: number): TaskPlacement | null {
   const chunks: FreeSlot[] = [];
   let remaining = task.estimatedMinutes;
@@ -370,16 +384,19 @@ function addStudySegments(task: SchedulerStudyTask, placement: TaskPlacement, se
   });
 }
 
-function addFixedTimeStudySegment(task: SchedulerStudyTask, slot: FreeSlot, segments: ScheduleSegment[]) {
+function addFixedTimeStudySegment(task: SchedulerStudyTask, slot: FreeSlot, segments: ScheduleSegment[], conflict = false) {
   segments.push({
     id: `study-${task.id}`,
     kind: "study",
     title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
-    detail: `${taskTypeLabels[task.type]}，優先度 ${task.priority}，指定時間`,
+    detail: conflict
+      ? `${taskTypeLabels[task.type]}，優先度 ${task.priority}，指定時間與固定行程衝突，請調整`
+      : `${taskTypeLabels[task.type]}，優先度 ${task.priority}，指定時間`,
     startTime: toTime(slot.start),
     endTime: toTime(slot.end),
     minutes: slot.end - slot.start,
     taskId: task.id,
+    conflict,
   });
 }
 
@@ -463,14 +480,19 @@ export function buildTodaySchedule(input: {
     const reservation = reserveFixedTaskSlot(task, freeSlots);
 
     if (!reservation) {
-      unplaced.push({
-        id: `unplaced-${task.id}`,
-        kind: "unplaced",
-        title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
-        detail: explainFixedTimeConflict(task),
-        minutes: task.estimatedMinutes,
-        taskId: task.id,
-      });
+      const slot = fixedTaskSlot(task);
+      if (slot) {
+        addFixedTimeStudySegment(task, slot, studySegments, true);
+      } else {
+        unplaced.push({
+          id: `unplaced-${task.id}`,
+          kind: "unplaced",
+          title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
+          detail: explainFixedTimeConflict(task),
+          minutes: task.estimatedMinutes,
+          taskId: task.id,
+        });
+      }
       continue;
     }
 
@@ -531,6 +553,9 @@ export function buildTodaySchedule(input: {
     scheduled,
     unplaced,
     availableMinutes,
-    scheduledStudyMinutes: studySegments.reduce((total, segment) => (segment.kind === "study" ? total + segment.minutes : total), 0),
+    scheduledStudyMinutes: studySegments.reduce(
+      (total, segment) => (segment.kind === "study" && !segment.conflict ? total + segment.minutes : total),
+      0,
+    ),
   };
 }

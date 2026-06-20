@@ -988,6 +988,12 @@ h1 {
   padding: 2px 6px;
 }
 
+.schedule-chart-bar.conflict {
+  background: #fff7ed;
+  border-color: #f97316;
+  color: #9a3412;
+}
+
 .schedule-chart-bar strong,
 .schedule-chart-bar span {
   display: block;
@@ -1597,6 +1603,12 @@ body.route-pending .form-grid::before {
   border-color: #bfdbfe;
   border-left-color: #2563eb;
   background: #eff6ff;
+}
+
+.schedule-study.conflict {
+  border-color: #f97316;
+  border-left-color: #ea580c;
+  background: #fff7ed;
 }
 
 .schedule-break {

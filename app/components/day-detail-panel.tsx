@@ -301,7 +301,7 @@ export function DayDetailPanel({
 
                   return (
                     <div
-                      className={`schedule-chart-bar schedule-${segment.kind}${isCompact ? " compact" : ""}`}
+                      className={`schedule-chart-bar schedule-${segment.kind}${segment.conflict ? " conflict" : ""}${isCompact ? " compact" : ""}`}
                       key={segment.id}
                       style={{
                         left: `calc(${segment.lane * laneWidth}% + 8px)`,
@@ -331,7 +331,7 @@ export function DayDetailPanel({
           </div>
           <div className="timeline-list">
             {visibleSegments.map((segment) => (
-              <div className={`timeline-item schedule-${segment.kind}`} key={segment.id}>
+              <div className={`timeline-item schedule-${segment.kind}${segment.conflict ? " conflict" : ""}`} key={segment.id}>
                 <span className="timeline-time">
                   {segment.startTime}-{segment.endTime}
                 </span>
