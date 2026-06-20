@@ -27,6 +27,7 @@ type DaySchedule = {
 };
 
 type ChartSegment = ScheduleSegment & {
+  displayMinutes: number;
   lane: number;
   laneCount: number;
 };
@@ -54,7 +55,8 @@ type DayDetailPanelProps = {
 
 const DEFAULT_CHART_START = 7 * 60;
 const DEFAULT_CHART_END = 22 * 60 + 30;
-const CHART_PIXELS_PER_HOUR = 48;
+const CHART_PIXELS_PER_HOUR = 64;
+const MIN_CHART_SEGMENT_MINUTES = 36;
 
 function timeToMinutes(time: string | undefined) {
   if (!time) return null;
@@ -134,8 +136,10 @@ function assignChartLanes(segments: ScheduleSegment[]): ChartSegment[] {
   const items = segments.map((segment) => {
     const start = timeToMinutes(segment.startTime) ?? 0;
     const end = Math.max(start + 1, timeToMinutes(segment.endTime) ?? start + 1);
+    const displayMinutes = Math.max(MIN_CHART_SEGMENT_MINUTES, end - start);
+    const displayEnd = start + displayMinutes;
 
-    return { segment, start, end };
+    return { segment, start, end, displayEnd, displayMinutes };
   });
   const clusters: typeof items[] = [];
   let currentCluster: typeof items = [];
@@ -144,13 +148,13 @@ function assignChartLanes(segments: ScheduleSegment[]): ChartSegment[] {
   items.forEach((item) => {
     if (currentCluster.length === 0 || item.start < currentClusterEnd) {
       currentCluster.push(item);
-      currentClusterEnd = Math.max(currentClusterEnd, item.end);
+      currentClusterEnd = Math.max(currentClusterEnd, item.displayEnd);
       return;
     }
 
     clusters.push(currentCluster);
     currentCluster = [item];
-    currentClusterEnd = item.end;
+    currentClusterEnd = item.displayEnd;
   });
 
   if (currentCluster.length > 0) {
@@ -162,7 +166,7 @@ function assignChartLanes(segments: ScheduleSegment[]): ChartSegment[] {
     const assigned = cluster.map((item) => {
       const reusableLane = laneEnds.findIndex((end) => end <= item.start);
       const lane = reusableLane === -1 ? laneEnds.length : reusableLane;
-      laneEnds[lane] = item.end;
+      laneEnds[lane] = item.displayEnd;
 
       return { item, lane };
     });
@@ -170,6 +174,7 @@ function assignChartLanes(segments: ScheduleSegment[]): ChartSegment[] {
 
     return assigned.map(({ item, lane }) => ({
       ...item.segment,
+      displayMinutes: item.displayMinutes,
       lane,
       laneCount,
     }));
@@ -283,9 +288,9 @@ export function DayDetailPanel({
                   const end = timeToMinutes(segment.endTime) ?? start;
                   const duration = Math.max(1, end - start);
                   const top = ((start - chartRange.start) / chartDuration) * 100;
-                  const height = (Math.max(8, duration) / chartDuration) * 100;
+                  const height = (segment.displayMinutes / chartDuration) * 100;
                   const laneWidth = 100 / segment.laneCount;
-                  const isCompact = duration < 30;
+                  const isCompact = duration < 20;
 
                   return (
                     <div

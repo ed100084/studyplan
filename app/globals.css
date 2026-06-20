@@ -977,7 +977,7 @@ h1 {
   gap: 2px;
   left: 12px;
   overflow: hidden;
-  padding: 4px 8px;
+  padding: 6px 8px;
   position: absolute;
   right: 12px;
 }
@@ -998,11 +998,13 @@ h1 {
 
 .schedule-chart-bar strong {
   font-size: 13px;
+  line-height: 1.25;
 }
 
 .schedule-chart-bar span {
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.25;
 }
 
 .schedule-chart-bar.compact strong {
