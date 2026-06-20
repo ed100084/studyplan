@@ -42,3 +42,18 @@ test("requires the fixed study task CSV header", () => {
   assert.equal(result.rows.length, 0);
   assert.match(result.errors[0], /表頭必須固定/);
 });
+
+test("imports only task rows from exported calendar CSV", () => {
+  const result = parseStudyTaskCsv(`date,weekday,startTime,endTime,category,title,subject,detail,status,minutes,priority
+2026-07-01,週三,09:00,12:00,可讀書時段,暑假上午,,,180,
+2026-07-01,週三,18:30,20:30,補習,數學補習,數學,疲勞 普通,,,
+2026-07-01,週三,20:40,21:25,複習,一元一次方程,數學,注意錯題,待完成,45,4
+`);
+
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].title, "一元一次方程");
+  assert.equal(result.rows[0].type, TaskType.REVIEW);
+  assert.equal(result.rows[0].estimatedMinutes, 45);
+  assert.equal(result.rows[0].priority, 4);
+});

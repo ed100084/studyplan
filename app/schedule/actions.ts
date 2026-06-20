@@ -28,6 +28,7 @@ import {
 import { buildExamReviewTaskDrafts } from "@/lib/exam-review-planner";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
+import { studyWindowFallsOnDate } from "@/lib/study-windows";
 import { tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 import { parseStudyTaskCsv } from "@/lib/study-task-import";
 
@@ -83,6 +84,19 @@ function activeTutoringDateWhere(date: Date) {
 }
 
 function activeFixedEventDateWhere(date: Date) {
+  return {
+    AND: [
+      {
+        OR: [{ startDate: null }, { startDate: { lte: date } }],
+      },
+      {
+        OR: [{ endDate: null }, { endDate: { gte: date } }],
+      },
+    ],
+  };
+}
+
+function activeStudyWindowDateWhere(date: Date) {
   return {
     AND: [
       {
@@ -269,6 +283,44 @@ export async function createFixedEvent(formData: FormData) {
   redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
+export async function createStudyWindow(formData: FormData) {
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const weekdays = weekdayValues(formData);
+  const timeZone = await getRequestTimeZone();
+  const rawStartDate = textValue(formData, "startDate");
+  const rawEndDate = textValue(formData, "endDate");
+  const title = textValue(formData, "title") || "可讀書";
+  const startTime = textValue(formData, "startTime") || "17:30";
+  const endTime = textValue(formData, "endTime") || "22:30";
+  const note = textValue(formData, "note") || undefined;
+
+  if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
+    redirectBack(formData, editable.redirectTo, "error=study-window-date-range");
+  }
+
+  if (startTime >= endTime) {
+    redirectBack(formData, editable.redirectTo, "error=study-window-time-range");
+  }
+
+  await prisma.studyWindow.createMany({
+    data: weekdays.map((weekday) => ({
+      studentId: editable.student.id,
+      title,
+      weekday,
+      startDate: optionalDateValue(rawStartDate, timeZone),
+      endDate: optionalDateValue(rawEndDate, timeZone),
+      startTime,
+      endTime,
+      note,
+    })),
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirectBack(formData, editable.redirectTo, "schedule=1");
+}
+
 export async function createTutoringSession(formData: FormData) {
   const studentId = textValue(formData, "studentId") || undefined;
   const editable = await getEditableStudent(studentId);
@@ -419,6 +471,7 @@ async function redistributeExamReviewPlan(
       student: {
         include: {
           fixedEvents: true,
+          studyWindows: true,
           tutoringSessions: true,
           calendarEvents: true,
         },
@@ -456,6 +509,15 @@ async function redistributeExamReviewPlan(
       startTime: event.startTime,
       endTime: event.endTime,
       commuteMinutes: event.commuteMinutes,
+    })),
+    studyWindows: plan.student.studyWindows.map((window) => ({
+      id: window.id,
+      title: window.title,
+      weekday: window.weekday,
+      startDate: window.startDate ? formatDateInput(window.startDate, timeZone) : null,
+      endDate: window.endDate ? formatDateInput(window.endDate, timeZone) : null,
+      startTime: window.startTime,
+      endTime: window.endTime,
     })),
     tutoringSessions: plan.student.tutoringSessions.map((session) => ({
       id: session.id,
@@ -669,6 +731,54 @@ export async function updateFixedEvent(formData: FormData) {
   redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
+export async function updateStudyWindow(formData: FormData) {
+  const studyWindowId = textValue(formData, "studyWindowId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+  const window = await prisma.studyWindow.findFirst({
+    where: {
+      id: studyWindowId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!window) {
+    redirectBack(formData, editable.redirectTo, "error=study-window-not-found");
+  }
+
+  const timeZone = await getRequestTimeZone();
+  const rawStartDate = textValue(formData, "startDate");
+  const rawEndDate = textValue(formData, "endDate");
+  const startTime = textValue(formData, "startTime") || window.startTime;
+  const endTime = textValue(formData, "endTime") || window.endTime;
+  if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
+    redirectBack(formData, editable.redirectTo, "error=study-window-date-range");
+  }
+
+  if (startTime >= endTime) {
+    redirectBack(formData, editable.redirectTo, "error=study-window-time-range");
+  }
+
+  await prisma.studyWindow.update({
+    where: {
+      id: window.id,
+    },
+    data: {
+      title: textValue(formData, "title") || window.title,
+      weekday: enumValue(Weekday, textValue(formData, "weekday"), window.weekday),
+      startDate: optionalDateValue(rawStartDate, timeZone),
+      endDate: optionalDateValue(rawEndDate, timeZone),
+      startTime,
+      endTime,
+      note: textValue(formData, "note") || null,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirectBack(formData, editable.redirectTo, "schedule=1");
+}
+
 export async function updateTutoringSession(formData: FormData) {
   const tutoringSessionId = textValue(formData, "tutoringSessionId");
   const studentId = textValue(formData, "studentId") || undefined;
@@ -829,6 +939,7 @@ export async function saveTodaySchedule(formData: FormData) {
     where: { id: editable.student.id },
     include: {
       fixedEvents: { where: { weekday: today.weekday, ...activeFixedEventDateWhere(range.start) } },
+      studyWindows: { where: { weekday: today.weekday, ...activeStudyWindowDateWhere(range.start) } },
       tutoringSessions: { where: { weekday: today.weekday, ...activeTutoringDateWhere(range.start) } },
       studyTasks: {
         where: {
@@ -844,6 +955,14 @@ export async function saveTodaySchedule(formData: FormData) {
 
   const schedule = buildTodaySchedule({
     fixedEvents: student.fixedEvents.filter((event) => fixedEventFallsOnDate(event, today.date, timeZone)),
+    studyWindows: student.studyWindows
+      .filter((window) => studyWindowFallsOnDate(window, today.date, timeZone))
+      .map((window) => ({
+        id: window.id,
+        title: window.title,
+        startTime: window.startTime,
+        endTime: window.endTime,
+      })),
     tutoringSessions: student.tutoringSessions.filter((session) =>
       tutoringSessionFallsOnDate(session, today.date, timeZone),
     ),
@@ -950,6 +1069,33 @@ export async function deleteFixedEvent(formData: FormData) {
   await prisma.fixedEvent.delete({
     where: {
       id: event.id,
+    },
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/guardian");
+  redirectBack(formData, editable.redirectTo, "schedule=1");
+}
+
+export async function deleteStudyWindow(formData: FormData) {
+  const studyWindowId = textValue(formData, "studyWindowId");
+  const studentId = textValue(formData, "studentId") || undefined;
+  const editable = await getEditableStudent(studentId);
+
+  const window = await prisma.studyWindow.findFirst({
+    where: {
+      id: studyWindowId,
+      studentId: editable.student.id,
+    },
+  });
+
+  if (!window) {
+    redirectBack(formData, editable.redirectTo, "error=study-window-not-found");
+  }
+
+  await prisma.studyWindow.delete({
+    where: {
+      id: window.id,
     },
   });
 

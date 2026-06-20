@@ -1323,6 +1323,23 @@ body.route-pending .form-grid::before {
   margin-bottom: 20px;
 }
 
+.embedded-form,
+.study-window-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.study-window-settings {
+  align-self: start;
+}
+
+.study-window-item {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
 .settings-tools-grid {
   display: grid;
   gap: 16px;

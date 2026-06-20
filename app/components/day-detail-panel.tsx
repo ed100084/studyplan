@@ -7,6 +7,7 @@ import type {
   FixedEvent,
   FixedEventType,
   StudyTask,
+  StudyWindow,
   Subject,
   TaskStatus,
   TaskType,
@@ -38,6 +39,7 @@ type DayDetailPanelProps = {
   weekdayLabel: string;
   isToday: boolean;
   fixedEvents: FixedEvent[];
+  studyWindows?: StudyWindow[];
   tutoringSessions: TutoringSession[];
   calendarEvents: CalendarEvent[];
   tasks: StudyTaskWithSubject[];
@@ -187,6 +189,7 @@ export function DayDetailPanel({
   weekdayLabel,
   isToday,
   fixedEvents,
+  studyWindows = [],
   tutoringSessions,
   calendarEvents,
   tasks,
@@ -214,7 +217,7 @@ export function DayDetailPanel({
   const chartTicks = buildChartTicks(chartRange);
   const chartHeight = Math.max(360, Math.round((chartDuration / 60) * CHART_PIXELS_PER_HOUR));
   const chartStyle = { "--schedule-chart-height": `${chartHeight}px` } as CSSProperties;
-  const hasMetrics = fixedEvents.length + tutoringSessions.length + calendarEvents.length + tasks.length > 0;
+  const hasMetrics = fixedEvents.length + studyWindows.length + tutoringSessions.length + calendarEvents.length + tasks.length > 0;
 
   return (
     <section className="panel day-detail-panel">
@@ -233,6 +236,10 @@ export function DayDetailPanel({
         <div>
           <strong>{fixedEvents.length}</strong>
           <span>固定項目</span>
+        </div>
+        <div>
+          <strong>{studyWindows.length}</strong>
+          <span>可讀書</span>
         </div>
         <div>
           <strong>{tutoringSessions.length}</strong>
@@ -394,8 +401,19 @@ export function DayDetailPanel({
         </div>
 
         <div className="day-detail-card">
-          <h3>固定與補習</h3>
+          <h3>可讀書、固定與補習</h3>
           <div className="timeline-list">
+            {studyWindows.map((window) => (
+              <div className="timeline-item study-window-item" key={window.id}>
+                <span className="timeline-time">
+                  {window.startTime}-{window.endTime}
+                </span>
+                <div>
+                  <strong>{window.title}</strong>
+                  <p>{window.note ?? "可安排讀書任務"}</p>
+                </div>
+              </div>
+            ))}
             {fixedEvents.map((event) => (
               <div className="timeline-item" key={event.id}>
                 <span className="timeline-time">
@@ -425,9 +443,9 @@ export function DayDetailPanel({
                 </div>
               </div>
             ))}
-            {fixedEvents.length === 0 && tutoringSessions.length === 0 && (
+            {studyWindows.length === 0 && fixedEvents.length === 0 && tutoringSessions.length === 0 && (
               <div className="empty-state">
-                <p>這天尚未輸入固定行程或補習。</p>
+                <p>這天尚未輸入可讀書時段、固定行程或補習。</p>
                 <div className="empty-state-actions">
                   <a className="small-button" href={newFixedEventHref}>＋ 新增作息</a>
                   <a className="small-button" href={newTutoringHref}>＋ 新增補習</a>

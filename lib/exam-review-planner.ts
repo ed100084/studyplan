@@ -1,6 +1,7 @@
 import { CalendarEventType, FatigueLevel, FixedEventType, Weekday } from "@prisma/client";
 import { buildTodaySchedule } from "./scheduler/today";
 import { stringFixedEventFallsOnDate } from "./fixed-events";
+import { stringStudyWindowFallsOnDate } from "./study-windows";
 import { stringTutoringSessionFallsOnDate } from "./tutoring-sessions";
 
 type FixedEventInput = {
@@ -26,6 +27,16 @@ type TutoringSessionInput = {
   commuteMinutes: number;
   fatigueLevel: FatigueLevel;
   hasHomework: boolean;
+};
+
+type StudyWindowInput = {
+  id: string;
+  title: string;
+  weekday: Weekday;
+  startDate?: string | null;
+  endDate?: string | null;
+  startTime: string;
+  endTime: string;
 };
 
 type CalendarEventInput = {
@@ -93,6 +104,7 @@ export function buildExamReviewTaskDrafts(input: {
   remainingMinutes: number;
   sessionMinutes: number;
   fixedEvents: FixedEventInput[];
+  studyWindows?: StudyWindowInput[];
   tutoringSessions: TutoringSessionInput[];
   calendarEvents: CalendarEventInput[];
 }) {
@@ -107,6 +119,14 @@ export function buildExamReviewTaskDrafts(input: {
     const weekday = weekdayForDate(date);
     const schedule = buildTodaySchedule({
       fixedEvents: input.fixedEvents.filter((event) => event.weekday === weekday && stringFixedEventFallsOnDate(event, date)),
+      studyWindows: input.studyWindows
+        ?.filter((window) => window.weekday === weekday && stringStudyWindowFallsOnDate(window, date))
+        .map((window) => ({
+          id: window.id,
+          title: window.title,
+          startTime: window.startTime,
+          endTime: window.endTime,
+        })),
       tutoringSessions: input.tutoringSessions.filter(
         (session) => session.weekday === weekday && stringTutoringSessionFallsOnDate(session, date),
       ),

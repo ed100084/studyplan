@@ -28,6 +28,13 @@ export type SchedulerStudyTask = {
   priority: number;
 };
 
+export type SchedulerStudyWindow = {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+};
+
 export type ScheduleSegmentKind = "fixed" | "tutoring" | "study" | "break" | "unplaced";
 
 export type ScheduleSegment = {
@@ -130,7 +137,7 @@ function mergeBusyBlocks(blocks: BusyBlock[]) {
   return merged;
 }
 
-function buildFreeSlots(blocks: BusyBlock[], dayStart: number, dayEnd: number) {
+function buildFreeSlots(blocks: FreeSlot[], dayStart: number, dayEnd: number) {
   const slots: FreeSlot[] = [];
   let cursor = dayStart;
 
@@ -152,6 +159,48 @@ function buildFreeSlots(blocks: BusyBlock[], dayStart: number, dayEnd: number) {
   }
 
   return slots;
+}
+
+function buildFreeSlotsWithinStudyWindows(blocks: BusyBlock[], studyWindows: FreeSlot[]) {
+  const slots: FreeSlot[] = [];
+
+  for (const window of studyWindows) {
+    const windowBlocks = blocks
+      .map((block) => clampBlock(block.start, block.end, window.start, window.end))
+      .filter((block) => block.end > block.start)
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    slots.push(...buildFreeSlots(mergeFreeSlotBlocks(windowBlocks), window.start, window.end));
+  }
+
+  return slots.sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+function mergeFreeSlotBlocks(blocks: FreeSlot[]) {
+  const merged: FreeSlot[] = [];
+
+  for (const block of blocks) {
+    const previous = merged.at(-1);
+    if (!previous || block.start >= previous.end) {
+      merged.push({ ...block });
+      continue;
+    }
+
+    previous.end = Math.max(previous.end, block.end);
+  }
+
+  return merged;
+}
+
+function normalizeStudyWindows(studyWindows: SchedulerStudyWindow[] | undefined, dayStart: number, dayEnd: number) {
+  const windows = studyWindows?.length
+    ? studyWindows.map((window) => ({
+        start: toMinutes(window.startTime),
+        end: toMinutes(window.endTime),
+      }))
+    : [{ start: dayStart, end: dayEnd }];
+
+  return mergeFreeSlotBlocks(windows.filter((window) => window.end - window.start >= MIN_TASK_MINUTES).sort((a, b) => a.start - b.start));
 }
 
 function reduceLateCapacityForFatigue(slots: FreeSlot[], tutoringSessions: SchedulerTutoringSession[]) {
@@ -287,6 +336,7 @@ function addBreakAfterTask(taskId: string, slot: FreeSlot | undefined, start: nu
 
 export function buildTodaySchedule(input: {
   fixedEvents: SchedulerFixedEvent[];
+  studyWindows?: SchedulerStudyWindow[];
   tutoringSessions: SchedulerTutoringSession[];
   tasks: SchedulerStudyTask[];
   dayStart?: string;
@@ -294,8 +344,11 @@ export function buildTodaySchedule(input: {
 }) {
   const dayStart = toMinutes(input.dayStart ?? DAY_START);
   const dayEnd = toMinutes(input.dayEnd ?? DAY_END);
+  const studyWindows = normalizeStudyWindows(input.studyWindows, dayStart, dayEnd);
+  const scheduleStart = studyWindows[0]?.start ?? dayStart;
+  const scheduleEnd = studyWindows.at(-1)?.end ?? dayEnd;
   const fixedBlocks: BusyBlock[] = input.fixedEvents.map((event) => {
-    const clamped = clampBlock(toMinutes(event.startTime), toMinutes(event.endTime), dayStart, dayEnd);
+    const clamped = clampBlock(toMinutes(event.startTime), toMinutes(event.endTime), scheduleStart, scheduleEnd);
     return {
       id: `fixed-${event.id}`,
       kind: "fixed",
@@ -309,8 +362,8 @@ export function buildTodaySchedule(input: {
     const clamped = clampBlock(
       toMinutes(session.startTime) - session.commuteMinutes,
       toMinutes(session.endTime) + session.commuteMinutes,
-      dayStart,
-      dayEnd,
+      scheduleStart,
+      scheduleEnd,
     );
     return {
       id: `tutoring-${session.id}`,
@@ -323,7 +376,7 @@ export function buildTodaySchedule(input: {
   });
 
   const busyBlocks = mergeBusyBlocks([...fixedBlocks, ...tutoringBlocks]);
-  const freeSlots = reduceLateCapacityForFatigue(buildFreeSlots(busyBlocks, dayStart, dayEnd), input.tutoringSessions).filter(
+  const freeSlots = reduceLateCapacityForFatigue(buildFreeSlotsWithinStudyWindows(busyBlocks, studyWindows), input.tutoringSessions).filter(
     (slot) => slot.end - slot.start >= MIN_TASK_MINUTES,
   );
   const tasks = [...input.tasks].sort((a, b) => b.priority - a.priority || b.estimatedMinutes - a.estimatedMinutes);
@@ -331,10 +384,10 @@ export function buildTodaySchedule(input: {
   const unplaced: ScheduleSegment[] = [];
   const availableMinutes = freeSlots.reduce((total, slot) => total + (slot.end - slot.start), 0);
   let slotIndex = 0;
-  let cursor = freeSlots[0]?.start ?? dayStart;
+  let cursor = freeSlots[0]?.start ?? scheduleStart;
 
   for (const task of tasks) {
-    const placement = planTaskChunks(task, freeSlots, slotIndex, cursor, dayEnd);
+    const placement = planTaskChunks(task, freeSlots, slotIndex, cursor, scheduleEnd);
 
     if (!placement) {
       const remainingSlots = remainingSlotsFrom(freeSlots, slotIndex, cursor);
@@ -359,7 +412,7 @@ export function buildTodaySchedule(input: {
 
     if (!slot || cursor > slot.end) {
       slotIndex += 1;
-      cursor = freeSlots[slotIndex]?.start ?? dayEnd;
+      cursor = freeSlots[slotIndex]?.start ?? scheduleEnd;
     }
   }
 

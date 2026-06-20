@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarEventType, FatigueLevel, FixedEventType, TaskStatus, TaskType, Weekday } from "@prisma/client";
-import type { CalendarEvent, FixedEvent, StudyTask, Subject, TutoringSession } from "@prisma/client";
+import type { CalendarEvent, FixedEvent, StudyTask, StudyWindow, Subject, TutoringSession } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
@@ -17,6 +17,7 @@ import {
   normalizeDateInput,
 } from "@/lib/timezone";
 import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
+import { studyWindowFallsOnDate } from "@/lib/study-windows";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
 import { ScheduleHistory } from "@/app/components/schedule-history";
@@ -24,6 +25,7 @@ import { LearningProgress } from "@/app/components/learning-progress";
 import { DayDetailPanel } from "@/app/components/day-detail-panel";
 import { CalendarDayDetailBrowser } from "@/app/components/calendar-day-detail-browser";
 import { CalendarExportTools } from "@/app/components/calendar-export-tools";
+import { StudyWindowSettings } from "@/app/components/study-window-settings";
 import { StudyTaskContinuousForm, StudyTaskImportHistory, StudyTaskImportPanel } from "@/app/components/study-task-tools";
 import { buildStudyTaskImportBatches } from "@/lib/study-task-import-history";
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
@@ -184,6 +186,10 @@ function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date
 
 function activeFixedEventsForDate(fixedEvents: FixedEvent[], date: string, weekday: Weekday, timeZone: string) {
   return fixedEvents.filter((event) => event.weekday === weekday && fixedEventFallsOnDate(event, date, timeZone));
+}
+
+function activeStudyWindowsForDate(studyWindows: StudyWindow[], date: string, weekday: Weekday, timeZone: string) {
+  return studyWindows.filter((window) => window.weekday === weekday && studyWindowFallsOnDate(window, date, timeZone));
 }
 
 function uniqueDates(dates: string[]) {
@@ -784,6 +790,9 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                             startTime: "asc",
                           },
                         },
+                        studyWindows: {
+                          orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+                        },
                         tutoringSessions: {
                           orderBy: {
                             startTime: "asc",
@@ -920,6 +929,9 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const activeTodayFixedEvents = activeStudent
     ? activeFixedEventsForDate(activeStudent.fixedEvents, today.date, today.weekday, timeZone)
     : [];
+  const activeTodayStudyWindows = activeStudent
+    ? activeStudyWindowsForDate(activeStudent.studyWindows, today.date, today.weekday, timeZone)
+    : [];
   const activeTodayTutoringSessions =
     activeStudent ? activeTutoringSessionsForDate(activeStudent.tutoringSessions, today.date, today.weekday, timeZone) : [];
   const activeTodayCalendarEvents = activeStudent?.calendarEvents.filter((event) => eventFallsOnDate(event, today.date, timeZone)) ?? [];
@@ -930,6 +942,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const todaySchedule = activeStudent
     ? buildTodaySchedule({
         fixedEvents: activeTodayFixedEvents,
+        studyWindows: activeTodayStudyWindows,
         tutoringSessions: activeTodayTutoringSessions,
         tasks: openTasks.map((task) => ({
           id: task.id,
@@ -956,6 +969,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           return plannedDate >= dateRange.start.getTime() && plannedDate < dateRange.end.getTime();
         });
         const dateFixedEvents = activeFixedEventsForDate(activeStudent.fixedEvents, date, dateDay.weekday, timeZone);
+        const dateStudyWindows = activeStudyWindowsForDate(activeStudent.studyWindows, date, dateDay.weekday, timeZone);
         const dateTutoringSessions = activeTutoringSessionsForDate(activeStudent.tutoringSessions, date, dateDay.weekday, timeZone);
         const dateCalendarEvents = activeStudent.calendarEvents.filter((event) => eventFallsOnDate(event, date, timeZone));
         const dateOpenTasks = dateTasks.filter((task) => task.status === "PLANNED");
@@ -965,11 +979,13 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           weekdayLabel: weekdayLabels[dateDay.weekday],
           isToday: date === today.date,
           fixedEvents: dateFixedEvents,
+          studyWindows: dateStudyWindows,
           tutoringSessions: dateTutoringSessions,
           calendarEvents: dateCalendarEvents,
           tasks: dateTasks,
           schedule: buildTodaySchedule({
             fixedEvents: dateFixedEvents,
+            studyWindows: dateStudyWindows,
             tutoringSessions: dateTutoringSessions,
             tasks: dateOpenTasks.map((task) => ({
               id: task.id,
@@ -1019,6 +1035,9 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           {error === "exam-plan-not-found" && <div className="error-notice">找不到這個考前複習計畫。</div>}
           {error === "teacher-event-readonly" && <div className="error-notice">老師套用的班級事件只能由老師管理。</div>}
           {error === "fixed-event-date-range" && <div className="error-notice">固定作息結束日期不能早於開始日期。</div>}
+          {error === "study-window-date-range" && <div className="error-notice">可讀書時段的結束日期不能早於開始日期。</div>}
+          {error === "study-window-time-range" && <div className="error-notice">可讀書時段的結束時間必須晚於開始時間。</div>}
+          {error === "study-window-not-found" && <div className="error-notice">找不到這筆可讀書時段設定。</div>}
           {error === "tutoring-date-range" && <div className="error-notice">補習結束日期不能早於開始日期。</div>}
           {error === "task-import" && <div className="error-notice">CSV 匯入失敗：{params?.importErrors ?? "請檢查格式。"}</div>}
           {error === "task-import-batch-required" && <div className="error-notice">缺少匯入批次代碼，無法刪除整批任務。</div>}
@@ -1109,6 +1128,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     weekdayLabel={weekdayLabels[today.weekday]}
                     isToday
                     fixedEvents={activeTodayFixedEvents}
+                    studyWindows={activeTodayStudyWindows}
                     tutoringSessions={activeTodayTutoringSessions}
                     calendarEvents={activeTodayCalendarEvents}
                     tasks={activeTodayTasks}
@@ -1461,6 +1481,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     <StudyTaskImportHistory batches={importBatches} studentId={activeStudent.id} />
                   </div>
                   <div className="form-grid">
+                    <StudyWindowSettings
+                      defaultWeekday={today.weekday}
+                      heading={`替 ${activeStudent.user.displayName} 設定可讀書時段`}
+                      studentId={activeStudent.id}
+                      timeZone={timeZone}
+                      windows={activeStudent.studyWindows}
+                    />
+
                     <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
                       <h2>替 {activeStudent.user.displayName} 代填補習</h2>
                       <input name="studentId" type="hidden" value={activeStudent.id} />

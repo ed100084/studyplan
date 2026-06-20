@@ -2,7 +2,21 @@ import type { TaskType } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 
 const MAX_IMPORT_ROWS = 500;
-const EXPECTED_HEADERS = ["date", "subject", "title", "type", "minutes", "priority", "note"];
+const TASK_HEADERS = ["date", "subject", "title", "type", "minutes", "priority", "note"];
+const TASK_HEADERS_WITH_TIME = ["date", "startTime", "endTime", "subject", "title", "type", "minutes", "priority", "note"];
+const EXPORT_HEADERS = [
+  "date",
+  "weekday",
+  "startTime",
+  "endTime",
+  "category",
+  "title",
+  "subject",
+  "detail",
+  "status",
+  "minutes",
+  "priority",
+];
 const TASK_TYPES = [
   "SCHOOL_HOMEWORK",
   "TUTORING_HOMEWORK",
@@ -61,13 +75,17 @@ function parseDate(value: string) {
 }
 
 function parseTaskType(value: string) {
+  return parseTaskTypeStrict(value) ?? "REVIEW";
+}
+
+function parseTaskTypeStrict(value: string) {
   const labelType = taskTypeAliases[value];
   if (labelType) {
     return labelType;
   }
 
   const enumValue = value.toUpperCase().replace(/[\s-]+/g, "_");
-  return TASK_TYPES.includes(enumValue as TaskType) ? (enumValue as TaskType) : "REVIEW";
+  return TASK_TYPES.includes(enumValue as TaskType) ? (enumValue as TaskType) : null;
 }
 
 function parseInteger(value: string, fallback: number) {
@@ -85,6 +103,10 @@ function parseInteger(value: string, fallback: number) {
 
 function rowIsEmpty(row: unknown[]) {
   return row.every((value) => textValue(value) === "");
+}
+
+function headerMatches(header: string[], expected: string[]) {
+  return header.length === expected.length && expected.every((name, index) => header[index] === name);
 }
 
 export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
@@ -106,8 +128,21 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
   }
 
   const header = data[0].map((value) => textValue(value));
-  if (header.length !== EXPECTED_HEADERS.length || EXPECTED_HEADERS.some((name, index) => header[index] !== name)) {
-    return { rows: [], errors: [`第 1 列：表頭必須固定為 ${EXPECTED_HEADERS.join(",")}`] };
+  const format = headerMatches(header, TASK_HEADERS)
+    ? "task"
+    : headerMatches(header, TASK_HEADERS_WITH_TIME)
+      ? "taskWithTime"
+      : headerMatches(header, EXPORT_HEADERS)
+        ? "export"
+        : null;
+
+  if (!format) {
+    return {
+      rows: [],
+      errors: [
+        `第 1 列：表頭必須固定為 ${TASK_HEADERS.join(",")}、${TASK_HEADERS_WITH_TIME.join(",")}，或月曆匯出的 ${EXPORT_HEADERS.join(",")}`,
+      ],
+    };
   }
 
   const sourceRows = data
@@ -123,18 +158,56 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
   const errors: string[] = [];
 
   sourceRows.forEach(({ row, rowNumber }) => {
-    const date = parseDate(textValue(row[0]));
-    const subjectName = textValue(row[1]) || null;
-    const title = textValue(row[2]);
-    const type = parseTaskType(textValue(row[3]));
-    const minutes = parseInteger(textValue(row[4]), 30);
+    const values =
+      format === "export"
+        ? {
+            date: textValue(row[0]),
+            subject: textValue(row[6]),
+            title: textValue(row[5]),
+            type: textValue(row[4]),
+            minutes: textValue(row[9]),
+            priority: textValue(row[10]),
+            note: textValue(row[7]),
+            extraValues: row.slice(EXPORT_HEADERS.length),
+          }
+        : format === "taskWithTime"
+          ? {
+              date: textValue(row[0]),
+              subject: textValue(row[3]),
+              title: textValue(row[4]),
+              type: textValue(row[5]),
+              minutes: textValue(row[6]),
+              priority: textValue(row[7]),
+              note: textValue(row[8]),
+              extraValues: row.slice(TASK_HEADERS_WITH_TIME.length),
+            }
+          : {
+              date: textValue(row[0]),
+              subject: textValue(row[1]),
+              title: textValue(row[2]),
+              type: textValue(row[3]),
+              minutes: textValue(row[4]),
+              priority: textValue(row[5]),
+              note: textValue(row[6]),
+              extraValues: row.slice(TASK_HEADERS.length),
+            };
+    const strictType = format === "export" ? parseTaskTypeStrict(values.type) : parseTaskType(values.type);
+    if (format === "export" && !strictType) {
+      return;
+    }
+
+    const date = parseDate(values.date);
+    const subjectName = values.subject || null;
+    const title = values.title;
+    const type = strictType ?? "REVIEW";
+    const minutes = parseInteger(values.minutes, 30);
     const estimatedMinutes = Math.max(10, minutes.value);
-    const parsedPriority = parseInteger(textValue(row[5]), 3);
+    const parsedPriority = parseInteger(values.priority, 3);
     const priority = parsedPriority.value;
-    const description = textValue(row[6]) || null;
+    const description = values.note || null;
     const rowErrors: string[] = [];
 
-    if (row.slice(EXPECTED_HEADERS.length).some((value) => textValue(value))) rowErrors.push("欄位數量不符合固定格式");
+    if (values.extraValues.some((value) => textValue(value))) rowErrors.push("欄位數量不符合固定格式");
     if (!date) rowErrors.push("date 必須是 YYYY-MM-DD");
     if (!title) rowErrors.push("title 必填");
     if (title.length > 120) rowErrors.push("title 最多 120 字");
@@ -159,7 +232,7 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
     });
   });
 
-  if (sourceRows.length === 0) {
+  if (sourceRows.length === 0 || (rows.length === 0 && errors.length === 0)) {
     errors.push("CSV 沒有可匯入資料。");
   }
 

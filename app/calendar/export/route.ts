@@ -8,7 +8,7 @@ import {
   UserRole,
   Weekday,
 } from "@prisma/client";
-import type { CalendarEvent, FixedEvent, StudyTask, Subject, TutoringSession } from "@prisma/client";
+import type { CalendarEvent, FixedEvent, StudyTask, StudyWindow, Subject, TutoringSession } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import {
@@ -19,6 +19,7 @@ import {
   normalizeDateInput,
 } from "@/lib/timezone";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
+import { studyWindowFallsOnDate } from "@/lib/study-windows";
 import { tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 
@@ -127,6 +128,10 @@ function activeFixedEventsForDate(fixedEvents: FixedEvent[], date: string, weekd
   return fixedEvents.filter((event) => event.weekday === weekday && fixedEventFallsOnDate(event, date, timeZone));
 }
 
+function activeStudyWindowsForDate(studyWindows: StudyWindow[], date: string, weekday: Weekday, timeZone: string) {
+  return studyWindows.filter((window) => window.weekday === weekday && studyWindowFallsOnDate(window, date, timeZone));
+}
+
 function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date: string, weekday: Weekday, timeZone: string) {
   return tutoringSessions.filter(
     (session) => session.weekday === weekday && tutoringSessionFallsOnDate(session, date, timeZone),
@@ -178,16 +183,20 @@ function buildDayItems({
   calendarEvents,
   date,
   fixedEvents,
+  studyWindows,
   tasks,
   tutoringSessions,
+  scheduledTaskTimes,
   unplacedTaskDetails,
   weekday,
 }: {
   calendarEvents: CalendarEvent[];
   date: string;
   fixedEvents: FixedEvent[];
+  studyWindows: StudyWindow[];
   tasks: StudyTaskWithSubject[];
   tutoringSessions: TutoringSession[];
+  scheduledTaskTimes: Map<string, { startTime: string; endTime: string }>;
   unplacedTaskDetails: Map<string, string>;
   weekday: string;
 }) {
@@ -221,6 +230,21 @@ function buildDayItems({
     sortMinutes: minutesFromTime(event.startTime),
   }));
 
+  const studyWindowItems: CsvItem[] = studyWindows.map((window) => ({
+    date,
+    weekday,
+    startTime: window.startTime,
+    endTime: window.endTime,
+    category: "可讀書時段",
+    title: window.title,
+    subject: "",
+    detail: window.note ?? "",
+    status: "",
+    minutes: String(Math.max(0, minutesFromTime(window.endTime) - minutesFromTime(window.startTime))),
+    priority: "",
+    sortMinutes: minutesFromTime(window.startTime),
+  }));
+
   const tutoringItems: CsvItem[] = tutoringSessions.map((session) => ({
     date,
     weekday,
@@ -246,12 +270,13 @@ function buildDayItems({
     .sort((first, second) => second.priority - first.priority || first.title.localeCompare(second.title))
     .map((task, index) => {
       const unplacedDetail = unplacedTaskDetails.get(task.id);
+      const scheduledTime = scheduledTaskTimes.get(task.id);
 
       return {
         date,
         weekday,
-        startTime: unplacedDetail ? "排不下" : "任務",
-        endTime: "",
+        startTime: unplacedDetail ? "排不下" : scheduledTime?.startTime ?? "",
+        endTime: scheduledTime?.endTime ?? "",
         category: taskTypeLabels[task.type],
         title: task.title,
         subject: task.subject?.name ?? "",
@@ -263,7 +288,7 @@ function buildDayItems({
       };
     });
 
-  return [...eventItems, ...fixedItems, ...tutoringItems, ...taskItems].sort(
+  return [...eventItems, ...studyWindowItems, ...fixedItems, ...tutoringItems, ...taskItems].sort(
     (first, second) => first.sortMinutes - second.sortMinutes || first.title.localeCompare(second.title),
   );
 }
@@ -280,8 +305,14 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const [fixedEvents, tutoringSessions, tasks, calendarEvents] = await Promise.all([
+  const [fixedEvents, studyWindows, tutoringSessions, tasks, calendarEvents] = await Promise.all([
     prisma.fixedEvent.findMany({
+      where: {
+        studentId: student.id,
+      },
+      orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+    }),
+    prisma.studyWindow.findMany({
       where: {
         studentId: student.id,
       },
@@ -326,10 +357,12 @@ export async function GET(request: NextRequest) {
   for (const day of month.days) {
     const dayTasks = tasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
     const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
+    const dayStudyWindows = activeStudyWindowsForDate(studyWindows, day.date, day.weekday, timeZone);
     const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
     const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
     const daySchedule = buildTodaySchedule({
       fixedEvents: dayFixedEvents,
+      studyWindows: dayStudyWindows,
       tutoringSessions: dayTutoringSessions,
       tasks: dayTasks
         .filter((task) => task.status === TaskStatus.PLANNED)
@@ -347,12 +380,25 @@ export async function GET(request: NextRequest) {
         .map((segment) => [segment.taskId, segment.detail] as const)
         .filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1])),
     );
+    const scheduledTaskTimes = new Map<string, { startTime: string; endTime: string }>();
+    daySchedule.scheduled
+      .filter((segment) => segment.kind === "study" && segment.taskId && segment.startTime && segment.endTime)
+      .forEach((segment) => {
+        const taskId = segment.taskId as string;
+        const existing = scheduledTaskTimes.get(taskId);
+        scheduledTaskTimes.set(taskId, {
+          startTime: existing ? (segment.startTime! < existing.startTime ? segment.startTime! : existing.startTime) : segment.startTime!,
+          endTime: existing ? (segment.endTime! > existing.endTime ? segment.endTime! : existing.endTime) : segment.endTime!,
+        });
+      });
     const dayItems = buildDayItems({
       calendarEvents: dayCalendarEvents,
       date: day.date,
       fixedEvents: dayFixedEvents,
+      studyWindows: dayStudyWindows,
       tasks: dayTasks,
       tutoringSessions: dayTutoringSessions,
+      scheduledTaskTimes,
       unplacedTaskDetails,
       weekday: readableWeekdayLabels[day.weekday],
     });

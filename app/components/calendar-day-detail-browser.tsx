@@ -8,6 +8,7 @@ import type {
   FixedEvent,
   FixedEventType,
   StudyTask,
+  StudyWindow,
   Subject,
   TaskStatus,
   TaskType,
@@ -32,6 +33,7 @@ export type CalendarDayDetailData = {
   weekdayLabel: string;
   isToday: boolean;
   fixedEvents: FixedEvent[];
+  studyWindows: StudyWindow[];
   tutoringSessions: TutoringSession[];
   calendarEvents: CalendarEvent[];
   tasks: StudyTaskWithSubject[];
@@ -150,6 +152,7 @@ export function CalendarDayDetailBrowser({
               weekdayLabel={selectedDay.weekdayLabel}
               isToday={selectedDay.isToday}
               fixedEvents={selectedDay.fixedEvents}
+              studyWindows={selectedDay.studyWindows}
               tutoringSessions={selectedDay.tutoringSessions}
               calendarEvents={selectedDay.calendarEvents}
               tasks={selectedDay.tasks}

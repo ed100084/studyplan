@@ -136,6 +136,7 @@ model StudentProfile {
   guardianLinks    GuardianStudent[]
   classMemberships ClassMember[]
   fixedEvents      FixedEvent[]
+  studyWindows     StudyWindow[]
   tutoringSessions TutoringSession[]
   studyTasks       StudyTask[]
   calendarEvents   CalendarEvent[]
@@ -320,6 +321,22 @@ model FixedEvent {
   note           String?
   createdAt      DateTime       @default(now())
   student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, weekday, startDate, endDate])
+}
+
+model StudyWindow {
+  id        String         @id @default(cuid())
+  studentId String
+  title     String
+  weekday   Weekday
+  startDate DateTime?
+  endDate   DateTime?
+  startTime String
+  endTime   String
+  note      String?
+  createdAt DateTime       @default(now())
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId, weekday, startDate, endDate])
 }
