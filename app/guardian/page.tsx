@@ -749,8 +749,6 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const todayRange = getDayRange(today.date, timeZone);
   const selectedDate = normalizeDateInput(params?.date, today.date);
   const selectedDateRange = getDayRange(selectedDate, timeZone);
-  const selectedDateWeek = getWeek(selectedDate, timeZone);
-  const selectedDay = selectedDateWeek.days.find((day) => day.date === selectedDate) ?? today;
   const selectedWeekDate = normalizeDateInput(params?.week, today.date);
   const selectedMonthDate = normalizeDateInput(params?.month, today.date);
   const calendarView = normalizeCalendarView(params?.view);
@@ -924,42 +922,16 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
     : [];
   const activeTodayTutoringSessions =
     activeStudent ? activeTutoringSessionsForDate(activeStudent.tutoringSessions, today.date, today.weekday, timeZone) : [];
+  const activeTodayCalendarEvents = activeStudent?.calendarEvents.filter((event) => eventFallsOnDate(event, today.date, timeZone)) ?? [];
   const openTasks = activeTodayTasks.filter((task) => task.status === "PLANNED");
+  const activeTodayDoneTasks = activeTodayTasks.filter((task) => task.status !== "PLANNED");
+  const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const activeClass = activeStudent?.classMemberships[0]?.classroom.name;
   const todaySchedule = activeStudent
     ? buildTodaySchedule({
         fixedEvents: activeTodayFixedEvents,
         tutoringSessions: activeTodayTutoringSessions,
         tasks: openTasks.map((task) => ({
-          id: task.id,
-          title: task.title,
-          subjectName: task.subject?.name,
-          type: task.type,
-          estimatedMinutes: task.estimatedMinutes,
-          priority: task.priority,
-        })),
-      })
-    : null;
-  const selectedTasks =
-    activeStudent?.studyTasks.filter((task) => {
-      const plannedDate = task.plannedDate.getTime();
-      return plannedDate >= selectedDateRange.start.getTime() && plannedDate < selectedDateRange.end.getTime();
-    }) ?? [];
-  const selectedFixedEvents = activeStudent
-    ? activeFixedEventsForDate(activeStudent.fixedEvents, selectedDate, selectedDay.weekday, timeZone)
-    : [];
-  const selectedTutoringSessions = activeStudent
-    ? activeTutoringSessionsForDate(activeStudent.tutoringSessions, selectedDate, selectedDay.weekday, timeZone)
-    : [];
-  const selectedCalendarEvents = activeStudent?.calendarEvents.filter((event) => eventFallsOnDate(event, selectedDate, timeZone)) ?? [];
-  const selectedOpenTasks = selectedTasks.filter((task) => task.status === "PLANNED");
-  const selectedDoneTasks = selectedTasks.filter((task) => task.status !== "PLANNED");
-  const selectedPlannedMinutes = selectedOpenTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
-  const selectedSchedule = activeStudent
-    ? buildTodaySchedule({
-        fixedEvents: selectedFixedEvents,
-        tutoringSessions: selectedTutoringSessions,
-        tasks: selectedOpenTasks.map((task) => ({
           id: task.id,
           title: task.title,
           subjectName: task.subject?.name,
@@ -1132,15 +1104,15 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
                   {activeTab === "today" && (
                   <DayDetailPanel
-                    date={selectedDate}
+                    date={today.date}
                     timeZone={timeZone}
-                    weekdayLabel={weekdayLabels[selectedDay.weekday]}
-                    isToday={selectedDate === today.date}
-                    fixedEvents={selectedFixedEvents}
-                    tutoringSessions={selectedTutoringSessions}
-                    calendarEvents={selectedCalendarEvents}
-                    tasks={selectedTasks}
-                    schedule={selectedSchedule}
+                    weekdayLabel={weekdayLabels[today.weekday]}
+                    isToday
+                    fixedEvents={activeTodayFixedEvents}
+                    tutoringSessions={activeTodayTutoringSessions}
+                    calendarEvents={activeTodayCalendarEvents}
+                    tasks={activeTodayTasks}
+                    schedule={todaySchedule}
                     fixedEventLabels={fixedEventLabels}
                     taskTypeLabels={taskTypeLabels}
                     calendarEventLabels={calendarEventLabels}
@@ -1302,14 +1274,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
 
                     <section className="panel">
                       <div className="panel-header">
-                        <h2>{selectedDate === today.date ? "今天任務" : "選取日期任務"}</h2>
+                        <h2>今天任務</h2>
                         <span>
-                          {selectedDate}，{selectedOpenTasks.length} 項待完成，預估 {selectedPlannedMinutes} 分鐘
+                          {today.date}，{openTasks.length} 項待完成，預估 {plannedMinutes} 分鐘
                         </span>
                       </div>
 
                       <div className="task-list compact-list">
-                        {selectedOpenTasks.map((task) => (
+                        {openTasks.map((task) => (
                           <div className={task.status === "PLANNED" ? "task" : "task muted-task"} key={task.id}>
                             <span className="task-dot" aria-hidden="true" />
                             <div>
@@ -1377,15 +1349,15 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           </div>
                         ))}
 
-                        {selectedTasks.length === 0 && (
+                        {activeTodayTasks.length === 0 && (
                           <div className="empty-state">
-                            <p>{selectedDate === today.date ? "今天" : "這天"}尚未輸入任務。</p>
+                            <p>今天尚未輸入任務。</p>
                             <div className="empty-state-actions">
                               <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增第一筆任務</a>
                             </div>
                           </div>
                         )}
-                        {selectedDoneTasks.map((task) => (
+                        {activeTodayDoneTasks.map((task) => (
                           <div className="task muted-task" key={task.id}>
                             <span className="task-dot" aria-hidden="true" />
                             <div>

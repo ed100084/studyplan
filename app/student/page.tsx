@@ -732,8 +732,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const todayRange = getDayRange(today.date, timeZone);
   const selectedDate = normalizeDateInput(params?.date, today.date);
   const selectedDateRange = getDayRange(selectedDate, timeZone);
-  const selectedDateWeek = getWeek(selectedDate, timeZone);
-  const selectedDay = selectedDateWeek.days.find((day) => day.date === selectedDate) ?? today;
   const selectedWeekDate = normalizeDateInput(params?.week, today.date);
   const selectedMonthDate = normalizeDateInput(params?.month, today.date);
   const calendarView = normalizeCalendarView(params?.view);
@@ -894,39 +892,15 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const todayTutoringSessions = student
     ? activeTutoringSessionsForDate(student.tutoringSessions, today.date, today.weekday, timeZone)
     : [];
+  const todayCalendarEvents = student?.calendarEvents.filter((event) => eventFallsOnDate(event, today.date, timeZone)) ?? [];
   const openTasks = todayTasks.filter((task) => task.status === "PLANNED");
+  const todayDoneTasks = todayTasks.filter((task) => task.status !== "PLANNED");
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const todaySchedule = student
     ? buildTodaySchedule({
         fixedEvents: todayFixedEvents,
         tutoringSessions: todayTutoringSessions,
         tasks: openTasks.map((task) => ({
-          id: task.id,
-          title: task.title,
-          subjectName: task.subject?.name,
-          type: task.type,
-          estimatedMinutes: task.estimatedMinutes,
-          priority: task.priority,
-        })),
-      })
-    : null;
-  const selectedTasks =
-    student?.studyTasks.filter((task) => {
-      const plannedDate = task.plannedDate.getTime();
-      return plannedDate >= selectedDateRange.start.getTime() && plannedDate < selectedDateRange.end.getTime();
-    }) ?? [];
-  const selectedFixedEvents = student ? activeFixedEventsForDate(student.fixedEvents, selectedDate, selectedDay.weekday, timeZone) : [];
-  const selectedTutoringSessions = student
-    ? activeTutoringSessionsForDate(student.tutoringSessions, selectedDate, selectedDay.weekday, timeZone)
-    : [];
-  const selectedCalendarEvents = student?.calendarEvents.filter((event) => eventFallsOnDate(event, selectedDate, timeZone)) ?? [];
-  const selectedOpenTasks = selectedTasks.filter((task) => task.status === "PLANNED");
-  const selectedDoneTasks = selectedTasks.filter((task) => task.status !== "PLANNED");
-  const selectedSchedule = student
-    ? buildTodaySchedule({
-        fixedEvents: selectedFixedEvents,
-        tutoringSessions: selectedTutoringSessions,
-        tasks: selectedOpenTasks.map((task) => ({
           id: task.id,
           title: task.title,
           subjectName: task.subject?.name,
@@ -1036,15 +1010,15 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
               {activeTab === "today" && (
               <DayDetailPanel
-                date={selectedDate}
+                date={today.date}
                 timeZone={timeZone}
-                weekdayLabel={weekdayLabels[selectedDay.weekday]}
-                isToday={selectedDate === today.date}
-                fixedEvents={selectedFixedEvents}
-                tutoringSessions={selectedTutoringSessions}
-                calendarEvents={selectedCalendarEvents}
-                tasks={selectedTasks}
-                schedule={selectedSchedule}
+                weekdayLabel={weekdayLabels[today.weekday]}
+                isToday
+                fixedEvents={todayFixedEvents}
+                tutoringSessions={todayTutoringSessions}
+                calendarEvents={todayCalendarEvents}
+                tasks={todayTasks}
+                schedule={todaySchedule}
                 fixedEventLabels={fixedEventLabels}
                 taskTypeLabels={taskTypeLabels}
                 calendarEventLabels={calendarEventLabels}
@@ -1199,14 +1173,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
 
                 <section className="panel">
                   <div className="panel-header">
-                    <h2>{selectedDate === today.date ? "今天任務" : "選取日期任務"}</h2>
+                    <h2>今天任務</h2>
                     <span>
-                      {selectedDate}，{selectedOpenTasks.length} 項待完成
+                      {today.date}，{openTasks.length} 項待完成
                     </span>
                   </div>
 
                   <div className="task-list compact-list">
-                    {selectedOpenTasks.map((task) => (
+                    {openTasks.map((task) => (
                       <div className="task" key={task.id}>
                         <span className="task-dot" aria-hidden="true" />
                         <div>
@@ -1254,16 +1228,16 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       </div>
                     ))}
 
-                    {selectedOpenTasks.length === 0 && (
+                    {openTasks.length === 0 && (
                       <div className="empty-state">
-                        <p>這一天沒有待完成任務。</p>
+                        <p>今天沒有待完成任務。</p>
                         <div className="empty-state-actions">
                           <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增第一筆任務</a>
                         </div>
                       </div>
                     )}
 
-                    {selectedDoneTasks.map((task) => (
+                    {todayDoneTasks.map((task) => (
                       <div className="task muted-task" key={task.id}>
                         <span className="task-dot" aria-hidden="true" />
                         <div>
