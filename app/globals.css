@@ -968,7 +968,7 @@ h1 {
 }
 
 .schedule-chart-bar {
-  align-content: center;
+  align-content: start;
   border: 1px solid var(--line);
   border-left-width: 5px;
   border-radius: 8px;
@@ -976,11 +976,16 @@ h1 {
   display: grid;
   gap: 2px;
   left: 12px;
-  min-height: 42px;
   overflow: hidden;
-  padding: 8px 10px;
+  padding: 4px 8px;
   position: absolute;
   right: 12px;
+}
+
+.schedule-chart-bar.compact {
+  border-radius: 6px;
+  gap: 0;
+  padding: 2px 6px;
 }
 
 .schedule-chart-bar strong,
@@ -998,6 +1003,15 @@ h1 {
 .schedule-chart-bar span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.schedule-chart-bar.compact strong {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.schedule-chart-bar.compact span {
+  display: none;
 }
 
 .schedule-chart-empty {

@@ -281,13 +281,15 @@ export function DayDetailPanel({
                 {chartSegments.map((segment) => {
                   const start = timeToMinutes(segment.startTime) ?? chartRange.start;
                   const end = timeToMinutes(segment.endTime) ?? start;
+                  const duration = Math.max(1, end - start);
                   const top = ((start - chartRange.start) / chartDuration) * 100;
-                  const height = (Math.max(15, end - start) / chartDuration) * 100;
+                  const height = (Math.max(8, duration) / chartDuration) * 100;
                   const laneWidth = 100 / segment.laneCount;
+                  const isCompact = duration < 30;
 
                   return (
                     <div
-                      className={`schedule-chart-bar schedule-${segment.kind}`}
+                      className={`schedule-chart-bar schedule-${segment.kind}${isCompact ? " compact" : ""}`}
                       key={segment.id}
                       style={{
                         left: `calc(${segment.lane * laneWidth}% + 8px)`,
