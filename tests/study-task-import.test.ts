@@ -40,7 +40,7 @@ test("requires the fixed study task CSV header", () => {
   const result = parseStudyTaskCsv("date,title\n2026-07-01,讀書");
 
   assert.equal(result.rows.length, 0);
-  assert.match(result.errors[0], /表頭必須固定/);
+  assert.match(result.errors[0], /表頭缺少必要欄位/);
 });
 
 test("imports only task rows from exported calendar CSV", () => {
@@ -56,4 +56,19 @@ test("imports only task rows from exported calendar CSV", () => {
   assert.equal(result.rows[0].type, TaskType.REVIEW);
   assert.equal(result.rows[0].estimatedMinutes, 45);
   assert.equal(result.rows[0].priority, 4);
+});
+
+test("accepts reordered task CSV columns and Chinese headers", () => {
+  const result = parseStudyTaskCsv(`標題,日期,優先度,備註,分鐘,科目,類型
+背英文單字,2026-07-03,2,Unit 1,25,英文,練習
+`);
+
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].date, "2026-07-03");
+  assert.equal(result.rows[0].subjectName, "英文");
+  assert.equal(result.rows[0].title, "背英文單字");
+  assert.equal(result.rows[0].type, TaskType.PRACTICE);
+  assert.equal(result.rows[0].estimatedMinutes, 25);
+  assert.equal(result.rows[0].priority, 2);
 });

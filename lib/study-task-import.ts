@@ -2,8 +2,8 @@ import type { TaskType } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 
 const MAX_IMPORT_ROWS = 500;
-const TASK_HEADERS = ["date", "subject", "title", "type", "minutes", "priority", "note"];
-const TASK_HEADERS_WITH_TIME = ["date", "startTime", "endTime", "subject", "title", "type", "minutes", "priority", "note"];
+const TASK_HEADERS = ["date", "subject", "title", "type", "minutes", "priority", "note"] as const;
+const TASK_HEADERS_WITH_TIME = ["date", "startTime", "endTime", "subject", "title", "type", "minutes", "priority", "note"] as const;
 const EXPORT_HEADERS = [
   "date",
   "weekday",
@@ -16,7 +16,8 @@ const EXPORT_HEADERS = [
   "status",
   "minutes",
   "priority",
-];
+] as const;
+const SUPPORTED_HEADER_DESCRIPTION = `${TASK_HEADERS.join(",")}、${TASK_HEADERS_WITH_TIME.join(",")}，或月曆匯出的 ${EXPORT_HEADERS.join(",")}`;
 const TASK_TYPES = [
   "SCHOOL_HOMEWORK",
   "TUTORING_HOMEWORK",
@@ -105,8 +106,46 @@ function rowIsEmpty(row: unknown[]) {
   return row.every((value) => textValue(value) === "");
 }
 
-function headerMatches(header: string[], expected: string[]) {
-  return header.length === expected.length && expected.every((name, index) => header[index] === name);
+function normalizeHeaderName(value: string) {
+  return value.toLowerCase().replace(/[\s_\-（）()]/g, "");
+}
+
+function hasHeader(header: string[], names: string[]) {
+  const aliases = names.map(normalizeHeaderName);
+  return header.some((value) => aliases.includes(normalizeHeaderName(value)));
+}
+
+function indexOfHeader(header: string[], names: string[]) {
+  const aliases = names.map(normalizeHeaderName);
+  return header.findIndex((value) => aliases.includes(normalizeHeaderName(value)));
+}
+
+function readColumn(row: string[], index: number) {
+  return index >= 0 ? textValue(row[index]) : "";
+}
+
+function buildColumnMap(header: string[]) {
+  const exportLike = hasHeader(header, ["category", "分類", "項目類型", "事件類型"]) || hasHeader(header, ["status", "狀態"]);
+  const typeAliases = exportLike ? ["category", "分類", "項目類型", "事件類型"] : ["type", "taskType", "任務類型", "類型"];
+
+  return {
+    exportLike,
+    date: indexOfHeader(header, ["date", "plannedDate", "planned_date", "日期", "任務日期"]),
+    subject: indexOfHeader(header, ["subject", "subjectName", "科目"]),
+    title: indexOfHeader(header, ["title", "task", "taskTitle", "任務", "任務名稱", "標題", "名稱"]),
+    type: indexOfHeader(header, typeAliases),
+    minutes: indexOfHeader(header, ["minutes", "estimatedMinutes", "estimated_minutes", "預估分鐘", "分鐘", "時間"]),
+    priority: indexOfHeader(header, ["priority", "優先度", "優先"]),
+    note: indexOfHeader(header, ["note", "detail", "description", "備註", "說明", "細節"]),
+  };
+}
+
+function missingRequiredColumns(columns: ReturnType<typeof buildColumnMap>) {
+  const missing: string[] = [];
+  if (columns.date < 0) missing.push("date");
+  if (columns.title < 0) missing.push("title");
+  if (columns.type < 0) missing.push(columns.exportLike ? "category" : "type");
+  return missing;
 }
 
 export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
@@ -128,19 +167,14 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
   }
 
   const header = data[0].map((value) => textValue(value));
-  const format = headerMatches(header, TASK_HEADERS)
-    ? "task"
-    : headerMatches(header, TASK_HEADERS_WITH_TIME)
-      ? "taskWithTime"
-      : headerMatches(header, EXPORT_HEADERS)
-        ? "export"
-        : null;
+  const columns = buildColumnMap(header);
+  const missingColumns = missingRequiredColumns(columns);
 
-  if (!format) {
+  if (missingColumns.length > 0) {
     return {
       rows: [],
       errors: [
-        `第 1 列：表頭必須固定為 ${TASK_HEADERS.join(",")}、${TASK_HEADERS_WITH_TIME.join(",")}，或月曆匯出的 ${EXPORT_HEADERS.join(",")}`,
+        `第 1 列：表頭缺少必要欄位 ${missingColumns.join("、")}。支援欄位為 ${SUPPORTED_HEADER_DESCRIPTION}；也可使用中文欄名如 日期、科目、標題、類型、分鐘、優先度、備註。`,
       ],
     };
   }
@@ -158,41 +192,17 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
   const errors: string[] = [];
 
   sourceRows.forEach(({ row, rowNumber }) => {
-    const values =
-      format === "export"
-        ? {
-            date: textValue(row[0]),
-            subject: textValue(row[6]),
-            title: textValue(row[5]),
-            type: textValue(row[4]),
-            minutes: textValue(row[9]),
-            priority: textValue(row[10]),
-            note: textValue(row[7]),
-            extraValues: row.slice(EXPORT_HEADERS.length),
-          }
-        : format === "taskWithTime"
-          ? {
-              date: textValue(row[0]),
-              subject: textValue(row[3]),
-              title: textValue(row[4]),
-              type: textValue(row[5]),
-              minutes: textValue(row[6]),
-              priority: textValue(row[7]),
-              note: textValue(row[8]),
-              extraValues: row.slice(TASK_HEADERS_WITH_TIME.length),
-            }
-          : {
-              date: textValue(row[0]),
-              subject: textValue(row[1]),
-              title: textValue(row[2]),
-              type: textValue(row[3]),
-              minutes: textValue(row[4]),
-              priority: textValue(row[5]),
-              note: textValue(row[6]),
-              extraValues: row.slice(TASK_HEADERS.length),
-            };
-    const strictType = format === "export" ? parseTaskTypeStrict(values.type) : parseTaskType(values.type);
-    if (format === "export" && !strictType) {
+    const values = {
+      date: readColumn(row, columns.date),
+      subject: readColumn(row, columns.subject),
+      title: readColumn(row, columns.title),
+      type: readColumn(row, columns.type),
+      minutes: readColumn(row, columns.minutes),
+      priority: readColumn(row, columns.priority),
+      note: readColumn(row, columns.note),
+    };
+    const strictType = columns.exportLike ? parseTaskTypeStrict(values.type) : parseTaskType(values.type);
+    if (columns.exportLike && !strictType) {
       return;
     }
 
@@ -207,7 +217,6 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
     const description = values.note || null;
     const rowErrors: string[] = [];
 
-    if (values.extraValues.some((value) => textValue(value))) rowErrors.push("欄位數量不符合固定格式");
     if (!date) rowErrors.push("date 必須是 YYYY-MM-DD");
     if (!title) rowErrors.push("title 必填");
     if (title.length > 120) rowErrors.push("title 最多 120 字");
