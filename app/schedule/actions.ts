@@ -128,7 +128,22 @@ function addDays(date: Date, days: number, timeZone: string) {
 }
 
 function addQuery(path: string, query: string) {
-  return `${path}${path.includes("?") ? "&" : "?"}${query}`;
+  const [pathWithoutHash, hash = ""] = path.split("#");
+  const [pathname, search = ""] = pathWithoutHash.split("?");
+  const params = new URLSearchParams(search);
+  new URLSearchParams(query).forEach((value, key) => params.set(key, value));
+  const nextSearch = params.toString();
+
+  return `${pathname}${nextSearch ? `?${nextSearch}` : ""}${hash ? `#${hash}` : ""}`;
+}
+
+function safeReturnTo(formData: FormData, fallback: string) {
+  const value = textValue(formData, "returnTo");
+  return value.startsWith("/student") || value.startsWith("/guardian") ? value : fallback;
+}
+
+function redirectBack(formData: FormData, fallback: string, query: string): never {
+  redirect(addQuery(safeReturnTo(formData, fallback), query));
 }
 
 function laterDate(first: string, second: string) {
@@ -231,7 +246,7 @@ export async function createFixedEvent(formData: FormData) {
   const note = textValue(formData, "note") || undefined;
 
   if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
-    redirect(addQuery(editable.redirectTo, "error=fixed-event-date-range"));
+    redirectBack(formData, editable.redirectTo, "error=fixed-event-date-range");
   }
 
   await prisma.fixedEvent.createMany({
@@ -251,7 +266,7 @@ export async function createFixedEvent(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function createTutoringSession(formData: FormData) {
@@ -268,7 +283,7 @@ export async function createTutoringSession(formData: FormData) {
   const fatigueLevel = enumValue(FatigueLevel, textValue(formData, "fatigueLevel"), FatigueLevel.NORMAL);
 
   if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
-    redirect(addQuery(editable.redirectTo, "error=tutoring-date-range"));
+    redirectBack(formData, editable.redirectTo, "error=tutoring-date-range");
   }
 
   await prisma.tutoringSession.createMany({
@@ -288,7 +303,7 @@ export async function createTutoringSession(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function createStudyTask(formData: FormData) {
@@ -298,7 +313,7 @@ export async function createStudyTask(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function createStudyTaskInline(formData: FormData) {
@@ -317,8 +332,8 @@ export async function importStudyTasks(formData: FormData) {
   const result = parseStudyTaskCsv(textValue(formData, "csv"));
 
   if (result.errors.length > 0) {
-    const message = encodeURIComponent(result.errors.slice(0, 5).join("；"));
-    redirect(addQuery(editable.redirectTo, `error=task-import&importErrors=${message}`));
+    const message = result.errors.slice(0, 5).join("；");
+    redirectBack(formData, editable.redirectTo, `error=task-import&importErrors=${message}`);
   }
 
   const importBatchId = randomUUID();
@@ -360,7 +375,7 @@ export async function importStudyTasks(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, `schedule=1&imported=${result.rows.length}&batchId=${importBatchId}`));
+  redirectBack(formData, editable.redirectTo, `schedule=1&imported=${result.rows.length}&batchId=${importBatchId}`);
 }
 
 export async function createCalendarEvent(formData: FormData) {
@@ -389,7 +404,7 @@ export async function createCalendarEvent(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 async function redistributeExamReviewPlan(
@@ -529,13 +544,13 @@ export async function createExamReviewPlan(formData: FormData) {
   });
 
   if (!event) {
-    redirect(addQuery(editable.redirectTo, "error=exam-event-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=exam-event-not-found");
   }
 
   const examDate = formatDateInput(event.startDate, timeZone);
   const startDate = laterDate(textValue(formData, "startDate") || today, today);
   if (startDate >= examDate) {
-    redirect(addQuery(editable.redirectTo, "error=exam-plan-date"));
+    redirectBack(formData, editable.redirectTo, "error=exam-plan-date");
   }
 
   const subjectName = textValue(formData, "subjectName") || event.subjectName || "綜合複習";
@@ -548,7 +563,7 @@ export async function createExamReviewPlan(formData: FormData) {
     },
   });
   if (existingPlan) {
-    redirect(addQuery(editable.redirectTo, "error=exam-plan-exists"));
+    redirectBack(formData, editable.redirectTo, "error=exam-plan-exists");
   }
   const title = textValue(formData, "title") || event.title;
   const scope = textValue(formData, "scope") || event.note || null;
@@ -575,7 +590,7 @@ export async function createExamReviewPlan(formData: FormData) {
   await redistributeExamReviewPlan(plan.id, timeZone, startDate, ReviewPlanRevisionTrigger.CREATED);
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "examPlan=1"));
+  redirectBack(formData, editable.redirectTo, "examPlan=1");
 }
 
 export async function redistributeExamReviewPlanAction(formData: FormData) {
@@ -583,7 +598,7 @@ export async function redistributeExamReviewPlanAction(formData: FormData) {
   const editable = await getEditableStudent(studentId);
   const planId = textValue(formData, "examReviewPlanId");
   const plan = await prisma.examReviewPlan.findFirst({ where: { id: planId, studentId: editable.student.id } });
-  if (!plan) redirect(addQuery(editable.redirectTo, "error=exam-plan-not-found"));
+  if (!plan) redirectBack(formData, editable.redirectTo, "error=exam-plan-not-found");
 
   const timeZone = await getRequestTimeZone();
   await redistributeExamReviewPlan(
@@ -594,7 +609,7 @@ export async function redistributeExamReviewPlanAction(formData: FormData) {
   );
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "examPlan=1"));
+  redirectBack(formData, editable.redirectTo, "examPlan=1");
 }
 
 export async function deleteExamReviewPlan(formData: FormData) {
@@ -602,12 +617,12 @@ export async function deleteExamReviewPlan(formData: FormData) {
   const editable = await getEditableStudent(studentId);
   const planId = textValue(formData, "examReviewPlanId");
   const plan = await prisma.examReviewPlan.findFirst({ where: { id: planId, studentId: editable.student.id } });
-  if (!plan) redirect(addQuery(editable.redirectTo, "error=exam-plan-not-found"));
+  if (!plan) redirectBack(formData, editable.redirectTo, "error=exam-plan-not-found");
 
   await prisma.examReviewPlan.delete({ where: { id: plan.id } });
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "examPlan=1"));
+  redirectBack(formData, editable.redirectTo, "examPlan=1");
 }
 
 export async function updateFixedEvent(formData: FormData) {
@@ -622,14 +637,14 @@ export async function updateFixedEvent(formData: FormData) {
   });
 
   if (!event) {
-    redirect(addQuery(editable.redirectTo, "error=fixed-event-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=fixed-event-not-found");
   }
 
   const timeZone = await getRequestTimeZone();
   const rawStartDate = textValue(formData, "startDate");
   const rawEndDate = textValue(formData, "endDate");
   if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
-    redirect(addQuery(editable.redirectTo, "error=fixed-event-date-range"));
+    redirectBack(formData, editable.redirectTo, "error=fixed-event-date-range");
   }
 
   await prisma.fixedEvent.update({
@@ -651,7 +666,7 @@ export async function updateFixedEvent(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function updateTutoringSession(formData: FormData) {
@@ -667,13 +682,13 @@ export async function updateTutoringSession(formData: FormData) {
   });
 
   if (!session) {
-    redirect(addQuery(editable.redirectTo, "error=tutoring-session-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=tutoring-session-not-found");
   }
 
   const rawStartDate = textValue(formData, "startDate");
   const rawEndDate = textValue(formData, "endDate");
   if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {
-    redirect(addQuery(editable.redirectTo, "error=tutoring-date-range"));
+    redirectBack(formData, editable.redirectTo, "error=tutoring-date-range");
   }
 
   await prisma.tutoringSession.update({
@@ -695,7 +710,7 @@ export async function updateTutoringSession(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function updateStudyTask(formData: FormData) {
@@ -710,7 +725,7 @@ export async function updateStudyTask(formData: FormData) {
   });
 
   if (!task) {
-    redirect(addQuery(editable.redirectTo, "error=task-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=task-not-found");
   }
 
   const subjectId = await getSubjectId(textValue(formData, "subjectName"));
@@ -733,7 +748,7 @@ export async function updateStudyTask(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function updateTaskStatus(formData: FormData) {
@@ -754,7 +769,7 @@ export async function updateTaskStatus(formData: FormData) {
   });
 
   if (!task) {
-    redirect(addQuery(editable.redirectTo, "error=task-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=task-not-found");
   }
 
   const taskUpdate =
@@ -800,7 +815,7 @@ export async function updateTaskStatus(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function saveTodaySchedule(formData: FormData) {
@@ -825,7 +840,7 @@ export async function saveTodaySchedule(formData: FormData) {
     },
   });
 
-  if (!student) redirect(addQuery(editable.redirectTo, "error=student-required"));
+  if (!student) redirectBack(formData, editable.redirectTo, "error=student-required");
 
   const schedule = buildTodaySchedule({
     fixedEvents: student.fixedEvents.filter((event) => fixedEventFallsOnDate(event, today.date, timeZone)),
@@ -864,7 +879,7 @@ export async function saveTodaySchedule(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "scheduleHistory=1"));
+  redirectBack(formData, editable.redirectTo, "scheduleHistory=1");
 }
 
 export async function moveTasksToTomorrow(formData: FormData) {
@@ -876,7 +891,7 @@ export async function moveTasksToTomorrow(formData: FormData) {
     .filter((value): value is string => typeof value === "string" && value.length > 0);
 
   if (taskIds.length === 0) {
-    redirect(addQuery(editable.redirectTo, "schedule=1"));
+    redirectBack(formData, editable.redirectTo, "schedule=1");
   }
 
   const tasks = await prisma.studyTask.findMany({
@@ -913,7 +928,7 @@ export async function moveTasksToTomorrow(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function deleteFixedEvent(formData: FormData) {
@@ -929,7 +944,7 @@ export async function deleteFixedEvent(formData: FormData) {
   });
 
   if (!event) {
-    redirect(addQuery(editable.redirectTo, "error=fixed-event-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=fixed-event-not-found");
   }
 
   await prisma.fixedEvent.delete({
@@ -940,7 +955,7 @@ export async function deleteFixedEvent(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function deleteTutoringSession(formData: FormData) {
@@ -956,7 +971,7 @@ export async function deleteTutoringSession(formData: FormData) {
   });
 
   if (!session) {
-    redirect(addQuery(editable.redirectTo, "error=tutoring-session-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=tutoring-session-not-found");
   }
 
   await prisma.tutoringSession.delete({
@@ -967,7 +982,7 @@ export async function deleteTutoringSession(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function deleteStudyTask(formData: FormData) {
@@ -983,7 +998,7 @@ export async function deleteStudyTask(formData: FormData) {
   });
 
   if (!task) {
-    redirect(addQuery(editable.redirectTo, "error=task-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=task-not-found");
   }
 
   await prisma.studyTask.delete({
@@ -994,7 +1009,7 @@ export async function deleteStudyTask(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }
 
 export async function deleteImportBatch(formData: FormData) {
@@ -1003,7 +1018,7 @@ export async function deleteImportBatch(formData: FormData) {
   const importBatchId = textValue(formData, "importBatchId");
 
   if (!importBatchId) {
-    redirect(addQuery(editable.redirectTo, "error=task-import-batch-required"));
+    redirectBack(formData, editable.redirectTo, "error=task-import-batch-required");
   }
 
   const result = await prisma.studyTask.deleteMany({
@@ -1015,7 +1030,7 @@ export async function deleteImportBatch(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, `schedule=1&deletedBatch=${result.count}`));
+  redirectBack(formData, editable.redirectTo, `schedule=1&deletedBatch=${result.count}`);
 }
 
 export async function deleteCalendarEvent(formData: FormData) {
@@ -1030,11 +1045,11 @@ export async function deleteCalendarEvent(formData: FormData) {
   });
 
   if (!event) {
-    redirect(addQuery(editable.redirectTo, "error=calendar-event-not-found"));
+    redirectBack(formData, editable.redirectTo, "error=calendar-event-not-found");
   }
 
   if (event.source === RecordSource.TEACHER) {
-    redirect(addQuery(editable.redirectTo, "error=teacher-event-readonly"));
+    redirectBack(formData, editable.redirectTo, "error=teacher-event-readonly");
   }
 
   await prisma.calendarEvent.delete({
@@ -1045,5 +1060,5 @@ export async function deleteCalendarEvent(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/guardian");
-  redirect(addQuery(editable.redirectTo, "schedule=1"));
+  redirectBack(formData, editable.redirectTo, "schedule=1");
 }

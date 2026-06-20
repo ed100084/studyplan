@@ -1145,6 +1145,27 @@ button[aria-disabled="true"] {
   margin-bottom: 20px;
 }
 
+.settings-tools-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 20px 0;
+}
+
+.settings-tools-grid .form-card,
+.settings-tools-grid .import-history-panel {
+  margin: 0;
+}
+
+.export-tools-panel {
+  margin: 0;
+}
+
+.export-tool-actions {
+  justify-content: flex-start;
+  margin-top: 16px;
+}
+
 .import-history-panel {
   margin: 20px 0;
 }
@@ -1806,6 +1827,7 @@ button[aria-disabled="true"] {
   .role-grid,
   .dashboard-grid,
   .form-grid,
+  .settings-tools-grid,
   .guardian-tools,
   .day-detail-grid,
   .day-detail-metrics,

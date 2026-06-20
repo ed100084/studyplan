@@ -27,7 +27,22 @@ function intValue(formData: FormData, key: string, fallback: number) {
 }
 
 function addQuery(path: string, query: string) {
-  return `${path}${path.includes("?") ? "&" : "?"}${query}`;
+  const [pathWithoutHash, hash = ""] = path.split("#");
+  const [pathname, search = ""] = pathWithoutHash.split("?");
+  const params = new URLSearchParams(search);
+  new URLSearchParams(query).forEach((value, key) => params.set(key, value));
+  const nextSearch = params.toString();
+
+  return `${pathname}${nextSearch ? `?${nextSearch}` : ""}${hash ? `#${hash}` : ""}`;
+}
+
+function safeReturnTo(formData: FormData, fallback: string) {
+  const value = textValue(formData, "returnTo");
+  return value.startsWith("/student") || value.startsWith("/guardian") ? value : fallback;
+}
+
+function redirectBack(formData: FormData, fallback: string, query: string): never {
+  redirect(addQuery(safeReturnTo(formData, fallback), query));
 }
 
 async function getEditableStudent(studentId?: string) {
@@ -103,7 +118,7 @@ export async function createScore(formData: FormData) {
   const value = numberValue(formData, "value", Number.NaN);
 
   if (!subjectName || !Number.isFinite(value) || value < 0 || value > 100) {
-    redirect(addQuery(editable.redirectTo, "error=invalid-score"));
+    redirectBack(formData, editable.redirectTo, "error=invalid-score");
   }
 
   const subjectId = await getSubjectId(subjectName);
@@ -119,7 +134,7 @@ export async function createScore(formData: FormData) {
   });
 
   refreshLearningPages();
-  redirect(addQuery(editable.redirectTo, "learning=1"));
+  redirectBack(formData, editable.redirectTo, "learning=1");
 }
 
 export async function deleteScore(formData: FormData) {
@@ -134,7 +149,7 @@ export async function deleteScore(formData: FormData) {
   });
 
   refreshLearningPages();
-  redirect(addQuery(editable.redirectTo, "learning=1"));
+  redirectBack(formData, editable.redirectTo, "learning=1");
 }
 
 export async function createWeakPoint(formData: FormData) {
@@ -143,7 +158,7 @@ export async function createWeakPoint(formData: FormData) {
   const title = textValue(formData, "title");
 
   if (!subjectName || !title) {
-    redirect(addQuery(editable.redirectTo, "error=invalid-weak-point"));
+    redirectBack(formData, editable.redirectTo, "error=invalid-weak-point");
   }
 
   const subjectId = await getSubjectId(subjectName);
@@ -184,7 +199,7 @@ export async function createWeakPoint(formData: FormData) {
   });
 
   refreshLearningPages();
-  redirect(addQuery(editable.redirectTo, "learning=1"));
+  redirectBack(formData, editable.redirectTo, "learning=1");
 }
 
 export async function deleteWeakPoint(formData: FormData) {
@@ -199,5 +214,5 @@ export async function deleteWeakPoint(formData: FormData) {
   });
 
   refreshLearningPages();
-  redirect(addQuery(editable.redirectTo, "learning=1"));
+  redirectBack(formData, editable.redirectTo, "learning=1");
 }

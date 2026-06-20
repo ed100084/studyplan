@@ -23,6 +23,7 @@ import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
 import { DayDetailPanel } from "@/app/components/day-detail-panel";
 import { CalendarDayDetailBrowser } from "@/app/components/calendar-day-detail-browser";
+import { CalendarExportTools } from "@/app/components/calendar-export-tools";
 import { StudyTaskContinuousForm, StudyTaskImportHistory, StudyTaskImportPanel } from "@/app/components/study-task-tools";
 import { buildStudyTaskImportBatches } from "@/lib/study-task-import-history";
 import { createGuardian, linkStudentToGuardian, signOut } from "../onboarding/actions";
@@ -696,7 +697,6 @@ function MonthCalendar({
           <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
           <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: todayDate, month: todayDate })}>本月</Link>
           <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
-          <Link className="small-button" href={`/calendar/print?month=${selectedMonthDate}&studentId=${studentId}`}>列印 PDF</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -1227,13 +1227,6 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   </CalendarDayDetailBrowser>
                   )}
 
-                  {activeTab === "calendar" && (
-                  <>
-                    <StudyTaskImportPanel studentId={activeStudent.id} />
-                    <StudyTaskImportHistory batches={importBatches} studentId={activeStudent.id} />
-                  </>
-                  )}
-
                   {activeTab === "learning" && (
                   <LearningProgress
                     studentId={activeStudent.id}
@@ -1557,6 +1550,12 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   )}
 
                   {activeTab === "settings" && (
+                  <>
+                  <div className="settings-tools-grid">
+                    <CalendarExportTools monthDate={selectedMonthDate} studentId={activeStudent.id} />
+                    <StudyTaskImportPanel studentId={activeStudent.id} />
+                    <StudyTaskImportHistory batches={importBatches} studentId={activeStudent.id} />
+                  </div>
                   <div className="form-grid">
                     <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
                       <h2>替 {activeStudent.user.displayName} 代填補習</h2>
@@ -1695,6 +1694,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       </button>
                     </form>
                   </div>
+                  </>
                   )}
                 </>
               ) : null}

@@ -23,6 +23,7 @@ import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
 import { DayDetailPanel } from "@/app/components/day-detail-panel";
 import { CalendarDayDetailBrowser } from "@/app/components/calendar-day-detail-browser";
+import { CalendarExportTools } from "@/app/components/calendar-export-tools";
 import { StudyTaskContinuousForm, StudyTaskImportHistory, StudyTaskImportPanel } from "@/app/components/study-task-tools";
 import { buildStudyTaskImportBatches } from "@/lib/study-task-import-history";
 import { createStudent, signOut } from "../onboarding/actions";
@@ -676,7 +677,6 @@ function MonthCalendar({
           <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })}>上個月</Link>
           <Link className="small-button" href={calendarHref({ tab: "calendar", date: todayDate, month: todayDate })}>本月</Link>
           <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })}>下個月</Link>
-          <Link className="small-button" href={`/calendar/print?month=${selectedMonthDate}`}>列印 PDF</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -1135,13 +1135,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               </CalendarDayDetailBrowser>
               )}
 
-              {activeTab === "calendar" && (
-              <>
-                <StudyTaskImportPanel />
-                <StudyTaskImportHistory batches={importBatches} />
-              </>
-              )}
-
               {activeTab === "learning" && (
               <LearningProgress
                 scores={student.scores}
@@ -1443,6 +1436,12 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               )}
 
               {activeTab === "settings" && (
+              <>
+              <div className="settings-tools-grid">
+                <CalendarExportTools monthDate={selectedMonthDate} />
+                <StudyTaskImportPanel />
+                <StudyTaskImportHistory batches={importBatches} />
+              </div>
               <div className="form-grid">
                 <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
                   <h2>新增補習</h2>
@@ -1582,6 +1581,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   </button>
                 </form>
               </div>
+              </>
               )}
             </>
           ) : (
