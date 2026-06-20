@@ -292,7 +292,7 @@ export async function createStudyWindow(formData: FormData) {
   const rawEndDate = textValue(formData, "endDate");
   const title = textValue(formData, "title") || "可讀書";
   const startTime = textValue(formData, "startTime") || "17:30";
-  const endTime = textValue(formData, "endTime") || "22:30";
+  const endTime = textValue(formData, "endTime") || "23:30";
   const note = textValue(formData, "note") || undefined;
 
   if (rawStartDate && rawEndDate && rawStartDate > rawEndDate) {

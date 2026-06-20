@@ -3,6 +3,16 @@ import test from "node:test";
 import { FixedEventType, TaskType } from "@prisma/client";
 import { buildTodaySchedule } from "../lib/scheduler/today";
 
+test("defaults to a 17:30 to 23:30 study window when none is configured", () => {
+  const schedule = buildTodaySchedule({
+    fixedEvents: [],
+    tutoringSessions: [],
+    tasks: [],
+  });
+
+  assert.equal(schedule.availableMinutes, 360);
+});
+
 test("schedules tasks inside configured daytime study windows", () => {
   const schedule = buildTodaySchedule({
     studyWindows: [

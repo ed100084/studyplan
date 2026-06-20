@@ -69,7 +69,7 @@ type TaskPlacement = {
 };
 
 const DAY_START = "17:30";
-const DAY_END = "22:30";
+const DAY_END = "23:30";
 const BREAK_MINUTES = 10;
 const MIN_TASK_MINUTES = 10;
 

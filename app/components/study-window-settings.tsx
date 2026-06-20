@@ -131,7 +131,7 @@ export function StudyWindowSettings({
           </label>
           <label>
             結束
-            <input name="endTime" type="time" defaultValue="22:30" required />
+            <input name="endTime" type="time" defaultValue="23:30" required />
           </label>
         </div>
         <label>
@@ -166,7 +166,7 @@ export function StudyWindowSettings({
             <StudyWindowEditor studentId={studentId} timeZone={timeZone} window={window} />
           </div>
         ))}
-        {windows.length === 0 && <div className="empty-state">尚未設定可讀書時段；未設定時會沿用 17:30-22:30。</div>}
+        {windows.length === 0 && <div className="empty-state">尚未設定可讀書時段；未設定時會沿用 17:30-23:30。</div>}
       </div>
     </section>
   );
