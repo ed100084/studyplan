@@ -1126,6 +1126,106 @@ button[aria-disabled="true"] {
   opacity: 0.68;
 }
 
+body.route-pending {
+  cursor: wait;
+}
+
+.route-pending-indicator {
+  align-items: center;
+  background: var(--text);
+  border-radius: 999px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.18);
+  color: white;
+  display: none;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 8px;
+  padding: 10px 14px;
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  z-index: 80;
+}
+
+body.route-pending .route-pending-indicator {
+  display: inline-flex;
+}
+
+.loading-dot {
+  animation: loading-pulse 0.8s ease-in-out infinite alternate;
+  background: #93c5fd;
+  border-radius: 999px;
+  display: inline-block;
+  height: 9px;
+  width: 9px;
+}
+
+@keyframes loading-pulse {
+  from {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+a[data-nav-pending="true"] {
+  cursor: wait;
+  opacity: 0.72;
+  pointer-events: none;
+  position: relative;
+}
+
+a[data-nav-pending="true"]::after {
+  animation: loading-pulse 0.8s ease-in-out infinite alternate;
+  background: currentColor;
+  border-radius: 999px;
+  content: "";
+  display: inline-block;
+  height: 6px;
+  margin-left: 7px;
+  vertical-align: middle;
+  width: 6px;
+}
+
+.calendar-detail-browser,
+.day-detail-panel,
+.learning-panel,
+.exam-plan-panel,
+.settings-tools-grid,
+.form-grid {
+  position: relative;
+}
+
+body.route-pending .calendar-detail-browser::before,
+body.route-pending .day-detail-panel::before,
+body.route-pending .learning-panel::before,
+body.route-pending .exam-plan-panel::before,
+body.route-pending .settings-tools-grid::before,
+body.route-pending .form-grid::before {
+  align-items: center;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.72)),
+    repeating-linear-gradient(90deg, transparent 0, transparent 16px, rgba(37, 99, 235, 0.08) 16px, rgba(37, 99, 235, 0.08) 32px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  bottom: 0;
+  color: var(--primary);
+  content: "載入中...";
+  display: flex;
+  font-weight: 700;
+  justify-content: center;
+  left: 0;
+  min-height: 90px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 12;
+}
+
 .inline-actions {
   display: flex;
   flex-wrap: wrap;

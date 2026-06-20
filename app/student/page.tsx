@@ -274,6 +274,8 @@ function DashboardTabs({
           className={tab.value === activeTab ? "dashboard-tab active" : "dashboard-tab"}
           href={hrefForTab(tab.value)}
           aria-current={tab.value === activeTab ? "page" : undefined}
+          data-nav-feedback
+          data-pending-label={`正在切換到${tab.label}`}
           key={tab.value}
         >
           {tab.label}
@@ -292,10 +294,20 @@ function CalendarViewSwitcher({
 }) {
   return (
     <div className="calendar-view-switcher" aria-label="行事曆顯示模式">
-      <Link className={activeView === "month" ? "calendar-view-button active" : "calendar-view-button"} href={hrefForView("month")}>
+      <Link
+        className={activeView === "month" ? "calendar-view-button active" : "calendar-view-button"}
+        href={hrefForView("month")}
+        data-nav-feedback
+        data-pending-label="正在載入月行事曆"
+      >
         月行事曆
       </Link>
-      <Link className={activeView === "week" ? "calendar-view-button active" : "calendar-view-button"} href={hrefForView("week")}>
+      <Link
+        className={activeView === "week" ? "calendar-view-button active" : "calendar-view-button"}
+        href={hrefForView("week")}
+        data-nav-feedback
+        data-pending-label="正在載入週行事曆"
+      >
         週行事曆
       </Link>
     </div>
@@ -553,9 +565,9 @@ function WeekCalendar({
           </p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addDateDays(selectedWeekDate, -7), week: addDateDays(selectedWeekDate, -7), view: "week" })}>上一週</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", date: todayDate, week: todayDate, view: "week" })}>本週</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addDateDays(selectedWeekDate, 7), week: addDateDays(selectedWeekDate, 7), view: "week" })}>下一週</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addDateDays(selectedWeekDate, -7), week: addDateDays(selectedWeekDate, -7), view: "week" })} data-nav-feedback data-pending-label="正在載入上一週">上一週</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: todayDate, week: todayDate, view: "week" })} data-nav-feedback data-pending-label="正在載入本週">本週</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addDateDays(selectedWeekDate, 7), week: addDateDays(selectedWeekDate, 7), view: "week" })} data-nav-feedback data-pending-label="正在載入下一週">下一週</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -634,9 +646,9 @@ function MonthCalendar({
           <p className="panel-copy">{month.monthLabel}</p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1), view: "month" })}>上個月</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", date: todayDate, month: todayDate, view: "month" })}>本月</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1), view: "month" })}>下個月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1), view: "month" })} data-nav-feedback data-pending-label="正在載入上個月">上個月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: todayDate, month: todayDate, view: "month" })} data-nav-feedback data-pending-label="正在載入本月">本月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1), view: "month" })} data-nav-feedback data-pending-label="正在載入下個月">下個月</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>

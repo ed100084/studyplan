@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { FormSubmitGuard } from "@/app/components/form-submit-guard";
+import { NavigationFeedback } from "@/app/components/navigation-feedback";
 import { TimeZoneSync } from "./timezone-sync";
 import "./globals.css";
 
@@ -18,6 +20,9 @@ export default function RootLayout({
       <body>
         <TimeZoneSync />
         <FormSubmitGuard />
+        <Suspense fallback={null}>
+          <NavigationFeedback />
+        </Suspense>
         {children}
       </body>
     </html>
