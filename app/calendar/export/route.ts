@@ -20,6 +20,7 @@ import {
 } from "@/lib/timezone";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
 import { tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
+import { buildTodaySchedule } from "@/lib/scheduler/today";
 
 type StudyTaskWithSubject = StudyTask & {
   subject: Subject | null;
@@ -179,6 +180,7 @@ function buildDayItems({
   fixedEvents,
   tasks,
   tutoringSessions,
+  unplacedTaskDetails,
   weekday,
 }: {
   calendarEvents: CalendarEvent[];
@@ -186,6 +188,7 @@ function buildDayItems({
   fixedEvents: FixedEvent[];
   tasks: StudyTaskWithSubject[];
   tutoringSessions: TutoringSession[];
+  unplacedTaskDetails: Map<string, string>;
   weekday: string;
 }) {
   const eventItems: CsvItem[] = calendarEvents.map((event) => ({
@@ -241,20 +244,24 @@ function buildDayItems({
 
   const taskItems: CsvItem[] = tasks
     .sort((first, second) => second.priority - first.priority || first.title.localeCompare(second.title))
-    .map((task, index) => ({
-      date,
-      weekday,
-      startTime: "任務",
-      endTime: "",
-      category: taskTypeLabels[task.type],
-      title: task.title,
-      subject: task.subject?.name ?? "",
-      detail: task.description ?? "",
-      status: statusLabels[task.status],
-      minutes: String(task.estimatedMinutes),
-      priority: String(task.priority),
-      sortMinutes: 22 * 60 + index,
-    }));
+    .map((task, index) => {
+      const unplacedDetail = unplacedTaskDetails.get(task.id);
+
+      return {
+        date,
+        weekday,
+        startTime: unplacedDetail ? "排不下" : "任務",
+        endTime: "",
+        category: taskTypeLabels[task.type],
+        title: task.title,
+        subject: task.subject?.name ?? "",
+        detail: [unplacedDetail ? `排不下：${unplacedDetail}` : "", task.description ?? ""].filter(Boolean).join("；"),
+        status: unplacedDetail ? `${statusLabels[task.status]} / 排不下` : statusLabels[task.status],
+        minutes: String(task.estimatedMinutes),
+        priority: String(task.priority),
+        sortMinutes: 22 * 60 + index,
+      };
+    });
 
   return [...eventItems, ...fixedItems, ...tutoringItems, ...taskItems].sort(
     (first, second) => first.sortMinutes - second.sortMinutes || first.title.localeCompare(second.title),
@@ -321,12 +328,32 @@ export async function GET(request: NextRequest) {
     const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
     const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
     const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
+    const daySchedule = buildTodaySchedule({
+      fixedEvents: dayFixedEvents,
+      tutoringSessions: dayTutoringSessions,
+      tasks: dayTasks
+        .filter((task) => task.status === TaskStatus.PLANNED)
+        .map((task) => ({
+          id: task.id,
+          title: task.title,
+          subjectName: task.subject?.name,
+          type: task.type,
+          estimatedMinutes: task.estimatedMinutes,
+          priority: task.priority,
+        })),
+    });
+    const unplacedTaskDetails = new Map(
+      daySchedule.unplaced
+        .map((segment) => [segment.taskId, segment.detail] as const)
+        .filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1])),
+    );
     const dayItems = buildDayItems({
       calendarEvents: dayCalendarEvents,
       date: day.date,
       fixedEvents: dayFixedEvents,
       tasks: dayTasks,
       tutoringSessions: dayTutoringSessions,
+      unplacedTaskDetails,
       weekday: readableWeekdayLabels[day.weekday],
     });
 
