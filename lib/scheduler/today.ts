@@ -71,8 +71,10 @@ type TaskPlacement = {
   cursor: number;
 };
 
-const DAY_START = "17:30";
-const DAY_END = "23:30";
+type FixedTimeConflictReason = "busy" | "day-boundary" | "study-window" | "reserved-task";
+
+const DAY_START = "07:00";
+const DAY_END = "22:30";
 const BREAK_MINUTES = 10;
 const MIN_TASK_MINUTES = 10;
 
@@ -197,10 +199,7 @@ function mergeFreeSlotBlocks(blocks: FreeSlot[]) {
 
 function normalizeStudyWindows(studyWindows: SchedulerStudyWindow[] | undefined, dayStart: number, dayEnd: number) {
   const windows = studyWindows?.length
-    ? studyWindows.map((window) => ({
-        start: toMinutes(window.startTime),
-        end: toMinutes(window.endTime),
-      }))
+    ? studyWindows.map((window) => clampBlock(toMinutes(window.startTime), toMinutes(window.endTime), dayStart, dayEnd))
     : [{ start: dayStart, end: dayEnd }];
 
   return mergeFreeSlotBlocks(windows.filter((window) => window.end - window.start >= MIN_TASK_MINUTES).sort((a, b) => a.start - b.start));
@@ -286,6 +285,10 @@ function subtractSlotFromFreeSlots(freeSlots: FreeSlot[], used: FreeSlot) {
     .sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
+function slotsOverlap(left: FreeSlot, right: FreeSlot) {
+  return left.start < right.end && right.start < left.end;
+}
+
 function reserveFixedTaskSlot(task: SchedulerStudyTask, freeSlots: FreeSlot[]) {
   if (!task.plannedStartTime || !task.plannedEndTime) {
     return null;
@@ -327,6 +330,39 @@ function fixedTaskSlot(task: SchedulerStudyTask) {
   };
 
   return slot.end - slot.start >= MIN_TASK_MINUTES ? slot : null;
+}
+
+function fixedTimeConflictReason({
+  fixedSlot,
+  busyBlocks,
+  dayStart,
+  dayEnd,
+  hasConfiguredStudyWindows,
+  studyWindows,
+}: {
+  fixedSlot: FreeSlot;
+  busyBlocks: BusyBlock[];
+  dayStart: number;
+  dayEnd: number;
+  hasConfiguredStudyWindows: boolean;
+  studyWindows: FreeSlot[];
+}): FixedTimeConflictReason {
+  if (fixedSlot.start < dayStart || fixedSlot.end > dayEnd) {
+    return "day-boundary";
+  }
+
+  if (busyBlocks.some((block) => slotsOverlap(fixedSlot, block))) {
+    return "busy";
+  }
+
+  if (
+    hasConfiguredStudyWindows &&
+    !studyWindows.some((window) => window.start <= fixedSlot.start && fixedSlot.end <= window.end)
+  ) {
+    return "study-window";
+  }
+
+  return "reserved-task";
 }
 
 function planTaskChunks(task: SchedulerStudyTask, freeSlots: FreeSlot[], slotIndex: number, cursor: number, dayEnd: number): TaskPlacement | null {
@@ -399,14 +435,36 @@ function addStudySegments(task: SchedulerStudyTask, placement: TaskPlacement, se
   });
 }
 
-function addFixedTimeStudySegment(task: SchedulerStudyTask, slot: FreeSlot, segments: ScheduleSegment[], conflict = false) {
+function fixedTimeConflictDetail(task: SchedulerStudyTask, reason: FixedTimeConflictReason) {
+  const prefix = `${taskTypeLabels[task.type]}，優先度 ${task.priority}`;
+
+  if (reason === "day-boundary") {
+    return `${prefix}，指定時間超出可排時間範圍，請調整`;
+  }
+
+  if (reason === "study-window") {
+    return `${prefix}，指定時間不在設定的可讀書時段內，請調整或刪除該日可讀書時段限制`;
+  }
+
+  if (reason === "reserved-task") {
+    return `${prefix}，指定時間與另一個指定時間任務重疊，請調整`;
+  }
+
+  return `${prefix}，指定時間與固定行程衝突，請調整`;
+}
+
+function addFixedTimeStudySegment(
+  task: SchedulerStudyTask,
+  slot: FreeSlot,
+  segments: ScheduleSegment[],
+  conflict = false,
+  conflictReason: FixedTimeConflictReason = "busy",
+) {
   segments.push({
     id: `study-${task.id}`,
     kind: "study",
     title: `${task.subjectName ?? "未指定科目"}：${task.title}`,
-    detail: conflict
-      ? `${taskTypeLabels[task.type]}，優先度 ${task.priority}，指定時間與固定行程衝突，請調整`
-      : `${taskTypeLabels[task.type]}，優先度 ${task.priority}，指定時間`,
+    detail: conflict ? fixedTimeConflictDetail(task, conflictReason) : `${taskTypeLabels[task.type]}，優先度 ${task.priority}，指定時間`,
     startTime: toTime(slot.start),
     endTime: toTime(slot.end),
     minutes: slot.end - slot.start,
@@ -441,9 +499,10 @@ export function buildTodaySchedule(input: {
 }) {
   const dayStart = toMinutes(input.dayStart ?? DAY_START);
   const dayEnd = toMinutes(input.dayEnd ?? DAY_END);
+  const hasConfiguredStudyWindows = Boolean(input.studyWindows?.length);
   const studyWindows = normalizeStudyWindows(input.studyWindows, dayStart, dayEnd);
-  const scheduleStart = studyWindows[0]?.start ?? dayStart;
-  const scheduleEnd = studyWindows.at(-1)?.end ?? dayEnd;
+  const scheduleStart = dayStart;
+  const scheduleEnd = dayEnd;
   const fixedBlocks: BusyBlock[] = input.fixedEvents.map((event) => {
     const clamped = clampBlock(toMinutes(event.startTime), toMinutes(event.endTime), scheduleStart, scheduleEnd);
     return {
@@ -500,7 +559,15 @@ export function buildTodaySchedule(input: {
     if (!reservation) {
       const slot = fixedTaskSlot(task);
       if (slot) {
-        addFixedTimeStudySegment(task, slot, studySegments, true);
+        const conflictReason = fixedTimeConflictReason({
+          fixedSlot: slot,
+          busyBlocks,
+          dayStart: scheduleStart,
+          dayEnd: scheduleEnd,
+          hasConfiguredStudyWindows,
+          studyWindows,
+        });
+        addFixedTimeStudySegment(task, slot, studySegments, true, conflictReason);
       } else {
         unplaced.push({
           id: `unplaced-${task.id}`,

@@ -166,7 +166,7 @@ export function StudyWindowSettings({
             <StudyWindowEditor studentId={studentId} timeZone={timeZone} window={window} />
           </div>
         ))}
-        {windows.length === 0 && <div className="empty-state">尚未設定可讀書時段；未設定時會沿用 17:30-23:30。</div>}
+        {windows.length === 0 && <div className="empty-state">尚未設定可讀書時段；未設定時會使用 07:00-22:30 扣除固定行程後的空檔。</div>}
       </div>
     </section>
   );
