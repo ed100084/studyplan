@@ -271,6 +271,21 @@ function splitSlotAround(slot: FreeSlot, used: FreeSlot) {
   return nextSlots.filter((item) => item.end - item.start >= MIN_TASK_MINUTES);
 }
 
+function subtractSlotFromFreeSlots(freeSlots: FreeSlot[], used: FreeSlot) {
+  return freeSlots
+    .flatMap((slot) => {
+      const overlapStart = Math.max(slot.start, used.start);
+      const overlapEnd = Math.min(slot.end, used.end);
+
+      if (overlapEnd <= overlapStart) {
+        return [slot];
+      }
+
+      return splitSlotAround(slot, { start: overlapStart, end: overlapEnd });
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
 function reserveFixedTaskSlot(task: SchedulerStudyTask, freeSlots: FreeSlot[]) {
   if (!task.plannedStartTime || !task.plannedEndTime) {
     return null;
@@ -458,7 +473,10 @@ export function buildTodaySchedule(input: {
   });
 
   const busyBlocks = mergeBusyBlocks([...fixedBlocks, ...tutoringBlocks]);
-  let freeSlots = reduceLateCapacityForFatigue(buildFreeSlotsWithinStudyWindows(busyBlocks, studyWindows), input.tutoringSessions).filter(
+  let fixedTaskFreeSlots = buildFreeSlotsWithinStudyWindows(busyBlocks, studyWindows).filter(
+    (slot) => slot.end - slot.start >= MIN_TASK_MINUTES,
+  );
+  let freeSlots = reduceLateCapacityForFatigue(fixedTaskFreeSlots, input.tutoringSessions).filter(
     (slot) => slot.end - slot.start >= MIN_TASK_MINUTES,
   );
   const fixedTimeTasks = input.tasks
@@ -477,7 +495,7 @@ export function buildTodaySchedule(input: {
   const availableMinutes = freeSlots.reduce((total, slot) => total + (slot.end - slot.start), 0);
 
   for (const task of fixedTimeTasks) {
-    const reservation = reserveFixedTaskSlot(task, freeSlots);
+    const reservation = reserveFixedTaskSlot(task, fixedTaskFreeSlots);
 
     if (!reservation) {
       const slot = fixedTaskSlot(task);
@@ -497,7 +515,8 @@ export function buildTodaySchedule(input: {
     }
 
     addFixedTimeStudySegment(task, reservation.fixedSlot, studySegments);
-    freeSlots = reservation.nextFreeSlots;
+    fixedTaskFreeSlots = reservation.nextFreeSlots;
+    freeSlots = subtractSlotFromFreeSlots(freeSlots, reservation.fixedSlot);
   }
 
   let slotIndex = 0;

@@ -86,3 +86,38 @@ test("shows fixed-time study task conflicts alongside fixed routine blocks", () 
   assert.equal(conflictingStudy?.conflict, true);
   assert.equal(schedule.scheduledStudyMinutes, 0);
 });
+
+test("does not mark fixed-time tasks as conflicts only because fatigue reduced automatic capacity", () => {
+  const schedule = buildTodaySchedule({
+    fixedEvents: [],
+    tutoringSessions: [
+      {
+        id: "math-class",
+        subjectName: "數學",
+        startTime: "18:00",
+        endTime: "19:00",
+        commuteMinutes: 0,
+        fatigueLevel: "HIGH",
+        hasHomework: false,
+      },
+    ],
+    tasks: [
+      {
+        id: "science",
+        title: "自然整理",
+        subjectName: "自然",
+        type: TaskType.REVIEW,
+        plannedStartTime: "22:00",
+        plannedEndTime: "22:30",
+        estimatedMinutes: 30,
+        priority: 3,
+      },
+    ],
+  });
+
+  const fixedStudy = schedule.scheduled.find((segment) => segment.kind === "study" && segment.taskId === "science");
+  assert.equal(fixedStudy?.startTime, "22:00");
+  assert.equal(fixedStudy?.endTime, "22:30");
+  assert.equal(fixedStudy?.conflict, false);
+  assert.equal(schedule.scheduledStudyMinutes, 30);
+});
