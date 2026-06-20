@@ -9,7 +9,7 @@ import {
   UserRole,
   Weekday,
 } from "@prisma/client";
-import type { CalendarEvent, FixedEvent, StudyTask, Subject, TutoringSession } from "@prisma/client";
+import type { CalendarEvent, FixedEvent, StudyTask, StudyWindow, Subject, TutoringSession } from "@prisma/client";
 import { PrintButton } from "@/app/components/print-button";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
@@ -23,6 +23,7 @@ import {
   normalizeDateInput,
 } from "@/lib/timezone";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
+import { studyWindowFallsOnDate } from "@/lib/study-windows";
 import { tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 
 type CalendarPrintPageProps = {
@@ -41,7 +42,7 @@ type PrintItem = {
   title: string;
   detail: string;
   sortMinutes: number;
-  tone: "fixed" | "tutoring" | "event" | "task";
+  tone: "fixed" | "tutoring" | "event" | "task" | "study-window";
 };
 
 const readableWeekdayLabels: Record<Weekday, string> = {
@@ -129,6 +130,10 @@ function activeFixedEventsForDate(fixedEvents: FixedEvent[], date: string, weekd
   return fixedEvents.filter((event) => event.weekday === weekday && fixedEventFallsOnDate(event, date, timeZone));
 }
 
+function activeStudyWindowsForDate(studyWindows: StudyWindow[], date: string, weekday: Weekday, timeZone: string) {
+  return studyWindows.filter((window) => window.weekday === weekday && studyWindowFallsOnDate(window, date, timeZone));
+}
+
 function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date: string, weekday: Weekday, timeZone: string) {
   return tutoringSessions.filter(
     (session) => session.weekday === weekday && tutoringSessionFallsOnDate(session, date, timeZone),
@@ -138,12 +143,14 @@ function activeTutoringSessionsForDate(tutoringSessions: TutoringSession[], date
 function buildPrintItems({
   calendarEvents,
   fixedEvents,
+  studyWindows,
   tasks,
   tutoringSessions,
   timeZone,
 }: {
   calendarEvents: CalendarEvent[];
   fixedEvents: FixedEvent[];
+  studyWindows: StudyWindow[];
   tasks: StudyTaskWithSubject[];
   tutoringSessions: TutoringSession[];
   timeZone: string;
@@ -170,6 +177,14 @@ function buildPrintItems({
     tone: "fixed",
   }));
 
+  const studyWindowItems: PrintItem[] = studyWindows.map((window) => ({
+    timeLabel: `${window.startTime}-${window.endTime}`,
+    title: window.title,
+    detail: [window.note, "可安排讀書任務"].filter(Boolean).join("，"),
+    sortMinutes: minutesFromTime(window.startTime),
+    tone: "study-window",
+  }));
+
   const tutoringItems: PrintItem[] = tutoringSessions.map((session) => ({
     timeLabel: `${session.startTime}-${session.endTime}`,
     title: `${session.subjectName}補習`,
@@ -186,23 +201,28 @@ function buildPrintItems({
 
   const taskItems: PrintItem[] = tasks
     .sort((first, second) => second.priority - first.priority || first.title.localeCompare(second.title))
-    .map((task, index) => ({
-      timeLabel: "任務",
-      title: `${task.subject?.name ? `${task.subject.name}：` : ""}${task.title}`,
-      detail: [
-        taskTypeLabels[task.type],
-        `${task.estimatedMinutes} 分`,
-        `優先 ${task.priority}`,
-        statusLabels[task.status],
-        task.description,
-      ]
-        .filter(Boolean)
-        .join("，"),
-      sortMinutes: 22 * 60 + index,
-      tone: "task",
-    }));
+    .map((task, index) => {
+      const hasFixedTime = task.plannedStartTime && task.plannedEndTime;
 
-  return [...eventItems, ...fixedItems, ...tutoringItems, ...taskItems].sort(
+      return {
+        timeLabel: hasFixedTime ? `${task.plannedStartTime}-${task.plannedEndTime}` : "任務",
+        title: `${task.subject?.name ? `${task.subject.name}：` : ""}${task.title}`,
+        detail: [
+          taskTypeLabels[task.type],
+          `${task.estimatedMinutes} 分`,
+          `優先 ${task.priority}`,
+          statusLabels[task.status],
+          hasFixedTime ? "指定時間" : "",
+          task.description,
+        ]
+          .filter(Boolean)
+          .join("，"),
+        sortMinutes: hasFixedTime ? minutesFromTime(task.plannedStartTime!) : 22 * 60 + index,
+        tone: "task" as const,
+      };
+    });
+
+  return [...eventItems, ...studyWindowItems, ...fixedItems, ...tutoringItems, ...taskItems].sort(
     (left, right) => left.sortMinutes - right.sortMinutes || left.title.localeCompare(right.title),
   );
 }
@@ -272,8 +292,14 @@ export default async function CalendarPrintPage({ searchParams }: CalendarPrintP
   const monthDate = monthDateValue(params?.month, today.date);
   const month = getMonth(monthDate, timeZone);
   const student = await getPrintableStudent(params?.studentId);
-  const [fixedEvents, tutoringSessions, tasks, calendarEvents] = await Promise.all([
+  const [fixedEvents, studyWindows, tutoringSessions, tasks, calendarEvents] = await Promise.all([
     prisma.fixedEvent.findMany({
+      where: {
+        studentId: student.id,
+      },
+      orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+    }),
+    prisma.studyWindow.findMany({
       where: {
         studentId: student.id,
       },
@@ -377,16 +403,27 @@ export default async function CalendarPrintPage({ searchParams }: CalendarPrintP
           ))}
           {month.days.map((day) => {
             const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
+            const dayStudyWindows = activeStudyWindowsForDate(studyWindows, day.date, day.weekday, timeZone);
             const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
             const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
             const dayTasks = tasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
+            const dayMinutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
             const items = buildPrintItems({
               calendarEvents: dayCalendarEvents,
               fixedEvents: dayFixedEvents,
+              studyWindows: dayStudyWindows,
               tasks: dayTasks,
               tutoringSessions: dayTutoringSessions,
               timeZone,
             });
+            const stats = [
+              dayCalendarEvents.length ? `${dayCalendarEvents.length} 事` : "",
+              dayStudyWindows.length ? `${dayStudyWindows.length} 可` : "",
+              dayFixedEvents.length ? `${dayFixedEvents.length} 固` : "",
+              dayTutoringSessions.length ? `${dayTutoringSessions.length} 補` : "",
+              dayTasks.length ? `${dayTasks.length} 任` : "",
+              dayMinutes ? `${dayMinutes} 分` : "",
+            ].filter(Boolean);
 
             return (
               <div className={day.isToday ? "print-month-day today" : "print-month-day"} key={day.date}>
@@ -394,9 +431,10 @@ export default async function CalendarPrintPage({ searchParams }: CalendarPrintP
                   <strong>{day.dayNumber}</strong>
                   <span>{readableWeekdayLabels[day.weekday]}</span>
                 </div>
+                {stats.length > 0 && <div className="print-day-stats">{stats.join("｜")}</div>}
                 <div className="print-day-items">
                   {items.map((item, index) => (
-                    <div className={`print-day-item ${item.tone}`} key={`${item.tone}-${index}`}>
+                    <div className={`print-day-item tone-${item.tone}`} key={`${item.tone}-${index}`}>
                       <span className="print-item-time">{item.timeLabel}</span>
                       <div>
                         <strong>{item.title}</strong>
@@ -412,7 +450,7 @@ export default async function CalendarPrintPage({ searchParams }: CalendarPrintP
 
         <footer className="print-footer">
           <span>列印日期：{today.date}</span>
-          <span>顏色：紅=事件，灰=固定作息，綠=補習，藍=任務</span>
+          <span>顏色：紅=事件，藍=可讀書/任務，灰=固定作息，綠=補習</span>
         </footer>
       </section>
     </main>
