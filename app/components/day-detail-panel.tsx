@@ -26,6 +26,11 @@ type DaySchedule = {
   scheduledStudyMinutes: number;
 };
 
+type ChartSegment = ScheduleSegment & {
+  lane: number;
+  laneCount: number;
+};
+
 type DayDetailPanelProps = {
   date: string;
   timeZone: string;
@@ -125,6 +130,52 @@ function buildChartSegments({
     .sort((left, right) => (timeToMinutes(left.startTime) ?? 0) - (timeToMinutes(right.startTime) ?? 0));
 }
 
+function assignChartLanes(segments: ScheduleSegment[]): ChartSegment[] {
+  const items = segments.map((segment) => {
+    const start = timeToMinutes(segment.startTime) ?? 0;
+    const end = Math.max(start + 1, timeToMinutes(segment.endTime) ?? start + 1);
+
+    return { segment, start, end };
+  });
+  const clusters: typeof items[] = [];
+  let currentCluster: typeof items = [];
+  let currentClusterEnd = -1;
+
+  items.forEach((item) => {
+    if (currentCluster.length === 0 || item.start < currentClusterEnd) {
+      currentCluster.push(item);
+      currentClusterEnd = Math.max(currentClusterEnd, item.end);
+      return;
+    }
+
+    clusters.push(currentCluster);
+    currentCluster = [item];
+    currentClusterEnd = item.end;
+  });
+
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
+  }
+
+  return clusters.flatMap((cluster) => {
+    const laneEnds: number[] = [];
+    const assigned = cluster.map((item) => {
+      const reusableLane = laneEnds.findIndex((end) => end <= item.start);
+      const lane = reusableLane === -1 ? laneEnds.length : reusableLane;
+      laneEnds[lane] = item.end;
+
+      return { item, lane };
+    });
+    const laneCount = Math.max(1, laneEnds.length);
+
+    return assigned.map(({ item, lane }) => ({
+      ...item.segment,
+      lane,
+      laneCount,
+    }));
+  });
+}
+
 export function DayDetailPanel({
   date,
   timeZone,
@@ -150,7 +201,9 @@ export function DayDetailPanel({
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const visibleSegments = schedule?.scheduled ?? [];
   const unplacedSegments = schedule?.unplaced ?? [];
-  const chartSegments = buildChartSegments({ fixedEvents, tutoringSessions, visibleSegments, fixedEventLabels, fatigueLabels });
+  const chartSegments = assignChartLanes(
+    buildChartSegments({ fixedEvents, tutoringSessions, visibleSegments, fixedEventLabels, fatigueLabels }),
+  );
   const chartRange = buildChartRange(chartSegments);
   const chartDuration = Math.max(1, chartRange.end - chartRange.start);
   const chartTicks = buildChartTicks(chartRange);
@@ -230,13 +283,17 @@ export function DayDetailPanel({
                   const end = timeToMinutes(segment.endTime) ?? start;
                   const top = ((start - chartRange.start) / chartDuration) * 100;
                   const height = (Math.max(15, end - start) / chartDuration) * 100;
+                  const laneWidth = 100 / segment.laneCount;
 
                   return (
                     <div
                       className={`schedule-chart-bar schedule-${segment.kind}`}
                       key={segment.id}
                       style={{
+                        left: `calc(${segment.lane * laneWidth}% + 8px)`,
+                        right: "auto",
                         top: `${Math.max(0, top)}%`,
+                        width: `calc(${laneWidth}% - 16px)`,
                         height: `${Math.min(100 - Math.max(0, top), Math.max(5, height))}%`,
                       }}
                       title={`${segment.startTime}-${segment.endTime} ${segment.title}`}
