@@ -2,6 +2,7 @@ import type { TaskType } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 
 const MAX_IMPORT_ROWS = 500;
+const BACKLOG_HEADERS = ["subject", "title", "type", "minutes", "priority", "weekHint", "note"] as const;
 const TASK_HEADERS = ["date", "subject", "title", "type", "minutes", "priority", "note"] as const;
 const TASK_HEADERS_WITH_TIME = ["date", "startTime", "endTime", "subject", "title", "type", "minutes", "priority", "note"] as const;
 const EXPORT_HEADERS = [
@@ -17,7 +18,7 @@ const EXPORT_HEADERS = [
   "minutes",
   "priority",
 ] as const;
-const SUPPORTED_HEADER_DESCRIPTION = `${TASK_HEADERS.join(",")}、${TASK_HEADERS_WITH_TIME.join(",")}，或月曆匯出的 ${EXPORT_HEADERS.join(",")}`;
+const SUPPORTED_HEADER_DESCRIPTION = `${BACKLOG_HEADERS.join(",")}、${TASK_HEADERS.join(",")}、${TASK_HEADERS_WITH_TIME.join(",")}，或月曆匯出的 ${EXPORT_HEADERS.join(",")}`;
 const TASK_TYPES = [
   "SCHOOL_HOMEWORK",
   "TUTORING_HOMEWORK",
@@ -29,7 +30,7 @@ const TASK_TYPES = [
 ] as const satisfies readonly TaskType[];
 
 export type StudyTaskImportRow = {
-  date: string;
+  date: string | null;
   plannedStartTime: string | null;
   plannedEndTime: string | null;
   subjectName: string | null;
@@ -37,6 +38,7 @@ export type StudyTaskImportRow = {
   type: TaskType;
   estimatedMinutes: number;
   priority: number;
+  weekHint: number | null;
   description: string | null;
 };
 
@@ -126,6 +128,19 @@ function parseInteger(value: string, fallback: number) {
   return { value: parsed, valid: Number.isFinite(parsed) };
 }
 
+function parseOptionalInteger(value: string) {
+  if (!value) {
+    return { value: null, valid: true };
+  }
+
+  if (!/^\d+$/.test(value)) {
+    return { value: null, valid: false };
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return { value: parsed, valid: Number.isFinite(parsed) };
+}
+
 function rowIsEmpty(row: unknown[]) {
   return row.every((value) => textValue(value) === "");
 }
@@ -162,13 +177,13 @@ function buildColumnMap(header: string[]) {
     endTime: indexOfHeader(header, ["endTime", "end_time", "結束時間", "結束"]),
     minutes: indexOfHeader(header, ["minutes", "estimatedMinutes", "estimated_minutes", "預估分鐘", "分鐘", "時間"]),
     priority: indexOfHeader(header, ["priority", "優先度", "優先"]),
+    weekHint: indexOfHeader(header, ["weekHint", "week_hint", "week", "suggestedWeek", "建議週次", "週次"]),
     note: indexOfHeader(header, ["note", "detail", "description", "備註", "說明", "細節"]),
   };
 }
 
 function missingRequiredColumns(columns: ReturnType<typeof buildColumnMap>) {
   const missing: string[] = [];
-  if (columns.date < 0) missing.push("date");
   if (columns.title < 0) missing.push("title");
   if (columns.type < 0) missing.push(columns.exportLike ? "category" : "type");
   return missing;
@@ -227,6 +242,7 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
       endTime: readColumn(row, columns.endTime),
       minutes: readColumn(row, columns.minutes),
       priority: readColumn(row, columns.priority),
+      weekHint: readColumn(row, columns.weekHint),
       note: readColumn(row, columns.note),
     };
     const strictType = columns.exportLike ? parseTaskTypeStrict(values.type) : parseTaskType(values.type);
@@ -234,12 +250,12 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
       return;
     }
 
-    const date = parseDate(values.date);
-    const plannedStartTime = parseTime(values.startTime);
-    const plannedEndTime = parseTime(values.endTime);
+    const date = values.date ? parseDate(values.date) : null;
+    const parsedStartTime = parseTime(values.startTime);
+    const parsedEndTime = parseTime(values.endTime);
     const hasStartTime = Boolean(values.startTime);
     const hasEndTime = Boolean(values.endTime);
-    const fixedTimeMinutes = plannedStartTime && plannedEndTime ? timeToMinutes(plannedEndTime) - timeToMinutes(plannedStartTime) : null;
+    const fixedTimeMinutes = parsedStartTime && parsedEndTime ? timeToMinutes(parsedEndTime) - timeToMinutes(parsedStartTime) : null;
     const subjectName = values.subject || null;
     const title = values.title;
     const type = strictType ?? "REVIEW";
@@ -247,12 +263,14 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
     const estimatedMinutes = Math.max(10, minutes.value);
     const parsedPriority = parseInteger(values.priority, 3);
     const priority = parsedPriority.value;
+    const parsedWeekHint = parseOptionalInteger(values.weekHint);
+    const weekHint = parsedWeekHint.value;
     const description = values.note || null;
     const rowErrors: string[] = [];
 
-    if (!date) rowErrors.push("date 必須是 YYYY-MM-DD");
-    if (hasStartTime && !plannedStartTime) rowErrors.push("startTime 必須是 HH:mm");
-    if (hasEndTime && !plannedEndTime) rowErrors.push("endTime 必須是 HH:mm");
+    if (values.date && !date) rowErrors.push("date 必須是 YYYY-MM-DD");
+    if (hasStartTime && !parsedStartTime) rowErrors.push("startTime 必須是 HH:mm");
+    if (hasEndTime && !parsedEndTime) rowErrors.push("endTime 必須是 HH:mm");
     if (hasStartTime !== hasEndTime) rowErrors.push("startTime 和 endTime 必須一起填寫");
     if (fixedTimeMinutes !== null && fixedTimeMinutes < 10) rowErrors.push("startTime 到 endTime 至少要 10 分鐘，且結束時間必須晚於開始時間");
     if (!title) rowErrors.push("title 必填");
@@ -260,22 +278,24 @@ export function parseStudyTaskCsv(text: string): StudyTaskImportResult {
     if (subjectName && subjectName.length > 80) rowErrors.push("subject 最多 80 字");
     if (!minutes.valid) rowErrors.push("minutes 必須是整數");
     if (!parsedPriority.valid || priority < 1 || priority > 5) rowErrors.push("priority 必須介於 1 到 5");
+    if (!parsedWeekHint.valid || (weekHint !== null && (weekHint < 1 || weekHint > 53))) rowErrors.push("weekHint 必須介於 1 到 53");
     if (description && description.length > 500) rowErrors.push("note 最多 500 字");
 
-    if (rowErrors.length > 0 || !date) {
+    if (rowErrors.length > 0) {
       errors.push(`第 ${rowNumber} 列：${rowErrors.join("、")}`);
       return;
     }
 
     rows.push({
       date,
-      plannedStartTime,
-      plannedEndTime,
+      plannedStartTime: null,
+      plannedEndTime: null,
       subjectName,
       title,
       type,
       estimatedMinutes,
       priority,
+      weekHint,
       description,
     });
   });

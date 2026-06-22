@@ -416,6 +416,7 @@ export async function importStudyTasks(formData: FormData) {
   }
 
   const importBatchId = randomUUID();
+  const importDate = formatDateInput(new Date(), DEFAULT_TIME_ZONE);
 
   await prisma.$transaction(async (transaction) => {
     const subjectIds = new Map<string, string>();
@@ -444,11 +445,12 @@ export async function importStudyTasks(formData: FormData) {
           title: row.title,
           description: row.description,
           type: row.type,
-          plannedDate: zonedDateStart(row.date, DEFAULT_TIME_ZONE),
-          plannedStartTime: row.plannedStartTime,
-          plannedEndTime: row.plannedEndTime,
+          plannedDate: zonedDateStart(row.date ?? importDate, DEFAULT_TIME_ZONE),
+          plannedStartTime: null,
+          plannedEndTime: null,
           estimatedMinutes: row.estimatedMinutes,
           priority: row.priority,
+          weekHint: row.weekHint,
           source: editable.source,
       })),
     });

@@ -21,6 +21,24 @@ test("parses study task CSV with quoted commas and Chinese task type labels", ()
   assert.equal(result.rows[1].priority, 3);
 });
 
+test("parses backlog CSV without dates and with week hints", () => {
+  const result = parseStudyTaskCsv(`subject,title,type,minutes,priority,weekHint,note
+Math,Algebra review,WEAK_POINT,60,5,24,redo mistakes
+English,Vocabulary,PRACTICE,30,3,26,
+`);
+
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.rows.length, 2);
+  assert.equal(result.rows[0].date, null);
+  assert.equal(result.rows[0].type, TaskType.WEAK_POINT);
+  assert.equal(result.rows[0].estimatedMinutes, 60);
+  assert.equal(result.rows[0].priority, 5);
+  assert.equal(result.rows[0].weekHint, 24);
+  assert.equal(result.rows[0].plannedStartTime, null);
+  assert.equal(result.rows[0].plannedEndTime, null);
+  assert.equal(result.rows[1].weekHint, 26);
+});
+
 test("collects study task CSV row errors without returning partial rows", () => {
   const result = parseStudyTaskCsv(`date,subject,title,type,minutes,priority,note
 2026-02-30,數學,無效日期,複習,30,3,
@@ -80,7 +98,7 @@ test("parses optional task start and end times from CSV", () => {
 
   assert.deepEqual(result.errors, []);
   assert.equal(result.rows.length, 1);
-  assert.equal(result.rows[0].plannedStartTime, "20:30");
-  assert.equal(result.rows[0].plannedEndTime, "21:15");
+  assert.equal(result.rows[0].plannedStartTime, null);
+  assert.equal(result.rows[0].plannedEndTime, null);
   assert.equal(result.rows[0].estimatedMinutes, 45);
 });

@@ -134,7 +134,7 @@ export function StudyTaskImportPanel({ studentId }: StudentScopedProps) {
         <textarea
           name="csvPreview"
           onChange={(event) => setCsv(event.target.value)}
-          placeholder="date,subject,title,type,minutes,priority,note"
+          placeholder="subject,title,type,minutes,priority,weekHint,note"
           rows={8}
           value={csv}
         />
