@@ -375,6 +375,7 @@ export function DayDetailPanel({
                   <span>
                     {taskTypeLabels[task.type]}，{task.estimatedMinutes} 分鐘，優先度 {task.priority}
                   </span>
+                  {task.description && <span>{task.description}</span>}
                 </div>
               </div>
             ))}
@@ -386,6 +387,7 @@ export function DayDetailPanel({
                     {task.subject?.name ?? "未分類"}：{task.title}
                   </strong>
                   <span>{statusLabels[task.status]}</span>
+                  {task.description && <span>{task.description}</span>}
                 </div>
               </div>
             ))}

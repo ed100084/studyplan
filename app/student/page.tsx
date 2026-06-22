@@ -979,6 +979,33 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
         const dateStudyWindows = activeStudyWindowsForDate(student.studyWindows, date, dateDay.weekday, timeZone);
         const dateTutoringSessions = activeTutoringSessionsForDate(student.tutoringSessions, date, dateDay.weekday, timeZone);
         const dateCalendarEvents = student.calendarEvents.filter((event) => eventFallsOnDate(event, date, timeZone));
+        const dateSchedule = buildTodaySchedule({
+          fixedEvents: dateFixedEvents,
+          studyWindows: dateStudyWindows,
+          tutoringSessions: dateTutoringSessions,
+          tasks: [],
+        });
+        const dateBacklogTasks = student.studyTasks.filter(
+          (task) => task.status === "PLANNED" && task.plannedDate.getTime() < dateRange.end.getTime(),
+        );
+        const dateTodayList = buildTodayList({
+          todayDate: date,
+          availableMinutes: dateSchedule.availableMinutes,
+          timeZone,
+          tasks: dateBacklogTasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            subjectName: task.subject?.name,
+            type: task.type,
+            estimatedMinutes: task.estimatedMinutes,
+            priority: task.priority,
+            weekHint: task.weekHint,
+          })),
+        });
+        const dateListTasks = dateTodayList.todayList.flatMap((item) => {
+          const task = dateBacklogTasks.find((backlogTask) => backlogTask.id === item.id);
+          return task ? [task] : [];
+        });
 
         return {
           date,
@@ -988,13 +1015,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           studyWindows: dateStudyWindows,
           tutoringSessions: dateTutoringSessions,
           calendarEvents: dateCalendarEvents,
-          tasks: dateTasks,
-          schedule: buildTodaySchedule({
-            fixedEvents: dateFixedEvents,
-            studyWindows: dateStudyWindows,
-            tutoringSessions: dateTutoringSessions,
-            tasks: [],
-          }),
+          tasks: [...dateListTasks, ...dateTasks.filter((task) => task.status !== "PLANNED")],
+          schedule: dateSchedule,
         };
       })
     : [];
