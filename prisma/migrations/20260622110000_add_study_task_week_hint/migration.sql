@@ -1,0 +1,1 @@
+ALTER TABLE "StudyTask" ADD COLUMN "weekHint" INTEGER;

@@ -375,6 +375,7 @@ model StudyTask {
   plannedEndTime   String?
   estimatedMinutes Int
   priority         Int             @default(1)
+  weekHint         Int?
   source           RecordSource    @default(SYSTEM)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
