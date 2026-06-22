@@ -4,8 +4,6 @@ import {
   CalendarEventType,
   FatigueLevel,
   FixedEventType,
-  TaskStatus,
-  TaskType,
   UserRole,
   Weekday,
 } from "@prisma/client";
@@ -66,15 +64,12 @@ const fixedEventLabels: Record<FixedEventType, string> = {
   OTHER: "其他",
 };
 
-const taskTypeLabels: Record<TaskType, string> = {
-  SCHOOL_HOMEWORK: "學校作業",
-  TUTORING_HOMEWORK: "補習作業",
-  REVIEW: "複習",
-  PRACTICE: "練習",
-  WEAK_POINT: "弱點補強",
-  PREVIEW: "預習",
-  EXAM_SPRINT: "考前衝刺",
-};
+const routineFixedEventTypes = new Set<FixedEventType>([
+  FixedEventType.COMMUTE,
+  FixedEventType.MEAL,
+  FixedEventType.HYGIENE,
+  FixedEventType.SLEEP,
+]);
 
 const calendarEventLabels: Record<CalendarEventType, string> = {
   SECTION_EXAM: "段考",
@@ -89,14 +84,6 @@ const fatigueLabels: Record<FatigueLevel, string> = {
   LOW: "低疲勞",
   NORMAL: "普通",
   HIGH: "高疲勞",
-};
-
-const statusLabels: Record<TaskStatus, string> = {
-  PLANNED: "待完成",
-  DONE: "完成",
-  PARTIAL: "部分完成",
-  SKIPPED: "略過",
-  RESCHEDULED: "改期",
 };
 
 function minutesFromTime(time: string) {
@@ -163,19 +150,21 @@ function buildPrintItems({
     tone: "event",
   }));
 
-  const fixedItems: PrintItem[] = fixedEvents.map((event) => ({
-    timeLabel: `${event.startTime}-${event.endTime}`,
-    title: event.title,
-    detail: [
-      fixedEventLabels[event.type],
-      event.commuteMinutes > 0 ? `通勤 ${event.commuteMinutes} 分` : "",
-      event.note,
-    ]
-      .filter(Boolean)
-      .join("，"),
-    sortMinutes: minutesFromTime(event.startTime),
-    tone: "fixed",
-  }));
+  const fixedItems: PrintItem[] = fixedEvents
+    .filter((event) => !routineFixedEventTypes.has(event.type))
+    .map((event) => ({
+      timeLabel: `${event.startTime}-${event.endTime}`,
+      title: event.title,
+      detail: [
+        fixedEventLabels[event.type],
+        event.commuteMinutes > 0 ? `通勤 ${event.commuteMinutes} 分` : "",
+        event.note,
+      ]
+        .filter(Boolean)
+        .join("，"),
+      sortMinutes: minutesFromTime(event.startTime),
+      tone: "fixed",
+    }));
 
   const studyWindowItems: PrintItem[] = studyWindows.map((window) => ({
     timeLabel: `${window.startTime}-${window.endTime}`,
@@ -207,16 +196,7 @@ function buildPrintItems({
       return {
         timeLabel: hasFixedTime ? `${task.plannedStartTime}-${task.plannedEndTime}` : "任務",
         title: `${task.subject?.name ? `${task.subject.name}：` : ""}${task.title}`,
-        detail: [
-          taskTypeLabels[task.type],
-          `${task.estimatedMinutes} 分`,
-          `優先 ${task.priority}`,
-          statusLabels[task.status],
-          hasFixedTime ? "指定時間" : "",
-          task.description,
-        ]
-          .filter(Boolean)
-          .join("，"),
+        detail: "",
         sortMinutes: hasFixedTime ? minutesFromTime(task.plannedStartTime!) : 22 * 60 + index,
         tone: "task" as const,
       };
@@ -403,6 +383,7 @@ export default async function CalendarPrintPage({ searchParams }: CalendarPrintP
           ))}
           {month.days.map((day) => {
             const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
+            const visibleFixedEvents = dayFixedEvents.filter((event) => !routineFixedEventTypes.has(event.type));
             const dayStudyWindows = activeStudyWindowsForDate(studyWindows, day.date, day.weekday, timeZone);
             const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
             const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
@@ -410,7 +391,7 @@ export default async function CalendarPrintPage({ searchParams }: CalendarPrintP
             const dayMinutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
             const items = buildPrintItems({
               calendarEvents: dayCalendarEvents,
-              fixedEvents: dayFixedEvents,
+              fixedEvents: visibleFixedEvents,
               studyWindows: dayStudyWindows,
               tasks: dayTasks,
               tutoringSessions: dayTutoringSessions,
@@ -419,7 +400,7 @@ export default async function CalendarPrintPage({ searchParams }: CalendarPrintP
             const stats = [
               dayCalendarEvents.length ? `${dayCalendarEvents.length} 事` : "",
               dayStudyWindows.length ? `${dayStudyWindows.length} 可` : "",
-              dayFixedEvents.length ? `${dayFixedEvents.length} 固` : "",
+              visibleFixedEvents.length ? `${visibleFixedEvents.length} 固` : "",
               dayTutoringSessions.length ? `${dayTutoringSessions.length} 補` : "",
               dayTasks.length ? `${dayTasks.length} 任` : "",
               dayMinutes ? `${dayMinutes} 分` : "",

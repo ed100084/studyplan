@@ -86,6 +86,13 @@ const fixedEventLabels: Record<FixedEventType, string> = {
   OTHER: "其他",
 };
 
+const routineFixedEventTypes = new Set<FixedEventType>([
+  FixedEventType.COMMUTE,
+  FixedEventType.MEAL,
+  FixedEventType.HYGIENE,
+  FixedEventType.SLEEP,
+]);
+
 const taskTypeLabels: Record<TaskType, string> = {
   SCHOOL_HOMEWORK: "學校作業",
   TUTORING_HOMEWORK: "補習作業",
@@ -222,11 +229,13 @@ function buildMonthDayItems({
   calendarEvents: CalendarEvent[];
   tasks: StudyTaskWithSubject[];
 }) {
-  const fixedItems: MonthDayItem[] = fixedEvents.map((event) => ({
-    label: `${event.startTime} ${shortLabel(event.title, 5)}`,
-    sortMinutes: minutesFromTime(event.startTime),
-    tone: "fixed",
-  }));
+  const fixedItems: MonthDayItem[] = fixedEvents
+    .filter((event) => !routineFixedEventTypes.has(event.type))
+    .map((event) => ({
+      label: `${event.startTime} ${shortLabel(event.title, 5)}`,
+      sortMinutes: minutesFromTime(event.startTime),
+      tone: "fixed",
+    }));
   const tutoringItems: MonthDayItem[] = tutoringSessions.map((sessionItem) => ({
     label: `${sessionItem.startTime} ${shortLabel(sessionItem.subjectName, 5)}`,
     sortMinutes: minutesFromTime(sessionItem.startTime),
@@ -699,6 +708,7 @@ function MonthCalendar({
           const dayTasks = monthTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
           const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
           const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
+          const visibleFixedEvents = dayFixedEvents.filter((event) => !routineFixedEventTypes.has(event.type));
           const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
           const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
           const dayClassName = [
@@ -709,9 +719,9 @@ function MonthCalendar({
           ]
             .filter(Boolean)
             .join(" ");
-          const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
+          const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + visibleFixedEvents.length + dayTasks.length;
           const dayItems = buildMonthDayItems({
-            fixedEvents: dayFixedEvents,
+            fixedEvents: visibleFixedEvents,
             tutoringSessions: dayTutoringSessions,
             calendarEvents: dayCalendarEvents,
             tasks: dayTasks,
@@ -741,7 +751,7 @@ function MonthCalendar({
               <div className="calendar-day-summary" aria-label={`${day.date} ${itemCount} 個項目`}>
                 {dayTutoringSessions.length > 0 && <span className="summary-dot tutoring" title={`${dayTutoringSessions.length} 補習`} />}
                 {dayCalendarEvents.length > 0 && <span className="summary-dot event" title={`${dayCalendarEvents.length} 事件`} />}
-                {dayFixedEvents.length > 0 && <span className="summary-dot fixed" title={`${dayFixedEvents.length} 作息`} />}
+                {visibleFixedEvents.length > 0 && <span className="summary-dot fixed" title={`${visibleFixedEvents.length} 作息`} />}
                 {dayTasks.length > 0 && <span className="summary-chip task">{dayTasks.length} 任</span>}
               </div>
             </Link>
