@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Version: 2.6.4
+Version: 2.7.0
 
 - Signed-in dashboards now use a compact header so useful daily information appears higher on the page.
 - Study tasks now use a priority/backlog list model instead of minute-level scheduling.
@@ -17,7 +17,7 @@ Version: 2.6.4
 
 ## 目前進度
 
-目前版本：2.6.4
+目前版本：2.7.0
 
 - 讀書任務已改為「CSV 指定日期 + 優先序清單」模型，不再綁定當天完成時間。
 - 今日頁顯示今日優先清單，可直接標記完成或部分完成，不再產生分鐘級讀書時間表。

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.0
+
+- Changed study tasks from minute-level timetable scheduling to a CSV/date-driven priority list model.
+- Today views now show priority task lists with complete and partial-complete actions instead of generated study time blocks.
+- Weekly and monthly calendar day details now show the tasks assigned to that exact date, matching the visible calendar cells.
+- CSV imports now support backlog fields including `weekHint`, ignore task start/end times for scheduling, and replace old unfinished imported tasks.
+- Selected-day details keep fixed routines, tutoring, exams, and events as context while study tasks remain list-based and conflict-free.
+
 ## 2.6.4
 
 - Signed-in student and guardian dashboards now hide the large marketing header so daily content starts higher on the page.
