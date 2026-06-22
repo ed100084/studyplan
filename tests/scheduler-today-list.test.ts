@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { TaskType } from "@prisma/client";
-import { buildTodayList, type TodayListTask } from "../lib/scheduler/today-list";
+import { buildTodayList, recommendedDailyStudyMinutes, type TodayListTask } from "../lib/scheduler/today-list";
 
 function task(overrides: Partial<TodayListTask> & Pick<TodayListTask, "id">): TodayListTask {
   return {
@@ -75,4 +75,10 @@ test("keeps remaining tasks in the backlog summary", () => {
   );
   assert.equal(result.selectedMinutes, 30);
   assert.deepEqual(result.backlog, { count: 2, minutes: 50 });
+});
+
+test("recommends daily study limits by grade", () => {
+  assert.equal(recommendedDailyStudyMinutes(7), 90);
+  assert.equal(recommendedDailyStudyMinutes(8), 120);
+  assert.equal(recommendedDailyStudyMinutes(9), 180);
 });

@@ -4,7 +4,7 @@ import type { CalendarEvent, FixedEvent, StudyTask, StudyWindow, Subject, Tutori
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
-import { buildTodayList } from "@/lib/scheduler/today-list";
+import { buildTodayList, recommendedDailyStudyMinutes } from "@/lib/scheduler/today-list";
 import {
   addDateDays,
   addMonths,
@@ -940,11 +940,13 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
         tasks: [],
       })
     : null;
+  const todayListCapacity =
+    student && todaySchedule ? Math.min(todaySchedule.availableMinutes, recommendedDailyStudyMinutes(student.grade)) : 0;
   const todayList =
     todaySchedule && backlogTasks.length > 0
       ? buildTodayList({
           todayDate: today.date,
-          availableMinutes: todaySchedule.availableMinutes,
+          availableMinutes: todayListCapacity,
           timeZone,
           tasks: backlogTasks.map((task) => ({
             id: task.id,
@@ -990,7 +992,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
         );
         const dateTodayList = buildTodayList({
           todayDate: date,
-          availableMinutes: dateSchedule.availableMinutes,
+          availableMinutes: Math.min(dateSchedule.availableMinutes, recommendedDailyStudyMinutes(student.grade)),
           timeZone,
           tasks: dateBacklogTasks.map((task) => ({
             id: task.id,
@@ -1088,11 +1090,11 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   <div>
                     <h2>今日優先清單</h2>
                     <p className="panel-copy">
-                      今天可讀約 {formatHourEstimate(todaySchedule?.availableMinutes ?? 0)}
+                      今天可讀約 {formatHourEstimate(todayListCapacity)}
                     </p>
                   </div>
                   <span>
-                    {todayList?.selectedMinutes ?? 0}/{todaySchedule?.availableMinutes ?? 0} 分
+                    {todayList?.selectedMinutes ?? 0}/{todayListCapacity} 分
                   </span>
                 </div>
 

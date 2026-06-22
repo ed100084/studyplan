@@ -54,6 +54,12 @@ function withOverdueWeeks(task: TodayListTask, todayWeek: number, index: number)
   };
 }
 
+export function recommendedDailyStudyMinutes(grade: number) {
+  if (grade <= 7) return 90;
+  if (grade === 8) return 120;
+  return 180;
+}
+
 export function buildTodayList(input: {
   tasks: TodayListTask[];
   todayDate: string;
