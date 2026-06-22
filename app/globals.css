@@ -863,13 +863,16 @@ h1 {
   margin: 0;
 }
 
-.calendar-detail-dialog .day-detail-metrics,
-.calendar-detail-dialog .day-detail-card:not(:first-child) {
+.calendar-detail-dialog .day-detail-metrics {
   display: none;
 }
 
 .calendar-detail-dialog .day-detail-grid {
   grid-template-columns: 1fr;
+}
+
+.calendar-detail-dialog .day-detail-card:nth-child(2) {
+  order: -1;
 }
 
 .day-detail-metrics {
