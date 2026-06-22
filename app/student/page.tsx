@@ -4,6 +4,7 @@ import type { CalendarEvent, FixedEvent, StudyTask, StudyWindow, Subject, Tutori
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
+import { buildTodayList } from "@/lib/scheduler/today-list";
 import {
   addDateDays,
   addMonths,
@@ -20,9 +21,7 @@ import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tuto
 import { studyWindowFallsOnDate } from "@/lib/study-windows";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
 import { ExamReviewPlans } from "@/app/components/exam-review-plans";
-import { ScheduleHistory } from "@/app/components/schedule-history";
 import { LearningProgress } from "@/app/components/learning-progress";
-import { DayDetailPanel } from "@/app/components/day-detail-panel";
 import { CalendarDayDetailBrowser } from "@/app/components/calendar-day-detail-browser";
 import { CalendarExportTools } from "@/app/components/calendar-export-tools";
 import { StudyWindowSettings } from "@/app/components/study-window-settings";
@@ -36,8 +35,6 @@ import {
   deleteFixedEvent,
   deleteStudyTask,
   deleteTutoringSession,
-  moveTasksToTomorrow,
-  saveTodaySchedule,
   updateFixedEvent,
   updateStudyTask,
   updateTaskStatus,
@@ -159,6 +156,15 @@ function normalizeCalendarView(value?: string): CalendarView {
 
 function gradeLabel(grade: number) {
   return `國${grade - 6}`;
+}
+
+function formatHourEstimate(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours > 0 && remainingMinutes > 0) return `${hours} 小時 ${remainingMinutes} 分`;
+  if (hours > 0) return `${hours} 小時`;
+  return `${remainingMinutes} 分`;
 }
 
 function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday: Weekday }) {
@@ -796,7 +802,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 studyTasks: {
                   where: {
                     plannedDate: {
-                      gte: taskRangeStart,
                       lt: taskRangeEnd,
                     },
                   },
@@ -922,27 +927,42 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const todayTutoringSessions = student
     ? activeTutoringSessionsForDate(student.tutoringSessions, today.date, today.weekday, timeZone)
     : [];
-  const todayCalendarEvents = student?.calendarEvents.filter((event) => eventFallsOnDate(event, today.date, timeZone)) ?? [];
   const openTasks = todayTasks.filter((task) => task.status === "PLANNED");
   const todayDoneTasks = todayTasks.filter((task) => task.status !== "PLANNED");
+  const backlogTasks =
+    student?.studyTasks.filter((task) => task.status === "PLANNED" && task.plannedDate.getTime() < todayRange.end.getTime()) ?? [];
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const todaySchedule = student
     ? buildTodaySchedule({
         fixedEvents: todayFixedEvents,
         studyWindows: todayStudyWindows,
         tutoringSessions: todayTutoringSessions,
-        tasks: openTasks.map((task) => ({
-          id: task.id,
-          title: task.title,
-          subjectName: task.subject?.name,
-          type: task.type,
-          plannedStartTime: task.plannedStartTime,
-          plannedEndTime: task.plannedEndTime,
-          estimatedMinutes: task.estimatedMinutes,
-          priority: task.priority,
-        })),
+        tasks: [],
       })
     : null;
+  const todayList =
+    todaySchedule && backlogTasks.length > 0
+      ? buildTodayList({
+          todayDate: today.date,
+          availableMinutes: todaySchedule.availableMinutes,
+          timeZone,
+          tasks: backlogTasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            subjectName: task.subject?.name,
+            type: task.type,
+            estimatedMinutes: task.estimatedMinutes,
+            priority: task.priority,
+            weekHint: task.weekHint,
+          })),
+        })
+      : null;
+  const selectedTodayTasks = todayList
+    ? todayList.todayList.flatMap((item) => {
+        const task = backlogTasks.find((backlogTask) => backlogTask.id === item.id);
+        return task ? [{ item, task }] : [];
+      })
+    : [];
   const activeTab = normalizeDashboardTab(params?.tab);
   const tabParams = { date: selectedDate, week: selectedWeekDate, month: selectedMonthDate, view: calendarView };
   const formHref = (anchor: string) => settingsSectionHref(anchor, tabParams);
@@ -959,7 +979,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
         const dateStudyWindows = activeStudyWindowsForDate(student.studyWindows, date, dateDay.weekday, timeZone);
         const dateTutoringSessions = activeTutoringSessionsForDate(student.tutoringSessions, date, dateDay.weekday, timeZone);
         const dateCalendarEvents = student.calendarEvents.filter((event) => eventFallsOnDate(event, date, timeZone));
-        const dateOpenTasks = dateTasks.filter((task) => task.status === "PLANNED");
 
         return {
           date,
@@ -974,16 +993,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
             fixedEvents: dateFixedEvents,
             studyWindows: dateStudyWindows,
             tutoringSessions: dateTutoringSessions,
-            tasks: dateOpenTasks.map((task) => ({
-              id: task.id,
-              title: task.title,
-              subjectName: task.subject?.name,
-              type: task.type,
-              plannedStartTime: task.plannedStartTime,
-              plannedEndTime: task.plannedEndTime,
-              estimatedMinutes: task.estimatedMinutes,
-              priority: task.priority,
-            })),
+            tasks: [],
           }),
         };
       })
@@ -1051,27 +1061,61 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               </div>
 
               {activeTab === "today" && (
-              <DayDetailPanel
-                date={today.date}
-                timeZone={timeZone}
-                weekdayLabel={weekdayLabels[today.weekday]}
-                isToday
-                fixedEvents={todayFixedEvents}
-                studyWindows={todayStudyWindows}
-                tutoringSessions={todayTutoringSessions}
-                calendarEvents={todayCalendarEvents}
-                tasks={todayTasks}
-                schedule={todaySchedule}
-                fixedEventLabels={fixedEventLabels}
-                taskTypeLabels={taskTypeLabels}
-                calendarEventLabels={calendarEventLabels}
-                fatigueLabels={fatigueLabels}
-                statusLabels={statusLabels}
-                newStudyTaskHref={formHref("#new-study-task-form")}
-                newFixedEventHref={formHref("#new-fixed-event-form")}
-                newTutoringHref={formHref("#new-tutoring-form")}
-                newCalendarEventHref={formHref("#new-calendar-event-form")}
-              />
+              <section className="panel schedule-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>今日優先清單</h2>
+                    <p className="panel-copy">
+                      今天可讀約 {formatHourEstimate(todaySchedule?.availableMinutes ?? 0)}
+                    </p>
+                  </div>
+                  <span>
+                    {todayList?.selectedMinutes ?? 0}/{todaySchedule?.availableMinutes ?? 0} 分
+                  </span>
+                </div>
+
+                <div className="task-list compact-list">
+                  {selectedTodayTasks.map(({ item, task }) => (
+                    <div className="task" key={task.id}>
+                      <span className="task-dot" aria-hidden="true" />
+                      <div>
+                        <strong>
+                          {task.subject?.name ?? "未指定科目"}：{task.title}
+                        </strong>
+                        <span>
+                          {taskTypeLabels[task.type]}，{task.estimatedMinutes} 分鐘，優先度 {task.priority}
+                          {item.overdueWeeks > 0 ? `，落後 ${item.overdueWeeks} 週` : ""}
+                        </span>
+                      </div>
+                      <div className="inline-actions">
+                        <form action={updateTaskStatus}>
+                          <input name="taskId" type="hidden" value={task.id} />
+                          <input name="status" type="hidden" value="DONE" />
+                          <button className="small-button" type="submit">
+                            完成
+                          </button>
+                        </form>
+                        <PartialProgressForm taskId={task.id} />
+                      </div>
+                    </div>
+                  ))}
+
+                  {selectedTodayTasks.length === 0 && (
+                    <div className="empty-state">
+                      <p>今天沒有需要排入清單的待辦任務。</p>
+                      <div className="empty-state-actions">
+                        <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增任務</a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {todayList && todayList.backlog.count > 0 && (
+                  <p className="panel-copy">
+                    Backlog 尚有 {todayList.backlog.count} 筆，約 {todayList.backlog.minutes} 分鐘，會依優先度與落後週數自動上浮。
+                  </p>
+                )}
+              </section>
               )}
 
               {activeTab === "calendar" && (
@@ -1307,69 +1351,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                 </section>
               </div>
 
-              {todaySchedule && (
-                <section className="panel schedule-panel">
-                  <div className="panel-header">
-                    <h2>系統自動排程</h2>
-                    <span>
-                      可排 {todaySchedule.availableMinutes} 分鐘，已排讀書 {todaySchedule.scheduledStudyMinutes} 分鐘
-                    </span>
-                  </div>
-
-                  <div className="inline-actions">
-                    <form action={saveTodaySchedule}>
-                      <input name="trigger" type="hidden" value="SAVED" />
-                      <button className="small-button" type="submit">儲存目前排程</button>
-                    </form>
-                    <form action={saveTodaySchedule}>
-                      <input name="trigger" type="hidden" value="REGENERATED" />
-                      <button className="small-button" type="submit">重新產生並儲存</button>
-                    </form>
-                  </div>
-
-                  <div className="timeline-list">
-                    {todaySchedule.scheduled.map((segment) => (
-                      <div className={`timeline-item schedule-${segment.kind}`} key={segment.id}>
-                        <span className="timeline-time">
-                          {segment.startTime}-{segment.endTime}
-                        </span>
-                        <div>
-                          <strong>{segment.title}</strong>
-                          <p>{segment.detail}</p>
-                        </div>
-                      </div>
-                    ))}
-
-                    {todaySchedule.scheduled.length === 0 && (
-                      <div className="empty-state">
-                        <p>今天還沒有可排程資料。</p>
-                        <div className="empty-state-actions">
-                          <a className="small-button" href={formHref("#new-study-task-form")}>＋ 新增第一筆任務</a>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {todaySchedule.unplaced.length > 0 && (
-                    <div className="unplaced-list">
-                      <strong>今天排不下</strong>
-                      {todaySchedule.unplaced.map((segment) => (
-                        <p key={segment.id}>{segment.title}：{segment.detail}</p>
-                      ))}
-                      <form className="unplaced-actions" action={moveTasksToTomorrow}>
-                        {todaySchedule.unplaced.map((segment) =>
-                          segment.taskId ? <input key={segment.taskId} name="taskId" type="hidden" value={segment.taskId} /> : null,
-                        )}
-                        <button className="small-button" type="submit">
-                          全部延到明天
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </section>
-              )}
-
-              <ScheduleHistory runs={student.scheduleRuns} timeZone={timeZone} />
               </>
               )}
 
