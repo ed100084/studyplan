@@ -912,6 +912,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
       })
     : [];
   const importBatches = buildStudyTaskImportBatches(importBatchTasks, timeZone);
+  const activeImportBatchId = importBatches[0]?.id ?? null;
+  const isActiveBacklogTask = (task: StudyTaskWithSubject) => !task.importBatchId || task.importBatchId === activeImportBatchId;
   const todayTasks =
     student?.studyTasks.filter((task) => {
       const plannedDate = task.plannedDate.getTime();
@@ -930,7 +932,9 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
   const openTasks = todayTasks.filter((task) => task.status === "PLANNED");
   const todayDoneTasks = todayTasks.filter((task) => task.status !== "PLANNED");
   const backlogTasks =
-    student?.studyTasks.filter((task) => task.status === "PLANNED" && task.plannedDate.getTime() < todayRange.end.getTime()) ?? [];
+    student?.studyTasks.filter(
+      (task) => task.status === "PLANNED" && task.plannedDate.getTime() < todayRange.end.getTime() && isActiveBacklogTask(task),
+    ) ?? [];
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const todaySchedule = student
     ? buildTodaySchedule({
@@ -988,7 +992,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
           tasks: [],
         });
         const dateBacklogTasks = student.studyTasks.filter(
-          (task) => task.status === "PLANNED" && task.plannedDate.getTime() < dateRange.end.getTime(),
+          (task) => task.status === "PLANNED" && task.plannedDate.getTime() < dateRange.end.getTime() && isActiveBacklogTask(task),
         );
         const dateTodayList = buildTodayList({
           todayDate: date,

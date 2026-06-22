@@ -419,6 +419,16 @@ export async function importStudyTasks(formData: FormData) {
   const importDate = formatDateInput(new Date(), DEFAULT_TIME_ZONE);
 
   await prisma.$transaction(async (transaction) => {
+    await transaction.studyTask.deleteMany({
+      where: {
+        studentId: editable.student.id,
+        status: TaskStatus.PLANNED,
+        importBatchId: {
+          not: null,
+        },
+      },
+    });
+
     const subjectIds = new Map<string, string>();
     const subjectNames = Array.from(
       new Set(result.rows.map((row) => row.subjectName).filter((subjectName): subjectName is string => Boolean(subjectName))),

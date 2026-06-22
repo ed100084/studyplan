@@ -127,7 +127,7 @@ export function StudyTaskImportPanel({ studentId }: StudentScopedProps) {
     <section className="form-card study-task-import-panel">
       <h2>CSV 批次匯入任務</h2>
       <p className="panel-copy">
-        可貼上純任務 CSV，也可貼上月曆匯出的 CSV；匯入時只會寫入任務列，補習、作息、可讀書時段與事件會略過。
+        可貼上純任務 CSV，也可貼上月曆匯出的 CSV；匯入會取代舊的未完成匯入任務，手動任務與已完成紀錄不會刪除。
       </p>
       <label>
         CSV 內容

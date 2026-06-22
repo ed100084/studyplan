@@ -941,6 +941,8 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
       })
     : [];
   const importBatches = buildStudyTaskImportBatches(importBatchTasks, timeZone);
+  const activeImportBatchId = importBatches[0]?.id ?? null;
+  const isActiveBacklogTask = (task: StudyTaskWithSubject) => !task.importBatchId || task.importBatchId === activeImportBatchId;
   const activeTodayTasks =
     activeStudent?.studyTasks.filter((task) => {
       const plannedDate = task.plannedDate.getTime();
@@ -962,7 +964,9 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const openTasks = activeTodayTasks.filter((task) => task.status === "PLANNED");
   const activeTodayDoneTasks = activeTodayTasks.filter((task) => task.status !== "PLANNED");
   const backlogTasks =
-    activeStudent?.studyTasks.filter((task) => task.status === "PLANNED" && task.plannedDate.getTime() < todayRange.end.getTime()) ?? [];
+    activeStudent?.studyTasks.filter(
+      (task) => task.status === "PLANNED" && task.plannedDate.getTime() < todayRange.end.getTime() && isActiveBacklogTask(task),
+    ) ?? [];
   const plannedMinutes = openTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
   const activeClass = activeStudent?.classMemberships[0]?.classroom.name;
   const todaySchedule = activeStudent
@@ -1023,7 +1027,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
           tasks: [],
         });
         const dateBacklogTasks = activeStudent.studyTasks.filter(
-          (task) => task.status === "PLANNED" && task.plannedDate.getTime() < dateRange.end.getTime(),
+          (task) => task.status === "PLANNED" && task.plannedDate.getTime() < dateRange.end.getTime() && isActiveBacklogTask(task),
         );
         const dateTodayList = buildTodayList({
           todayDate: date,
