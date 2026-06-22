@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.8.0
+
+- Added a Google Calendar `.ics` export for the selected month.
+- Study tasks export as all-day events so students can see what to study without fixed completion times.
+- Tutoring sessions export as timed events, while exams, deadlines, and school events export as all-day events.
+- Routine fixed events such as meals and hygiene are intentionally excluded from the Google Calendar export.
+
 ## 2.7.0
 
 - Changed study tasks from minute-level timetable scheduling to a CSV/date-driven priority list model.

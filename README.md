@@ -2,11 +2,12 @@
 
 ## Current Status
 
-Version: 2.7.0
+Version: 2.8.0
 
 - Signed-in dashboards now use a compact header so useful daily information appears higher on the page.
 - Study tasks now use a priority/backlog list model instead of minute-level scheduling.
 - CSV imports can define daily study tasks without start/end times; imported task dates drive the calendar.
+- Calendar export now includes a Google Calendar `.ics` download for the selected month.
 - The Today view shows a priority list with complete/partial-complete actions instead of a generated study timetable.
 - Weekly and monthly calendar cells show the tasks assigned to each date, and clicking a date shows the same date-scoped task list.
 - Selected-day details keep fixed routines and tutoring as timeline context, but study tasks are shown as a list, not as fixed time blocks.
@@ -17,11 +18,12 @@ Version: 2.7.0
 
 ## 目前進度
 
-目前版本：2.7.0
+目前版本：2.8.0
 
 - 讀書任務已改為「CSV 指定日期 + 優先序清單」模型，不再綁定當天完成時間。
 - 今日頁顯示今日優先清單，可直接標記完成或部分完成，不再產生分鐘級讀書時間表。
 - 週曆與月曆依照 CSV 的任務日期顯示每日任務；點選某一天時，詳情會顯示同一天的科目、範圍/標題、類型、分鐘、優先度與備註。
+- 匯出資料新增 Google 行事曆 `.ics`，可把選取月份的讀書任務、補習、考試與事件匯入 Google Calendar。
 - 選取日期詳情仍會顯示固定作息、補習與事件作為時間背景，但讀書任務只以清單呈現，不做時間衝突判定。
 - CSV 匯入支援 `subject,title,type,minutes,priority,weekHint,note`；新匯入會取代舊的未完成匯入任務，手動任務與已完成紀錄保留。
 - 成績紀錄已改為依科目彙整，可展開查看每次成績，避免畫面拉成很長一排。

@@ -16,7 +16,7 @@ export function CalendarExportTools({
       <div className="panel-header">
         <div>
           <h2>匯出資料</h2>
-          <p className="panel-copy">匯出目前選取月份，可列印成 PDF，也可下載 CSV 做備份或整理。</p>
+          <p className="panel-copy">匯出目前選取月份，可列印成 PDF、下載 CSV，或匯入 Google 行事曆。</p>
         </div>
         <span>{monthDate.slice(0, 7)}</span>
       </div>
@@ -26,6 +26,9 @@ export function CalendarExportTools({
         </Link>
         <Link className="button secondary" href={`/calendar/export?${queryString}`}>
           下載 CSV
+        </Link>
+        <Link className="button secondary" href={`/calendar/ics?${queryString}`} download>
+          Google 行事曆
         </Link>
       </div>
     </section>
