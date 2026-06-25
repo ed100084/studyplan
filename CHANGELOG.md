@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.8.1
+
+- CI/CD version bump to verify Vercel deployment pipeline end-to-end.
+
 ## 2.8.0
 
 - Added a Google Calendar `.ics` export for the selected month.
