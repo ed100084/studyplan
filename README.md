@@ -60,6 +60,32 @@ Version: 2.8.0
 - 系統管理者可替學生、家長與班級管理者更換登入 Email
 - 系統管理者初始化可在明確確認後，清除占用相同 Email 的既有帳號並重建
 
+## 本機開發設定（WSL + Docker Desktop）
+
+1. 在 Windows 安裝 Docker Desktop，並於 Settings > Resources > WSL Integration 啟用目前使用的 WSL distro。
+2. 在 WSL shell 內進入專案目錄，安裝套件並建立本機環境變數：
+
+```bash
+npm install
+cp .env.example .env
+```
+
+3. 啟動 PostgreSQL container，套用已提交的 Prisma migrations，匯入 seed 資料：
+
+```bash
+docker compose up -d db
+npm run db:deploy
+npm run db:seed
+```
+
+4. 啟動 Next.js dev server：
+
+```bash
+npm run dev
+```
+
+本機資料庫預設連到 `localhost:55432`；更多資料庫與 Prisma 指令見 [資料庫](docs/database.md)。
+
 ## 文件
 
 - [產品需求](docs/requirements.md)
