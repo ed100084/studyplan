@@ -481,8 +481,8 @@ type StudyTaskWithSubject = StudyTask & {
 
 function StudyTaskEditor({ task, studentId, timeZone }: { task: StudyTaskWithSubject; studentId: string; timeZone: string }) {
   return (
-    <div className="item-editor task-editor-panel">
-      <strong>編輯任務</strong>
+    <details className="item-editor task-editor-panel">
+      <summary>編輯任務</summary>
       <form action={updateStudyTask}>
         <StudentIdInput studentId={studentId} />
         <input name="taskId" type="hidden" value={task.id} />
@@ -536,7 +536,7 @@ function StudyTaskEditor({ task, studentId, timeZone }: { task: StudyTaskWithSub
           儲存
         </button>
       </form>
-    </div>
+    </details>
   );
 }
 

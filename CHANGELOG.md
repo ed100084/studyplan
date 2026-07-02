@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.2
+
+- Changed the Today task editor to stay collapsed by default on student and guardian dashboards.
+- Moved Prisma seed configuration into `prisma.config.ts` to avoid the deprecated `package.json#prisma` setting.
+
 ## 2.8.1
 
 - CI/CD version bump to verify Vercel deployment pipeline end-to-end.
