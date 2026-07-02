@@ -19,8 +19,6 @@ import {
 import { tutoringSessionDateLabel, tutoringSessionFallsOnDate } from "@/lib/tutoring-sessions";
 import { studyWindowFallsOnDate } from "@/lib/study-windows";
 import { fixedEventFallsOnDate } from "@/lib/fixed-events";
-import { ExamReviewPlans } from "@/app/components/exam-review-plans";
-import { LearningProgress } from "@/app/components/learning-progress";
 import { CalendarDayDetailBrowser } from "@/app/components/calendar-day-detail-browser";
 import { CalendarExportTools } from "@/app/components/calendar-export-tools";
 import { StudyWindowSettings } from "@/app/components/study-window-settings";
@@ -135,17 +133,16 @@ const readableWeekdayLabels: Record<Weekday, string> = {
   SUNDAY: "週日",
 };
 
-type DashboardTab = "today" | "calendar" | "learning" | "settings";
+type DashboardTab = "today" | "calendar" | "settings";
 
 const dashboardTabs: Array<{ value: DashboardTab; label: string }> = [
   { value: "today", label: "今日" },
   { value: "calendar", label: "行事曆" },
-  { value: "learning", label: "成績與弱點" },
   { value: "settings", label: "設定" },
 ];
 
 function normalizeDashboardTab(value?: string): DashboardTab {
-  return value === "calendar" || value === "learning" || value === "settings" ? value : "today";
+  return value === "calendar" || value === "settings" ? value : "today";
 }
 
 function gradeLabel(grade: number) {
@@ -242,7 +239,7 @@ function buildMonthDayItems({
     tone: "event",
   }));
   const taskItems: MonthDayItem[] = tasks.map((task) => ({
-    label: `${task.subject?.name ?? "未指定科目"}：${task.title}｜${taskTypeLabels[task.type]}，${task.estimatedMinutes} 分，優先度 ${task.priority}`,
+    label: `${task.subject?.name ?? "未指定科目"}：${task.title}｜${taskTypeLabels[task.type]}，${task.estimatedMinutes} 分`,
     sortMinutes: 24 * 60,
     tone: "task",
   }));
@@ -789,11 +786,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
       const plannedDate = task.plannedDate.getTime();
       return plannedDate >= todayRange.start.getTime() && plannedDate < todayRange.end.getTime();
     }) ?? [];
-  const weekTasks =
-    student?.studyTasks.filter((task) => {
-      const plannedDate = task.plannedDate.getTime();
-      return plannedDate >= week.start.getTime() && plannedDate < week.end.getTime();
-    }) ?? [];
   const todayFixedEvents = student ? activeFixedEventsForDate(student.fixedEvents, today.date, today.weekday, timeZone) : [];
   const todayStudyWindows = student ? activeStudyWindowsForDate(student.studyWindows, today.date, today.weekday, timeZone) : [];
   const todayTutoringSessions = student
@@ -1021,27 +1013,6 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   timeZone={timeZone}
                 />
               </CalendarDayDetailBrowser>
-              )}
-
-              {activeTab === "learning" && (
-              <LearningProgress
-                scores={student.scores}
-                weakPoints={student.weakPoints}
-                weeklyTasks={weekTasks}
-                today={today.date}
-                timeZone={timeZone}
-              />
-              )}
-
-              {activeTab === "learning" && (
-              <ExamReviewPlans
-                plans={student.examReviewPlans}
-                examEvents={student.calendarEvents.filter((event) =>
-                  ["SECTION_EXAM", "MOCK_EXAM", "ENTRANCE_EXAM"].includes(event.type),
-                )}
-                today={today.date}
-                timeZone={timeZone}
-              />
               )}
 
               {activeTab === "today" && (

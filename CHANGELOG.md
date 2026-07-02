@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.5
+
+- Hid the unused Learning tab from student and guardian dashboards.
+- Removed priority text from month calendar task labels to keep calendar cells easier to scan.
+
 ## 2.8.4
 
 - Removed the week calendar view from student and guardian dashboards.
