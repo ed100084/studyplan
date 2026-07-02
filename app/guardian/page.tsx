@@ -6,7 +6,6 @@ import { getCurrentSession } from "@/lib/session";
 import { buildTodaySchedule } from "@/lib/scheduler/today";
 import { buildTodayList, recommendedDailyStudyMinutes } from "@/lib/scheduler/today-list";
 import {
-  addDateDays,
   addMonths,
   formatDateInput,
   getCurrentDay,
@@ -138,7 +137,6 @@ const readableWeekdayLabels: Record<Weekday, string> = {
 };
 
 type DashboardTab = "today" | "calendar" | "learning" | "settings";
-type CalendarView = "month" | "week";
 
 const dashboardTabs: Array<{ value: DashboardTab; label: string }> = [
   { value: "today", label: "今日" },
@@ -149,10 +147,6 @@ const dashboardTabs: Array<{ value: DashboardTab; label: string }> = [
 
 function normalizeDashboardTab(value?: string): DashboardTab {
   return value === "calendar" || value === "learning" || value === "settings" ? value : "today";
-}
-
-function normalizeCalendarView(value?: string): CalendarView {
-  return value === "week" ? "week" : "month";
 }
 
 function gradeLabel(grade: number) {
@@ -220,10 +214,6 @@ function minutesFromTime(time: string) {
   return hours * 60 + minutes;
 }
 
-function shortLabel(value: string, maxLength = 8) {
-  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
-}
-
 function buildMonthDayItems({
   fixedEvents,
   tutoringSessions,
@@ -238,22 +228,22 @@ function buildMonthDayItems({
   const fixedItems: MonthDayItem[] = fixedEvents
     .filter((event) => !routineFixedEventTypes.has(event.type))
     .map((event) => ({
-      label: `${event.startTime} ${shortLabel(event.title, 5)}`,
+      label: `${event.startTime} ${event.title}`,
       sortMinutes: minutesFromTime(event.startTime),
       tone: "fixed",
     }));
   const tutoringItems: MonthDayItem[] = tutoringSessions.map((sessionItem) => ({
-    label: `${sessionItem.startTime} ${shortLabel(sessionItem.subjectName, 5)}`,
+    label: `${sessionItem.startTime} ${sessionItem.subjectName}`,
     sortMinutes: minutesFromTime(sessionItem.startTime),
     tone: "tutoring",
   }));
   const eventItems: MonthDayItem[] = calendarEvents.map((event) => ({
-    label: shortLabel(event.title, 7),
+    label: event.title,
     sortMinutes: 23 * 60,
     tone: "event",
   }));
   const taskItems: MonthDayItem[] = tasks.map((task) => ({
-    label: shortLabel(task.subject?.name ?? task.title, 7),
+    label: `${task.subject?.name ?? "未指定科目"}：${task.title}｜${taskTypeLabels[task.type]}，${task.estimatedMinutes} 分，優先度 ${task.priority}`,
     sortMinutes: 24 * 60,
     tone: "task",
   }));
@@ -263,26 +253,24 @@ function buildMonthDayItems({
   );
 }
 
-function calendarHref(params: { tab?: DashboardTab; studentId?: string; date?: string; week?: string; month?: string; view?: CalendarView }) {
+function calendarHref(params: { tab?: DashboardTab; studentId?: string; date?: string; month?: string }) {
   const query = new URLSearchParams();
   if (params.tab) query.set("tab", params.tab);
   if (params.studentId) query.set("studentId", params.studentId);
   if (params.date) query.set("date", params.date);
-  if (params.week) query.set("week", params.week);
   if (params.month) query.set("month", params.month);
-  if (params.view) query.set("view", params.view);
   const value = query.toString();
   return value ? `/guardian?${value}` : "/guardian";
 }
 
 function dashboardTabHref(
   tab: DashboardTab,
-  params: { studentId: string; date: string; week: string; month: string; view: CalendarView },
+  params: { studentId: string; date: string; month: string },
 ) {
-  return calendarHref({ tab, studentId: params.studentId, date: params.date, week: params.week, month: params.month, view: params.view });
+  return calendarHref({ tab, studentId: params.studentId, date: params.date, month: params.month });
 }
 
-function settingsSectionHref(anchor: string, params: { studentId: string; date: string; week: string; month: string; view: CalendarView }) {
+function settingsSectionHref(anchor: string, params: { studentId: string; date: string; month: string }) {
   return `${dashboardTabHref("settings", params)}${anchor}`;
 }
 
@@ -308,35 +296,6 @@ function DashboardTabs({
         </Link>
       ))}
     </nav>
-  );
-}
-
-function CalendarViewSwitcher({
-  activeView,
-  hrefForView,
-}: {
-  activeView: CalendarView;
-  hrefForView: (view: CalendarView) => string;
-}) {
-  return (
-    <div className="calendar-view-switcher" aria-label="行事曆顯示模式">
-      <Link
-        className={activeView === "month" ? "calendar-view-button active" : "calendar-view-button"}
-        href={hrefForView("month")}
-        data-nav-feedback
-        data-pending-label="正在載入月行事曆"
-      >
-        月行事曆
-      </Link>
-      <Link
-        className={activeView === "week" ? "calendar-view-button active" : "calendar-view-button"}
-        href={hrefForView("week")}
-        data-nav-feedback
-        data-pending-label="正在載入週行事曆"
-      >
-        週行事曆
-      </Link>
-    </div>
   );
 }
 
@@ -570,91 +529,6 @@ function PartialProgressForm({ taskId, studentId }: { taskId: string; studentId:
   );
 }
 
-function WeekCalendar({
-  calendarEvents,
-  fixedEvents,
-  tutoringSessions,
-  tasks,
-  week,
-  selectedWeekDate,
-  selectedDate,
-  todayDate,
-  timeZone,
-  studentId,
-}: {
-  calendarEvents: CalendarEvent[];
-  fixedEvents: FixedEvent[];
-  tutoringSessions: TutoringSession[];
-  tasks: StudyTaskWithSubject[];
-  week: ReturnType<typeof getWeek>;
-  selectedWeekDate: string;
-  selectedDate: string;
-  todayDate: string;
-  timeZone: string;
-  studentId: string;
-}) {
-  const weekTasks = tasks.filter((task) => {
-    const plannedDate = task.plannedDate.getTime();
-    return plannedDate >= week.start.getTime() && plannedDate < week.end.getTime();
-  });
-  const totalEstimatedMinutes = weekTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
-  const completedTasks = weekTasks.filter((task) => task.status === "DONE").length;
-  const openTasks = weekTasks.filter((task) => task.status === "PLANNED").length;
-
-  return (
-    <section className="panel week-panel">
-      <div className="panel-header">
-        <div>
-          <h2>本週行事曆</h2>
-          <p className="panel-copy">
-            {week.days[0]?.date} - {week.days[6]?.date}
-          </p>
-        </div>
-        <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addDateDays(selectedWeekDate, -7), week: addDateDays(selectedWeekDate, -7), view: "week" })} data-nav-feedback data-pending-label="正在載入上一週">上一週</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: todayDate, week: todayDate, view: "week" })} data-nav-feedback data-pending-label="正在載入本週">本週</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addDateDays(selectedWeekDate, 7), week: addDateDays(selectedWeekDate, 7), view: "week" })} data-nav-feedback data-pending-label="正在載入下一週">下一週</Link>
-        </div>
-      </div>
-      <p className="panel-copy">任務 {weekTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
-
-      <div className="week-grid">
-        {week.days.map((day) => {
-          const dayTasks = weekTasks.filter((task) => formatDateInput(task.plannedDate, timeZone) === day.date);
-          const dayCalendarEvents = calendarEvents.filter((event) => eventFallsOnDate(event, day.date, timeZone));
-          const dayFixedEvents = activeFixedEventsForDate(fixedEvents, day.date, day.weekday, timeZone);
-          const dayTutoringSessions = activeTutoringSessionsForDate(tutoringSessions, day.date, day.weekday, timeZone);
-          const minutes = dayTasks.reduce((total, task) => total + task.estimatedMinutes, 0);
-          const dayClassName = ["week-day", day.isToday ? "today" : "", day.date === selectedDate ? "selected" : ""]
-            .filter(Boolean)
-            .join(" ");
-          const itemCount = dayTutoringSessions.length + dayCalendarEvents.length + dayFixedEvents.length + dayTasks.length;
-          return (
-            <Link
-              className={dayClassName}
-              href={calendarHref({ tab: "calendar", studentId, date: day.date, week: day.date, month: day.date, view: "week" })}
-              data-calendar-date={day.date}
-              key={day.date}
-            >
-              <div className="week-day-header">
-                <strong>{readableWeekdayLabels[day.weekday]}</strong>
-                <span>{day.dayNumber}</span>
-              </div>
-              <div className="calendar-day-summary" aria-label={`${day.date} ${itemCount} 個項目`}>
-                {dayTutoringSessions.length > 0 && <span className="summary-chip tutoring">{dayTutoringSessions.length} 補</span>}
-                {dayCalendarEvents.length > 0 && <span className="summary-chip event">{dayCalendarEvents.length} 事</span>}
-                {dayFixedEvents.length > 0 && <span className="summary-chip fixed">{dayFixedEvents.length} 固</span>}
-                {dayTasks.length > 0 && <span className="summary-chip task">{dayTasks.length} 任</span>}
-              </div>
-              {minutes > 0 && <span className="calendar-day-minutes">{minutes} 分</span>}
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function MonthCalendar({
   calendarEvents,
   fixedEvents,
@@ -694,9 +568,9 @@ function MonthCalendar({
           <p className="panel-copy">{month.monthLabel}</p>
         </div>
         <div className="inline-actions">
-          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1), view: "month" })} data-nav-feedback data-pending-label="正在載入上個月">上個月</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: todayDate, month: todayDate, view: "month" })} data-nav-feedback data-pending-label="正在載入本月">本月</Link>
-          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1), view: "month" })} data-nav-feedback data-pending-label="正在載入下個月">下個月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, -1), month: addMonths(selectedMonthDate, -1) })} data-nav-feedback data-pending-label="正在載入上個月">上個月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: todayDate, month: todayDate })} data-nav-feedback data-pending-label="正在載入本月">本月</Link>
+          <Link className="small-button" href={calendarHref({ tab: "calendar", studentId, date: addMonths(selectedMonthDate, 1), month: addMonths(selectedMonthDate, 1) })} data-nav-feedback data-pending-label="正在載入下個月">下個月</Link>
         </div>
       </div>
       <p className="panel-copy">任務 {monthTasks.length}，完成 {completedTasks}，待辦 {openTasks}，預估 {totalEstimatedMinutes} 分鐘</p>
@@ -732,13 +606,10 @@ function MonthCalendar({
             calendarEvents: dayCalendarEvents,
             tasks: dayTasks,
           });
-          const visibleDayItems = dayItems.slice(0, 3);
-          const hiddenDayItemCount = Math.max(0, dayItems.length - visibleDayItems.length);
-
           return (
             <Link
               className={dayClassName}
-              href={calendarHref({ tab: "calendar", studentId, date: day.date, week: day.date, month: day.date, view: "month" })}
+              href={calendarHref({ tab: "calendar", studentId, date: day.date, month: day.date })}
               data-calendar-date={day.date}
               key={day.date}
             >
@@ -747,12 +618,11 @@ function MonthCalendar({
                 {minutes > 0 && <span>{minutes} 分</span>}
               </div>
               <div className="month-day-items" aria-label={`${day.date} ${itemCount} 個項目`}>
-                {visibleDayItems.map((item, index) => (
+                {dayItems.map((item, index) => (
                   <span className={`month-day-item ${item.tone}`} title={item.label} key={`${item.tone}-${index}`}>
                     {item.label}
                   </span>
                 ))}
-                {hiddenDayItemCount > 0 && <span className="month-day-more">+{hiddenDayItemCount}</span>}
               </div>
               <div className="calendar-day-summary" aria-label={`${day.date} ${itemCount} 個項目`}>
                 {dayTutoringSessions.length > 0 && <span className="summary-dot tutoring" title={`${dayTutoringSessions.length} 補習`} />}
@@ -781,10 +651,8 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
   const todayRange = getDayRange(today.date, timeZone);
   const selectedDate = normalizeDateInput(params?.date, today.date);
   const selectedDateRange = getDayRange(selectedDate, timeZone);
-  const selectedWeekDate = normalizeDateInput(params?.week, today.date);
   const selectedMonthDate = normalizeDateInput(params?.month, today.date);
-  const calendarView = normalizeCalendarView(params?.view);
-  const week = getWeek(selectedWeekDate, timeZone);
+  const week = getWeek(selectedDate, timeZone);
   const month = getMonth(selectedMonthDate, timeZone);
   const taskRangeStart = new Date(Math.min(week.start.getTime(), month.start.getTime(), selectedDateRange.start.getTime()));
   const taskRangeEnd = new Date(Math.max(week.end.getTime(), month.end.getTime(), selectedDateRange.end.getTime()));
@@ -1004,7 +872,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
     : [];
   const activeTab = normalizeDashboardTab(params?.tab);
   const tabParams = activeStudent
-    ? { studentId: activeStudent.id, date: selectedDate, week: selectedWeekDate, month: selectedMonthDate, view: calendarView }
+    ? { studentId: activeStudent.id, date: selectedDate, month: selectedMonthDate }
     : null;
   const formHref = (anchor: string) => (tabParams ? settingsSectionHref(anchor, tabParams) : anchor);
   const calendarDetailDays = activeStudent
@@ -1236,33 +1104,6 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                     newTutoringHref={formHref("#new-tutoring-form")}
                     newCalendarEventHref={formHref("#new-calendar-event-form")}
                   >
-                    <CalendarViewSwitcher
-                      activeView={calendarView}
-                      hrefForView={(view) =>
-                        calendarHref({
-                          tab: "calendar",
-                          studentId: activeStudent.id,
-                          date: selectedDate,
-                          week: selectedWeekDate,
-                          month: selectedMonthDate,
-                          view,
-                        })
-                      }
-                    />
-                    {calendarView === "week" ? (
-                    <WeekCalendar
-                      calendarEvents={activeStudent.calendarEvents}
-                      fixedEvents={activeStudent.fixedEvents}
-                      tutoringSessions={activeStudent.tutoringSessions}
-                      tasks={activeStudent.studyTasks}
-                      week={week}
-                      selectedWeekDate={selectedWeekDate}
-                      selectedDate={selectedDate}
-                      todayDate={today.date}
-                      timeZone={timeZone}
-                      studentId={activeStudent.id}
-                    />
-                    ) : (
                     <MonthCalendar
                       calendarEvents={activeStudent.calendarEvents}
                       fixedEvents={activeStudent.fixedEvents}
@@ -1275,7 +1116,6 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       timeZone={timeZone}
                       studentId={activeStudent.id}
                     />
-                    )}
                   </CalendarDayDetailBrowser>
                   )}
 

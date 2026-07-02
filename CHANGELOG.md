@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.4
+
+- Removed the week calendar view from student and guardian dashboards.
+- Expanded month calendar entries to show full task details instead of short labels and overflow counts.
+
 ## 2.8.3
 
 - Changed Settings tab creation forms to stay collapsed by default on student and guardian dashboards.
