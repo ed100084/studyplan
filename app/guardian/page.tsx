@@ -168,14 +168,14 @@ function formatHourEstimate(minutes: number) {
   return `${remainingMinutes} 分`;
 }
 
-function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday: Weekday }) {
+function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday?: Weekday }) {
   return (
     <fieldset className="weekday-checkbox-group">
       <legend>星期</legend>
       <div>
         {weekdayOptions.map(([value, label]) => (
           <label className="checkbox-label" key={value}>
-            <input name="weekday" type="checkbox" value={value} defaultChecked={value === defaultWeekday} />
+            <input name="weekday" type="checkbox" value={value} defaultChecked={defaultWeekday === value} />
             {label}
           </label>
         ))}
@@ -1492,21 +1492,23 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                   </div>
                   <div className="form-grid">
                     <StudyWindowSettings
-                      defaultWeekday={today.weekday}
                       heading={`替 ${activeStudent.user.displayName} 設定可讀書時段`}
                       studentId={activeStudent.id}
                       timeZone={timeZone}
                       windows={activeStudent.studyWindows}
                     />
 
-                    <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
-                      <h2>替 {activeStudent.user.displayName} 代填補習</h2>
+                    <details className="form-card settings-form-card" id="new-tutoring-form">
+                      <summary>
+                        <h2>替 {activeStudent.user.displayName} 代填補習</h2>
+                      </summary>
+                      <form className="settings-collapsible-form" action={createTutoringSession}>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
                         科目
                         <input name="subjectName" placeholder="例如：數學" required />
                       </label>
-                      <WeekdayCheckboxGroup defaultWeekday={today.weekday} />
+                      <WeekdayCheckboxGroup />
                       <div className="field-row">
                         <label>
                           開始日期
@@ -1545,10 +1547,14 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       <button className="button primary" type="submit">
                         加入補習
                       </button>
-                    </form>
+                      </form>
+                    </details>
 
-                    <form className="form-card" id="new-fixed-event-form" action={createFixedEvent}>
-                      <h2>替 {activeStudent.user.displayName} 代填作息</h2>
+                    <details className="form-card settings-form-card" id="new-fixed-event-form">
+                      <summary>
+                        <h2>替 {activeStudent.user.displayName} 代填作息</h2>
+                      </summary>
+                      <form className="settings-collapsible-form" action={createFixedEvent}>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
                         名稱
@@ -1564,7 +1570,7 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                           ))}
                         </select>
                       </label>
-                      <WeekdayCheckboxGroup defaultWeekday={today.weekday} />
+                      <WeekdayCheckboxGroup />
                       <div className="field-row">
                         <label>
                           開始日期
@@ -1588,16 +1594,21 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       <button className="button primary" type="submit">
                         加入作息
                       </button>
-                    </form>
+                      </form>
+                    </details>
 
                     <StudyTaskContinuousForm
+                      collapsed
                       defaultDate={today.date}
                       studentId={activeStudent.id}
                       taskTypeOptions={taskTypeOptions.map(([value, label]) => ({ value, label }))}
                       title={`替 ${activeStudent.user.displayName} 代填作業 / 自習`}
                     />
-                    <form className="form-card" id="new-calendar-event-form" action={createCalendarEvent}>
-                      <h2>替 {activeStudent.user.displayName} 新增考試 / 學校活動</h2>
+                    <details className="form-card settings-form-card" id="new-calendar-event-form">
+                      <summary>
+                        <h2>替 {activeStudent.user.displayName} 新增考試 / 學校活動</h2>
+                      </summary>
+                      <form className="settings-collapsible-form" action={createCalendarEvent}>
                       <input name="studentId" type="hidden" value={activeStudent.id} />
                       <label>
                         類型
@@ -1634,7 +1645,8 @@ export default async function GuardianPage({ searchParams }: GuardianPageProps) 
                       <button className="button primary" type="submit">
                         新增事件
                       </button>
-                    </form>
+                      </form>
+                    </details>
                   </div>
                   </>
                   )}

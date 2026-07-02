@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.3
+
+- Changed Settings tab creation forms to stay collapsed by default on student and guardian dashboards.
+- Removed the automatic weekday preselection from Settings forms so users explicitly choose weekdays.
+
 ## 2.8.2
 
 - Changed the Today task editor to stay collapsed by default on student and guardian dashboards.

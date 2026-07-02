@@ -167,14 +167,14 @@ function formatHourEstimate(minutes: number) {
   return `${remainingMinutes} 分`;
 }
 
-function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday: Weekday }) {
+function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday?: Weekday }) {
   return (
     <fieldset className="weekday-checkbox-group">
       <legend>星期</legend>
       <div>
         {weekdayOptions.map(([value, label]) => (
           <label className="checkbox-label" key={value}>
-            <input name="weekday" type="checkbox" value={value} defaultChecked={value === defaultWeekday} />
+            <input name="weekday" type="checkbox" value={value} defaultChecked={defaultWeekday === value} />
             {label}
           </label>
         ))}
@@ -1377,19 +1377,21 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
               </div>
               <div className="form-grid">
                 <StudyWindowSettings
-                  defaultWeekday={today.weekday}
                   heading="設定可讀書時段"
                   timeZone={timeZone}
                   windows={student.studyWindows}
                 />
 
-                <form className="form-card" id="new-tutoring-form" action={createTutoringSession}>
-                  <h2>新增補習</h2>
+                <details className="form-card settings-form-card" id="new-tutoring-form">
+                  <summary>
+                    <h2>新增補習</h2>
+                  </summary>
+                  <form className="settings-collapsible-form" action={createTutoringSession}>
                   <label>
                     科目
                     <input name="subjectName" placeholder="例如：數學" required />
                   </label>
-                  <WeekdayCheckboxGroup defaultWeekday={today.weekday} />
+                  <WeekdayCheckboxGroup />
                   <div className="field-row">
                     <label>
                       開始日期
@@ -1428,10 +1430,14 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   <button className="button primary" type="submit">
                     加入補習
                   </button>
-                </form>
+                  </form>
+                </details>
 
-                <form className="form-card" id="new-fixed-event-form" action={createFixedEvent}>
-                  <h2>新增固定作息</h2>
+                <details className="form-card settings-form-card" id="new-fixed-event-form">
+                  <summary>
+                    <h2>新增固定作息</h2>
+                  </summary>
+                  <form className="settings-collapsible-form" action={createFixedEvent}>
                   <label>
                     名稱
                     <input name="title" placeholder="例如：晚餐、洗澡、睡覺" required />
@@ -1446,7 +1452,7 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                       ))}
                     </select>
                   </label>
-                  <WeekdayCheckboxGroup defaultWeekday={today.weekday} />
+                  <WeekdayCheckboxGroup />
                   <div className="field-row">
                     <label>
                       開始日期
@@ -1474,16 +1480,21 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   <button className="button primary" type="submit">
                     加入作息
                   </button>
-                </form>
+                  </form>
+                </details>
 
                 <StudyTaskContinuousForm
+                  collapsed
                   defaultDate={today.date}
                   taskTypeOptions={taskTypeOptions.map(([value, label]) => ({ value, label }))}
                   title="新增今天任務"
                 />
 
-                <form className="form-card" id="new-calendar-event-form" action={createCalendarEvent}>
-                  <h2>新增考試 / 學校活動</h2>
+                <details className="form-card settings-form-card" id="new-calendar-event-form">
+                  <summary>
+                    <h2>新增考試 / 學校活動</h2>
+                  </summary>
+                  <form className="settings-collapsible-form" action={createCalendarEvent}>
                   <label>
                     類型
                     <select name="type" defaultValue="SECTION_EXAM">
@@ -1519,7 +1530,8 @@ export default async function StudentPage({ searchParams }: StudentPageProps) {
                   <button className="button primary" type="submit">
                     新增事件
                   </button>
-                </form>
+                  </form>
+                </details>
               </div>
               </>
               )}

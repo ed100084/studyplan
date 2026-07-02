@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Version: 2.8.2
+Version: 2.8.3
 
 - Signed-in dashboards now use a compact header so useful daily information appears higher on the page.
 - Study tasks now use a priority/backlog list model instead of minute-level scheduling.

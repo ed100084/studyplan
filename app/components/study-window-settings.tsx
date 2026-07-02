@@ -19,14 +19,14 @@ function StudentIdInput({ studentId }: { studentId?: string }) {
   return studentId ? <input name="studentId" type="hidden" value={studentId} /> : null;
 }
 
-function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday: Weekday }) {
+function WeekdayCheckboxGroup({ defaultWeekday }: { defaultWeekday?: Weekday }) {
   return (
     <fieldset className="weekday-checkbox-group">
       <legend>星期</legend>
       <div>
         {weekdayOptions.map(([value, label]) => (
           <label className="checkbox-label" key={value}>
-            <input name="weekday" type="checkbox" value={value} defaultChecked={value === defaultWeekday} />
+            <input name="weekday" type="checkbox" value={value} defaultChecked={defaultWeekday === value} />
             {label}
           </label>
         ))}
@@ -95,15 +95,17 @@ export function StudyWindowSettings({
   timeZone,
   windows,
 }: {
-  defaultWeekday: Weekday;
+  defaultWeekday?: Weekday;
   heading: string;
   studentId?: string;
   timeZone: string;
   windows: StudyWindow[];
 }) {
   return (
-    <section className="form-card study-window-settings" id="new-study-window-form">
-      <h2>{heading}</h2>
+    <details className="form-card study-window-settings settings-form-card" id="new-study-window-form">
+      <summary>
+        <h2>{heading}</h2>
+      </summary>
       <p className="panel-copy">
         可讀書時段會限制自動排程的範圍；暑假白天、平日下課後、週末上午都可以分開設定。
       </p>
@@ -168,6 +170,6 @@ export function StudyWindowSettings({
         ))}
         {windows.length === 0 && <div className="empty-state">尚未設定可讀書時段；未設定時會使用 07:00-22:30 扣除固定行程後的空檔。</div>}
       </div>
-    </section>
+    </details>
   );
 }

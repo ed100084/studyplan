@@ -16,11 +16,13 @@ type StudentScopedProps = {
 };
 
 export function StudyTaskContinuousForm({
+  collapsed = false,
   defaultDate,
   studentId,
   taskTypeOptions,
   title,
 }: StudentScopedProps & {
+  collapsed?: boolean;
   defaultDate: string;
   taskTypeOptions: TaskTypeOption[];
   title: string;
@@ -53,15 +55,15 @@ export function StudyTaskContinuousForm({
     });
   }
 
-  return (
+  const form = (
     <form
-      className="form-card"
+      className={collapsed ? "settings-collapsible-form" : "form-card"}
       data-submit-guard="off"
-      id="new-study-task-form"
+      id={collapsed ? undefined : "new-study-task-form"}
       onSubmit={handleSubmit}
       ref={formRef}
     >
-      <h2>{title}</h2>
+      {!collapsed && <h2>{title}</h2>}
       {studentId && <input name="studentId" type="hidden" value={studentId} />}
       <label>
         科目
@@ -115,6 +117,19 @@ export function StudyTaskContinuousForm({
       </button>
     </form>
   );
+
+  if (collapsed) {
+    return (
+      <details className="form-card settings-form-card" id="new-study-task-form">
+        <summary>
+          <h2>{title}</h2>
+        </summary>
+        {form}
+      </details>
+    );
+  }
+
+  return form;
 }
 
 export function StudyTaskImportPanel({ studentId }: StudentScopedProps) {
