@@ -9,24 +9,30 @@ Version: 2.8.5
 - CSV imports can define daily study tasks without start/end times; imported task dates drive the calendar.
 - Calendar export now includes a Google Calendar `.ics` download for the selected month.
 - The Today view shows a priority list with complete/partial-complete actions instead of a generated study timetable.
-- Weekly and monthly calendar cells show the tasks assigned to each date, and clicking a date shows the same date-scoped task list.
+- The calendar is focused on a monthly view; each date cell shows full task labels, and clicking a date opens the same date-scoped task list.
 - Selected-day details keep fixed routines and tutoring as timeline context, but study tasks are shown as a list, not as fixed time blocks.
 - New CSV imports replace old unfinished imported tasks while keeping manual tasks and completed history.
-- Student and guardian dashboards are split into Today, Calendar, Learning, and Settings tabs.
+- Student and guardian dashboards are split into Today, Calendar, and Settings tabs.
+- Today task editors and Settings creation forms are collapsed by default to keep daily views scannable.
 - Empty states now include direct CTAs that jump to the right creation form.
 - Server-rendered dates default to Asia/Taipei, so today's tasks do not shift to UTC.
 
 ## 目前進度
 
-目前版本：2.8.0
+目前版本：2.8.5
 
 - 讀書任務已改為「CSV 指定日期 + 優先序清單」模型，不再綁定當天完成時間。
 - 今日頁顯示今日優先清單，可直接標記完成或部分完成，不再產生分鐘級讀書時間表。
-- 週曆與月曆依照 CSV 的任務日期顯示每日任務；點選某一天時，詳情會顯示同一天的科目、範圍/標題、類型、分鐘、優先度與備註。
+- 今日任務卡的編輯任務預設收合，需要修改時再展開。
+- 行事曆目前聚焦月行事曆，不再顯示週行事曆切換。
+- 月行事曆依照 CSV 的任務日期顯示每日任務，任務標籤會顯示科目、任務、類型與分鐘，不再顯示優先度。
+- 點選某一天時，詳情會顯示同一天的科目、範圍/標題、類型、分鐘、狀態與備註。
 - 匯出資料新增 Google 行事曆 `.ics`，可把選取月份的讀書任務、補習、考試與事件匯入 Google Calendar。
 - 選取日期詳情仍會顯示固定作息、補習與事件作為時間背景，但讀書任務只以清單呈現，不做時間衝突判定。
 - CSV 匯入支援 `subject,title,type,minutes,priority,weekHint,note`；新匯入會取代舊的未完成匯入任務，手動任務與已完成紀錄保留。
-- 成績紀錄已改為依科目彙整，可展開查看每次成績，避免畫面拉成很長一排。
+- 學生與家長儀表板目前保留「今日、行事曆、設定」三個主要分頁，暫時關閉成績與弱點分頁。
+- 設定頁新增可讀書時段、補習、固定作息、今天任務與考試/活動的表單預設收合，避免畫面過於繁雜。
+- 設定頁新增補習、固定作息與可讀書時段時，不再自動預選今天星期，改由使用者明確勾選。
 - 補習排程支援日期區間，並可從排程清單修改或刪除整個排程。
 - 固定作息支援日期區間，可處理學期期間、放假或第八節造成的臨時放學時間差異。
 - 新增補習或固定作息時，星期可複選，一次建立多個星期的同時段安排。
@@ -54,7 +60,6 @@ Version: 2.8.5
 - CSV 匯入每日讀書任務與 backlog 欄位
 - 固定作息、補習與讀書任務分開呈現
 - 未完成任務保留在清單模型中，可依優先度與落後週次上浮
-- 基本進度、成績與弱點追蹤
 - 密碼登入與簽章 session
 - 帳號自行變更密碼與系統管理者重設流程
 - 系統管理者可替學生、家長與班級管理者更換登入 Email
